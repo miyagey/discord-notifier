@@ -1,30 +1,33 @@
+/**
+ * 本日が申込締切日のチケット申込情報を抽出して Discord へリマインド通知する関数
+ */
 function remindEndDate() {
   const today = new Date();
-  const todayStr = Utilities.formatDate(today, "JST", "yyyy-MM-dd");
+  const todayStr = formatDateJST(today, "yyyy-MM-dd");
 
   // --- 1. 従来シート（入力用）からの抽出 ---
   try {
     Logger.log("=== 従来シートの申込締切チェックを開始 ===");
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = spreadsheet.getSheetByName('入力用');
+    const sheet = spreadsheet ? spreadsheet.getSheetByName('入力用') : null;
     let contents = "";
 
     if (sheet) {
       const sheetData = sheet.getDataRange().getValues();
       for (let i = 4; i < sheetData.length; i++) {
-        let rowData = sheetData[i];
-        let endDateRaw = rowData[OLD_COL.END_DATE];
+        const rowData = sheetData[i];
+        const endDateRaw = rowData[OLD_COL.END_DATE];
 
-        if (!endDateRaw || endDateRaw === "") continue;
+        if (!endDateRaw) continue;
 
-        let endDateStr = Utilities.formatDate(new Date(endDateRaw), "JST", "yyyy-MM-dd");
+        const endDateStr = formatDateJST(endDateRaw, "yyyy-MM-dd");
 
         if (endDateStr === todayStr) {
-          contents += "\n- 【" + rowData[OLD_COL.BRAND] + "】" + rowData[OLD_COL.EVENT];
+          contents += `\n- 【${rowData[OLD_COL.BRAND]}】${rowData[OLD_COL.EVENT]}`;
           if (rowData[OLD_COL.NOTE] !== "") {
-            contents += "【" + rowData[OLD_COL.NOTE] + "】";
+            contents += `【${rowData[OLD_COL.NOTE]}】`;
           }
-          contents += "\n  - " + rowData[OLD_COL.URL];
+          contents += `\n  - ${rowData[OLD_COL.URL]}`;
         }
       }
     }
@@ -38,49 +41,44 @@ function remindEndDate() {
 
     sendNotification(WEBHOOK_APPLY, message);
     Logger.log("=== 従来シートの申込締切チェックが完了 ===");
-  } catch(e) {
-    Logger.log("従来シートの申込締切処理でエラー: " + e.toString());
+  } catch (e) {
+    logError("remindEndDate (従来シート)", e);
   }
-  
+
   // --- 2. 新システムからの抽出 ---
   try {
     Logger.log("=== 新システムの申込締切チェックを開始 ===");
     const ss = SpreadsheetApp.openByUrl(COMMON_SHEET_URL);
     const masterSheet = ss.getSheetByName("イベントマスター");
     const applySheet = ss.getSheetByName("申し込み管理");
-    
+
     if (!masterSheet || !applySheet) return;
-    
+
     const masterData = masterSheet.getDataRange().getValues();
     const applyData = applySheet.getDataRange().getValues();
-    
-    let masterMap = {};
-    for (let i = 1; i < masterData.length; i++) {
-      let eventId = masterData[i][0];
-      if (eventId) {
-        masterMap[eventId] = { brand: masterData[i][1], eventName: masterData[i][2] };
-      }
-    }
-    
-    let remindList = [];
+
+    // 共通関数を利用してマスター情報をマップ化
+    const masterMap = getMasterEventMap(masterData);
+
+    const remindList = [];
     for (let i = 1; i < applyData.length; i++) {
-      let applyId = applyData[i][0];
-      let eventId = applyData[i][1];
-      let applyEndDateRaw = applyData[i][6]; // G列: 申込締切日
-      
+      const row = applyData[i];
+      const applyId = row[APPLY_COL.APPLY_ID];
+      const eventId = row[APPLY_COL.EVENT_ID];
+      const applyEndDateRaw = row[APPLY_COL.APPLY_END_DATE];
+
       if (!applyId || !applyEndDateRaw) continue;
-      
-      let applyEnd = new Date(applyEndDateRaw);
-      let applyEndStr = Utilities.formatDate(applyEnd, "JST", "yyyy-MM-dd");
-      
+
+      const applyEndStr = formatDateJST(applyEndDateRaw, "yyyy-MM-dd");
+
       if (applyEndStr === todayStr) {
-        let masterInfo = masterMap[eventId] || {};
-        let brandStr = masterInfo.brand ? `【${masterInfo.brand}】` : "";
-        let eventName = masterInfo.eventName || applyData[i][3];
-        let applyName = applyData[i][4];
-        let applyUrl  = applyData[i][7];
-        let formattedTime = Utilities.formatDate(applyEnd, "JST", "HH:mm");
-        
+        const masterInfo = masterMap[eventId] || {};
+        const brandStr = masterInfo.brand ? `【${masterInfo.brand}】` : "";
+        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
+        const applyName = row[APPLY_COL.APPLY_NAME];
+        const applyUrl  = row[APPLY_COL.URL];
+        const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
+
         remindList.push({
           brandEvent: `${brandStr}${eventName}`,
           applyName: applyName,
@@ -89,7 +87,7 @@ function remindEndDate() {
         });
       }
     }
-    
+
     if (remindList.length > 0) {
       let message = "🔔 **【新システム】本日締切のチケット申込があります！**\n";
       remindList.forEach(item => {
@@ -98,11 +96,11 @@ function remindEndDate() {
       });
       sendNotification(WEBHOOK_APPLY, message);
     } else {
-      let message = "🔔 **【新システム】本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\nイベント・申込の登録はこちらから！\nhttps://forms.gle/VcErZhtVcUHtL6ET8\n";
+      const message = "🔔 **【新システム】本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\nイベント・申込の登録はこちらから！\nhttps://forms.gle/VcErZhtVcUHtL6ET8\n";
       sendNotification(WEBHOOK_APPLY, message);
     }
     Logger.log("=== 新システムの申込締切チェックが完了 ===");
-  } catch(e) {
-    Logger.log("新システムの申込締切処理でエラー: " + e.toString());
+  } catch (e) {
+    logError("remindEndDate (新システム)", e);
   }
 }

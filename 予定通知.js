@@ -1,12 +1,15 @@
+/**
+ * 明日の予定を Google カレンダーから取得し、Discord へ通知する関数
+ */
 function notifyTomorrowEvents() {
   try {
     Logger.log("=== 明日の予定通知処理を開始 ===");
     const today = new Date();
-    
+
     const tomorrowStart = new Date(today);
     tomorrowStart.setDate(today.getDate() + 1);
     tomorrowStart.setHours(0, 0, 0, 0);
-    
+
     const tomorrowEnd = new Date(today);
     tomorrowEnd.setDate(today.getDate() + 1);
     tomorrowEnd.setHours(23, 59, 59, 999);
@@ -18,9 +21,9 @@ function notifyTomorrowEvents() {
     }
 
     const events = calendar.getEvents(tomorrowStart, tomorrowEnd);
-    let messageLines = [];
-    const dateTitle = Utilities.formatDate(tomorrowStart, "JST", "MM/dd(E)");
-    
+    const messageLines = [];
+    const dateTitle = formatDateJST(tomorrowStart, "MM/dd(E)");
+
     messageLines.push(`## 📅 明日 ${dateTitle} の予定リスト`);
 
     if (events.length === 0) {
@@ -33,14 +36,14 @@ function notifyTomorrowEvents() {
         const start = event.getStartTime();
         const end = event.getEndTime();
         let timeStr = "";
-        
+
         if (event.isAllDayEvent()) {
-          const startDateStr = Utilities.formatDate(start, "JST", "MM/dd");
+          const startDateStr = formatDateJST(start, "MM/dd");
           const actualEnd = new Date(end.getTime() - 1);
-          const endDateStr = Utilities.formatDate(actualEnd, "JST", "MM/dd");
+          const endDateStr = formatDateJST(actualEnd, "MM/dd");
           timeStr = (startDateStr === endDateStr) ? `[終日]` : `${startDateStr} 〜 ${endDateStr} [連日終日]`;
         } else {
-          timeStr = `${Utilities.formatDate(start, "JST", "HH:mm")} 〜 ${Utilities.formatDate(end, "JST", "HH:mm")}`;
+          timeStr = `${formatDateJST(start, "HH:mm")} 〜 ${formatDateJST(end, "HH:mm")}`;
         }
 
         messageLines.push(`### 📌 ${title}`, `⏰ ${timeStr}`);
@@ -53,6 +56,6 @@ function notifyTomorrowEvents() {
     sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
     Logger.log("=== 明日の予定通知処理が完了 ===");
   } catch (e) {
-    Logger.log("明日の予定通知処理でエラー: " + e.toString());
+    logError("notifyTomorrowEvents", e);
   }
 }
