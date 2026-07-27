@@ -86,6 +86,9 @@ GAS の Web エディタ上で本番稼働させる場合、コード内に直�
 npx clasp push
 ```
 
+> [!NOTE]
+> `.claspignore` が設定されているため、`README.md` や `package.json`, `config.local.example.js` などの不要なファイルは GAS 側へアップロードされず、スクリプトファイルのみが正しくプッシュされます。
+
 ### コードのプル (GASから取得)
 ```bash
 npx clasp pull
