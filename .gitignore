@@ -2,3 +2,4 @@ node_modules/
 .DS_Store
 *.log
 config.local.js
+**/config.local.js

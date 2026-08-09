@@ -1,25 +1,34 @@
 # Discord Notifier (GAS Project)
 
-Google Apps Script (GAS) を活用し、Google スプレッドシートのイベント・申込・入金締切情報を管理し、Google カレンダーへの自動登録および Discord チャンネルへの通知を行うシステムです。
+Google Apps Script (GAS) を活用し、Google フォームの送信受付、Google スプレッドシートのイベント・申込・入金締切情報の管理、Google カレンダーへの自動登録および Discord チャンネルへの通知を行うシステムです。
 
 ---
 
 ## 📁 プロジェクト構成
 
+本リポジトリでは、スプレッドシート側のGASスクリプトとフォーム側のGASスクリプトをサブディレクトリで分離し、一括管理しています。
+
 ```text
 .
-├── .clasp.json               # clasp 設定ファイル (GASプロジェクト連携)
-├── .gitignore                # Git 除外設定 (.env, config.local.js 等)
+├── .gitignore                # Git 除外設定
 ├── README.md                 # 本ドキュメント
-├── appsscript.json           # GAS マニフェストファイル
-├── config.local.example.js   # ローカル用設定ファイルのサンプル
-├── config.local.js           # 【Git管理対象外】ローカル環境用クレデンシャル設定ファイル
+├── package.json              # clasp 一括操作用スクリプト・依存関係定義
 ├── jsconfig.json             # JS開発サポート設定
-├── 共通関数.js               # 設定読み込み・Discord送信等の共通処理
-├── 予定通知.js               # 予定通知処理
-├── 入金確認おじさん.js       # 入金締切確認・通知処理
-├── ライブ申込しめきりおじさん.js # チケット申込締切確認・通知処理
-└── カレンダー自動登録.js     # Googleカレンダーへのイベント自動登録処理
+├── spreadsheet/              # スプレッドシート側 GAS プロジェクト
+│   ├── .clasp.json           # clasp 設定ファイル
+│   ├── .claspignore
+│   ├── appsscript.json       # GAS マニフェストファイル
+│   ├── 共通関数.js           # 設定読み込み・Discord送信等の共通処理
+│   ├── 予定通知.js           # 予定通知処理
+│   ├── 入金確認おじさん.js   # 入金締切確認・通知処理
+│   ├── ライブ申込しめきりおじさん.js # チケット申込締切確認・通知処理
+│   └── カレンダー自動登録.js # Googleカレンダーへのイベント自動登録処理
+└── form/                     # フォーム側 GAS プロジェクト
+    ├── .clasp.json           # clasp 設定ファイル
+    ├── .claspignore
+    ├── appsscript.json       # GAS マニフェストファイル
+    ├── コード.js             # フォーム送信受付・シート書込・プルダウン自動更新処理
+    └── 新規申込通知.js       # Discord への新着申込通知送信処理
 ```
 
 ---
@@ -35,13 +44,13 @@ Google Apps Script (GAS) を活用し、Google スプレッドシートのイベ
 `clasp push` などでローカルからコードをアップロード・開発する場合の設定方法です。
 
 1. **設定ファイルの作成**  
-   リポジトリ内の `config.local.example.js` をコピーして `config.local.js` を作成します。
+   `config.local.example.js` を参考に、各対象フォルダ（例: `spreadsheet/`）に `config.local.js` を作成します。
    ```bash
-   cp config.local.example.js config.local.js
+   cp config.local.example.js spreadsheet/config.local.js
    ```
 
 2. **設定値の入力**  
-   `config.local.js` を開き、実際の URL や ID を設定します。
+   `spreadsheet/config.local.js` を開き、実際の URL や ID を設定します。
    ```javascript
    const CONFIG = {
      COMMON_SHEET_URL: "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
@@ -54,7 +63,7 @@ Google Apps Script (GAS) を活用し、Google スプレッドシートのイベ
    ```
 
 > [!IMPORTANT]
-> `config.local.js` は `.gitignore` に含まれているため、`git push` しても GitHub に公開されることはありません。
+> `config.local.js` は `.gitignore` により Git 管理対象外となっています。
 
 ---
 
@@ -75,24 +84,59 @@ GAS の Web エディタ上で本番稼働させる場合、コード内に直�
 | `WEBHOOK_PAYMENT` | 入金締切用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
 | `WEBHOOK_CALENDAR` | カレンダー予定用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
 
+#### フォーム側 (`form/`) プロジェクトに設定するプロパティ
+
+| プロパティ名 (キー) | 説明 | 設定例 |
+| :--- | :--- | :--- |
+| `COMMON_SHEET_URL` | 管理用スプレッドシートのURL | `https://docs.google.com/spreadsheets/d/...` |
+| `PROXY_BASE_URL` | Discord 送信用プロキシのベース URL | `https://my-discord-proxy.workers.dev` |
+| `WEBHOOK_APPLY` | 新着申込通知用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
+| `FORM_URL` | このフォーム自身のURL（通知メッセージ内で表示） | `https://forms.gle/...` |
+
 ---
+
 
 ## 🛠️ clasp による開発・デプロイ手順
 
-`clasp` を使用してコードのアップロード・ダウンロードを行うことができます。
+`npm scripts` を使用して、ルートディレクトリから各プロジェクトの管理が行えます。
 
 ### コードのプッシュ (GASへ反映)
 ```bash
-npx clasp push
-```
+# スプレッドシート側のみプッシュ
+npm run push:spreadsheet
 
-> [!NOTE]
-> `.claspignore` が設定されているため、`README.md` や `package.json`, `config.local.example.js` などの不要なファイルは GAS 側へアップロードされず、スクリプトファイルのみが正しくプッシュされます。
+# フォーム側のみプッシュ
+npm run push:form
+
+# 両方をまとめてプッシュ
+npm run push:all
+```
 
 ### コードのプル (GASから取得)
 ```bash
-npx clasp pull
+# スプレッドシート側のみプル
+npm run pull:spreadsheet
+
+# フォーム側のみプル
+npm run pull:form
+
+# 両方をまとめてプル
+npm run pull:all
 ```
+
+---
+
+## ⏰ GAS トリガーの設定方法
+
+本プロジェクトの各自動通知機能を有効化するには、Google Apps Script エディタの **「⏰ トリガー」** メニューより以下のイベントを設定します。
+
+| スクリプト | トリガー対象の関数 | イベントのソース | イベントの種類 | 役割・概要 |
+| :--- | :--- | :--- | :--- | :--- |
+| **フォーム** | `onFormSubmit` | **フォーム** | **フォーム送信時** | フォーム回答受付、スプレッドシート書き戻し、選択肢更新、即時 Discord 通知 |
+| スプレッドシート | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
+| スプレッドシート | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
+| スプレッドシート | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
+| スプレッドシート | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
 
 ---
 
