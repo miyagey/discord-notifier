@@ -2,8 +2,14 @@
   "name": "discord-notifier",
   "version": "1.0.0",
   "description": "",
-  "main": "カレンダー自動登録.js",
+  "main": "spreadsheet/カレンダー自動登録.js",
   "scripts": {
+    "push:spreadsheet": "cd spreadsheet && npx @google/clasp push",
+    "push:form": "cd form && npx @google/clasp push",
+    "push:all": "npm run push:spreadsheet && npm run push:form",
+    "pull:spreadsheet": "cd spreadsheet && npx @google/clasp pull",
+    "pull:form": "cd form && npx @google/clasp pull",
+    "pull:all": "npm run pull:spreadsheet && npm run pull:form",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

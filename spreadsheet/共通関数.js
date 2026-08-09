@@ -34,6 +34,9 @@ const WEBHOOK_CALENDAR = (typeof CONFIG !== 'undefined' && CONFIG.WEBHOOK_CALEND
   ? CONFIG.WEBHOOK_CALENDAR
   : (_props.getProperty("WEBHOOK_CALENDAR") || "");
 
+/** イベント・申込の登録用 Google フォーム URL */
+const REGISTRATION_FORM_URL = "https://forms.gle/VcErZhtVcUHtL6ET8";
+
 // ==================================================
 // 【列インデックス定義】
 // ==================================================
@@ -85,6 +88,7 @@ const APPLY_COL = {
 function formatDateJST(date, formatStr) {
   if (!date) return "";
   const d = (date instanceof Date) ? date : new Date(date);
+  if (isNaN(d.getTime())) return "";
   return Utilities.formatDate(d, "JST", formatStr);
 }
 
@@ -110,6 +114,56 @@ function getMasterEventMap(masterData) {
 }
 
 /**
+ * イベント名またはブランド名込みのタイトルからイベントマスター情報を逆引き検索する
+ * @param {Array<Array<any>>} masterData - イベントマスターの全行データ
+ * @param {string} rawTitle - 検索対象のタイトル文字列 (例: "【デレ】THE IDOLM@STER...", "THE IDOLM@STER...")
+ * @returns {{eventId: string, brand: string, eventName: string}|null}
+ */
+function findMasterEventByTitle(masterData, rawTitle) {
+  if (!masterData || masterData.length <= 1 || !rawTitle) return null;
+
+  const cleanRaw = String(rawTitle).trim();
+
+  for (let i = 1; i < masterData.length; i++) {
+    const eventId = masterData[i][MASTER_COL.ID];
+    const brand = masterData[i][MASTER_COL.BRAND] || "";
+    const eventName = masterData[i][MASTER_COL.EVENT_NAME] || "";
+
+    const fullTitleWithBrand = brand ? `【${brand}】${eventName}` : eventName;
+
+    // 完全一致または包含一致の検証
+    if (
+      cleanRaw === fullTitleWithBrand ||
+      cleanRaw === eventName ||
+      (eventName && cleanRaw.includes(eventName)) ||
+      (fullTitleWithBrand && cleanRaw.includes(fullTitleWithBrand))
+    ) {
+      return { eventId, brand, eventName };
+    }
+  }
+  return null;
+}
+
+/**
+ * ブランド名とイベント名からタイトル文字列を生成する（二重付与防止）
+ * @param {string} brand - ブランド名 (例: "デレ")
+ * @param {string} eventName - イベント名 (例: "THE IDOLM@STER...", "【デレ】THE IDOLM@STER...")
+ * @returns {string} 整形されたタイトル文字列
+ */
+function formatBrandEventTitle(brand, eventName) {
+  const name = eventName ? String(eventName).trim() : "";
+  if (!name) return brand ? `【${brand}】` : "";
+
+  // すでに【で始まっている場合は重ねてブランド名をつけない
+  if (name.startsWith("【")) {
+    return name;
+  }
+
+  const brandStr = brand ? `【${brand}】` : "";
+  return `${brandStr}${name}`;
+}
+
+/**
  * エラーログを統一形式で出力する
  * @param {string} context - エラーが発生した処理・関数名
  * @param {Error|any} error - キャッチされたエラーオブジェクト
@@ -118,6 +172,20 @@ function logError(context, error) {
   const message = (error && error.toString) ? error.toString() : String(error);
   console.error(`[ERROR] ${context} でエラーが発生しました: ${message}`);
   Logger.log(`[ERROR] ${context}: ${message}`);
+}
+
+/**
+ * 新形式（フォーム）と旧形式（スプレッドシート）の両URLを含む登録案内メッセージを生成
+ * @returns {string} 登録案内メッセージフッター
+ */
+function getRegistrationFooterMessage() {
+  const lines = [
+    "----------------------------------------",
+    "📝 **イベント・申込の登録はこちら**",
+    `・【新形式 (フォーム)】: ${REGISTRATION_FORM_URL}`,
+    `・【旧形式 (スプレッドシート)】: ${COMMON_SHEET_URL}`
+  ];
+  return lines.join("\n");
 }
 
 // ==================================================
@@ -196,4 +264,41 @@ function sendNotification(webhookUrl, message) {
     logError("sendNotification", e);
     throw e;
   }
+}
+
+/**
+ * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する
+ * @param {string} webhookUrl - 送信先の Discord Webhook URL
+ * @param {string} headerTitle - メッセージ冒頭のタイトル
+ * @param {Array<object>} items - 通知対象のアイテム配列
+ * @param {function(object): string} formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
+ */
+function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc) {
+  const DISCORD_MAX_LENGTH = 2000;
+  const footer = "\n" + getRegistrationFooterMessage();
+  const footerLength = footer.length;
+
+  if (!items || items.length === 0) return;
+
+  let currentMessage = headerTitle + "\n";
+
+  for (let i = 0; i < items.length; i++) {
+    const itemText = formatItemFunc(items[i]);
+
+    // 「現在のメッセージ + 今回のアイテム + 最終フッター」が上限を超えるか判定
+    if ((currentMessage + itemText + footerLength).length > DISCORD_MAX_LENGTH) {
+      // 超える場合は現在のメッセージ枠を送信
+      sendNotification(webhookUrl, currentMessage);
+      Utilities.sleep(500);
+
+      // 新しい通を開始
+      currentMessage = headerTitle + "\n" + itemText;
+    } else {
+      currentMessage += itemText;
+    }
+  }
+
+  // 最後にフッターを付与して送信
+  currentMessage += footer;
+  sendNotification(webhookUrl, currentMessage);
 }
