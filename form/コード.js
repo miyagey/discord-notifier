@@ -72,9 +72,10 @@ function onFormSubmit(e) {
       
       let nextMasterRow = lastRow + 1;
       let masterIfsFormula = `=IFS(
-        TODAY() < DATE(YEAR(D${nextMasterRow}), MONTH(D${nextMasterRow}), DAY(D${nextMasterRow})), "開催前",
-        AND(TODAY() >= DATE(YEAR(D${nextMasterRow}), MONTH(D${nextMasterRow}), DAY(D${nextMasterRow})), TODAY() <= DATE(YEAR(E${nextMasterRow}), MONTH(E${nextMasterRow}), DAY(E${nextMasterRow}))), "開催期間",
-        TODAY() > DATE(YEAR(E${nextMasterRow}), MONTH(E${nextMasterRow}), DAY(E${nextMasterRow})), "開催終了"
+        ISBLANK(D${nextMasterRow}), "未設定",
+        TODAY() < INT(D${nextMasterRow}), "開催前",
+        TODAY() <= INT(IF(ISBLANK(E${nextMasterRow}), D${nextMasterRow}, E${nextMasterRow})), "開催期間",
+        TRUE, "開催終了"
       )`;
       
       masterSheet.appendRow([eventId, brand, eventName, startDate, endDate, location, description, "", masterIfsFormula]);
@@ -127,13 +128,12 @@ function onFormSubmit(e) {
   
   let nextRow = applyLastRow + 1;
   // K列に合わせたIFS数式を作成（申込開始:F列, 申込締切:G列, 当落発表:I列, 入金締切:J列）
-  // 【修正ポイント】J--${nextRow} のタイポを修正
   let ifsFormula = `=IFS(
-    TODAY() < DATE(YEAR(F${nextRow}), MONTH(F${nextRow}), DAY(F${nextRow})), "開始前",
-    AND(TODAY() >= DATE(YEAR(F${nextRow}), MONTH(F${nextRow}), DAY(F${nextRow})), TODAY() <= DATE(YEAR(G${nextRow}), MONTH(G${nextRow}), DAY(G${nextRow}))), "受付期間",
-    AND(TODAY() > DATE(YEAR(G${nextRow}), MONTH(G${nextRow}), DAY(G${nextRow})), TODAY() < DATE(YEAR(I${nextRow}), MONTH(I${nextRow}), DAY(I${nextRow}))), "抽選終了・当落確認前",
-    AND(TODAY() >= DATE(YEAR(I${nextRow}), MONTH(I${nextRow}), DAY(I${nextRow})), TODAY() <= DATE(YEAR(J${nextRow}), MONTH(J${nextRow}), DAY(J${nextRow}))), "当落確認・入金期間",
-    TODAY() > DATE(YEAR(J${nextRow}), MONTH(J${nextRow}), DAY(J${nextRow})), "期間終了"
+    AND(NOT(ISBLANK(F${nextRow})), TODAY() < INT(F${nextRow})), "開始前",
+    AND(NOT(ISBLANK(G${nextRow})), TODAY() <= INT(G${nextRow})), "受付期間",
+    AND(NOT(ISBLANK(I${nextRow})), TODAY() < INT(I${nextRow})), "抽選終了・当落確認前",
+    AND(NOT(ISBLANK(J${nextRow})), TODAY() <= INT(J${nextRow})), "当落確認・入金期間",
+    TRUE, "期間終了"
   )`;
 
   // 申し込み管理シートへの書き込み
