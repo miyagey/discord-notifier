@@ -159,7 +159,7 @@ Google フォームは 3 つのセクション（ページ分割）で構成さ�
 | :--- | :--- | :--- | :--- | :--- |
 | **`form/コード.js`** | `onFormSubmit` | **フォーム** | **フォーム送信時** | 1. フォームの回答からイベント/申込行を追記<br>2. ID自動採番 & IFS数式を挿入<br>3. フォーム選択肢を更新<br>4. Discord に新着申込を通知 |
 | **`form/コード.js`** | `updateFormOptions` | 関数呼出 | フォーム送信時 | 終了日が今日以降のイベントを取得し、フォームの選択肢（ドロップダウン）を動的に再構築 |
-| **`spreadsheet/`** | `remindEndDate` | 時間主導型 | 毎日 (午前) | 本日申込締切のチケットを抽出して Discord へ一覧通知 |
+| **`spreadsheet/`** | `remindEndDate` | 時間主導型 | 毎日 (午前) | 本日申込締切のチケットを抽出して Discord へ一覧通知。<br>翌日開始の**先着受付**がある場合はさらに2通目として別途通知 |
 | **`spreadsheet/`** | `remindPaymentEndDate` | 時間主導型 | 毎日 (午前) | 本日入金締切のチケットを抽出して Discord へ一覧通知 |
 | **`spreadsheet/`** | `notifyTomorrowEvents` | 時間主導型 | 毎日 (夕方〜夜) | 明日開催予定のイベントを Google カレンダーから取得し Discord へ通知 |
 | **`spreadsheet/`** | `registerEventsToCalendar` | 時間主導型 | 定期 (1時間毎推奨) | スプレッドシート上の未登録イベントを Google カレンダーに自動登録し、H列に CalID を書き戻す |

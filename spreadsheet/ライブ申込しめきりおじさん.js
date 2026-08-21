@@ -1,5 +1,6 @@
 /**
- * 本日が申込締切日のチケット申込情報を新旧シートから抽出・統合し、Discord へリマインド通知するメイン関数
+ * 本日が申込締切日のチケット申込情報を新旧シートから抽出・統合し、Discord へリマインド通知するメイン関数。
+ * 通常の申込締切通知の後、翌日開始の先着受付がある場合は2通目として別途通知する。
  */
 function remindEndDate() {
   try {
@@ -11,7 +12,7 @@ function remindEndDate() {
     const newItems = fetchNewSheetApplyItems(todayStr);
     const allItems = [...oldItems, ...newItems];
 
-    // 2. 通知メッセージの構築と送信
+    // 2. 通常の申込締切通知メッセージの構築と送信
     if (allItems.length > 0) {
       const headerTitle = "🔔 **本日締切のチケット申込があります！**";
       const formatItemFunc = (item) => {
@@ -26,6 +27,26 @@ function remindEndDate() {
     } else {
       const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + getRegistrationFooterMessage();
       sendNotification(WEBHOOK_APPLY, message);
+    }
+
+    // 3. 翌日開始の先着受付がある場合は2通目として送信
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const tomorrowStr = formatDateJST(tomorrow, "yyyy-MM-dd");
+
+    const firstComeItems = fetchFirstComeApplyItemsTomorrow(tomorrowStr);
+    if (firstComeItems.length > 0) {
+      Utilities.sleep(500);
+      const headerTitle = "🏃 **明日から先着受付が始まります！忘れずに！**";
+      const formatItemFunc = (item) => {
+        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
+        if (item.url) {
+          str += ` └ 申込URL: ${item.url}\n`;
+        }
+        return str;
+      };
+
+      sendItemListNotification(WEBHOOK_APPLY, headerTitle, firstComeItems, formatItemFunc);
     }
 
     Logger.log("=== 申込締切通知処理が正常終了しました ===");
@@ -132,6 +153,68 @@ function fetchNewSheetApplyItems(todayStr) {
     Logger.log(`新システムの申込締切件数: ${items.length}件`);
   } catch (e) {
     logError("fetchNewSheetApplyItems", e);
+  }
+  return items;
+}
+
+/**
+ * 新システム（申し込み管理）から明日が申込開始日かつ受付名に「先着」を含むアイテムを抽出する
+ * @param {string} tomorrowStr - 明日の日付文字列 ("yyyy-MM-dd")
+ * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, url: string}>}
+ */
+function fetchFirstComeApplyItemsTomorrow(tomorrowStr) {
+  const items = [];
+  try {
+    Logger.log("=== 先着前日リマインドチェックを開始 ===");
+    const ss = SpreadsheetApp.openByUrl(COMMON_SHEET_URL);
+    const masterSheet = ss.getSheetByName("イベントマスター");
+    const applySheet = ss.getSheetByName("申し込み管理");
+
+    if (!masterSheet || !applySheet) return items;
+
+    const masterData = masterSheet.getDataRange().getValues();
+    const applyData = applySheet.getDataRange().getValues();
+
+    const masterMap = getMasterEventMap(masterData);
+
+    // 申し込み管理シートの申込開始日は F列 (インデックス5)
+    const APPLY_START_DATE_COL = 5;
+
+    for (let i = 1; i < applyData.length; i++) {
+      const row = applyData[i];
+      const applyId = row[APPLY_COL.APPLY_ID];
+      const applyStartDateRaw = row[APPLY_START_DATE_COL];
+
+      // 申込IDが空、または申込開始日が未設定の行はスキップ
+      if (!applyId || !applyStartDateRaw) continue;
+
+      const applyStartStr = formatDateJST(applyStartDateRaw, "yyyy-MM-dd");
+
+      // 申込開始日が明日でない行はスキップ
+      if (applyStartStr !== tomorrowStr) continue;
+
+      const applyName = row[APPLY_COL.APPLY_NAME] || "";
+
+      // 受付名に「先着」が含まれない行はスキップ
+      if (!applyName.includes("先着")) continue;
+
+      const eventId = row[APPLY_COL.EVENT_ID];
+      const masterInfo = masterMap[eventId] || {};
+      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
+      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+      const applyUrl = row[APPLY_COL.URL];
+      const formattedTime = formatDateJST(applyStartDateRaw, "HH:mm");
+
+      items.push({
+        brandEvent: brandEventTitle,
+        applyName: applyName,
+        timeStr: formattedTime,
+        url: applyUrl || ""
+      });
+    }
+    Logger.log(`先着前日リマインド対象件数: ${items.length}件`);
+  } catch (e) {
+    logError("fetchFirstComeApplyItemsTomorrow", e);
   }
   return items;
 }
