@@ -12,40 +12,36 @@
 flowchart TD
     User["👤 ユーザー"] -->|入力・送信| Form["📝 Google フォーム"]
     
-    subgraph FormTrigger ["フォーム送信時処理 (form/コード.js)"]
-        Form -->|フォーム送信時トリガー| GAS_Form["form/コード.js"]
-        GAS_Form --> Act1["1. スプレッドシート追記 & ID自動採番"]
-        GAS_Form --> Act2["2. 選択肢動的更新 (updateFormOptions)"]
-        GAS_Form --> Act3["3. Discord新着通知 (notifyDiscordNewApply)"]
+    subgraph FormSection ["1. フォーム受付・同期処理 (form/コード.js)"]
+        Form -->|送信トリガー| GAS_Form["form/コード.js"]
+        GAS_Form -->|1. データ追記| SS["📊 Google スプレッドシート"]
+        GAS_Form -->|2. 新着通知| Discord["💬 Discord チャンネル"]
+        GAS_Form -.->|3. 選択肢更新| Form
     end
     
-    Act1 --> SS
-    Act2 -.->|選択肢反映| Form
-    Act3 --> Discord["💬 Discord チャンネル"]
-    
-    subgraph DB ["Google スプレッドシート (データベース)"]
-        SS["📊 スプレッドシート"]
-        SS --- Master["「イベントマスター」シート<br>(イベント情報・CalID・ステータス)"]
-        SS --- Apply["「申し込み管理」シート<br>(受付・締切・申込方法・ステータス)"]
+    subgraph SheetSection ["2. データベース"]
+        SS --- Master["「イベントマスター」<br>(イベント情報 / CalID / ステータス)"]
+        SS --- Apply["「申し込み管理」<br>(受付 / 締切 / 申込方法 / ステータス)"]
     end
 
-    subgraph TimeTriggers ["定期・時間主導型処理 (spreadsheet/)"]
+    subgraph BatchSection ["3. 自動通知・同期処理 (spreadsheet/)"]
         Timer["⏰ 時間主導型タイマー"]
-        Timer --> RemindApply["ライブ申込しめきりおじさん.js<br>・通常締切通知 (当日)<br>・先着前日通知 (翌日開始)<br>・リセール通知 (期間中毎日)"]
-        Timer --> RemindPay["入金確認おじさん.js<br>・入金締切通知 (当日)"]
-        Timer --> SyncCal["カレンダー自動登録.js<br>・未登録イベントをGoogleカレンダー同期"]
-        Timer --> NotifySched["予定通知.js<br>・明日の予定をカレンダーから取得通知"]
+        
+        Timer --> RemindApply["ライブ申込しめきりおじさん.js<br>(通常締切 / 先着前日 / リセール)"]
+        Timer --> RemindPay["入金確認おじさん.js<br>(入金締切通知)"]
+        Timer --> SyncCal["カレンダー自動登録.js<br>(未登録イベント同期)"]
+        Timer --> NotifySched["予定通知.js<br>(明日の予定通知)"]
+        
+        SS -.->|データ参照| RemindApply
+        SS -.->|データ参照| RemindPay
+        SS <-->|イベント読込 / CalID書込| SyncCal
+        SyncCal -->|カレンダー登録| GCal["📅 Google カレンダー"]
+        GCal -.->|予定取得| NotifySched
     end
-    
-    SS --> RemindApply
-    SS --> RemindPay
-    SS <-->|イベント読込 / CalID書込| SyncCal
-    SyncCal --> GCal["📅 Google カレンダー"]
-    GCal --> NotifySched
-    
-    RemindApply --> Discord
-    RemindPay --> Discord
-    NotifySched --> Discord
+
+    RemindApply -->|締切・先着・リセール通知| Discord
+    RemindPay -->|入金締切通知| Discord
+    NotifySched -->|明日の予定通知| Discord
 ```
 
 ---
