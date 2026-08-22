@@ -14,7 +14,6 @@ flowchart TD
     
     subgraph FormTrigger ["Google フォーム (form/コード.js)"]
         Form -->|送信トリガー| GAS_Form["form/コード.js"]
-        GAS_Form -->|新着通知| Discord["💬 Discord チャンネル"]
     end
 
     GAS_Form -->|新規イベント追記| MasterSheet
@@ -41,9 +40,16 @@ flowchart TD
     SyncCal -->|カレンダー自動登録| GCal["📅 Google カレンダー"]
     GCal -->|明日の予定取得| NotifySched
 
-    RemindApply -->|締切・先着・リセール通知| Discord
-    RemindPay -->|入金締切通知| Discord
-    NotifySched -->|明日の予定通知| Discord
+    subgraph DiscordServer ["💬 Discord (通知チャンネル / Webhook)"]
+        WebhookApply["🔔 申込通知 (WEBHOOK_APPLY)<br>・新着申込 / 締切 / 先着 / リセール"]
+        WebhookPay["💸 入金締切通知 (WEBHOOK_PAYMENT)<br>・入金リマインド"]
+        WebhookCal["📅 予定通知 (WEBHOOK_CALENDAR)<br>・明日の予定一覧"]
+    end
+
+    GAS_Form -->|新着通知| WebhookApply
+    RemindApply -->|締切・先着・リセール通知| WebhookApply
+    RemindPay -->|入金締切通知| WebhookPay
+    NotifySched -->|明日の予定通知| WebhookCal
 ```
 
 ---
