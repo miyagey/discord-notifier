@@ -12,32 +12,36 @@
 flowchart TD
     User["👤 ユーザー"] -->|入力・送信| Form["📝 Google フォーム"]
     
-    subgraph FormSection ["1. フォーム受付・同期処理 (form/コード.js)"]
+    subgraph FormTrigger ["Google フォーム側処理 (form/コード.js)"]
         Form -->|送信トリガー| GAS_Form["form/コード.js"]
-        GAS_Form -->|1. データ追記| SS["📊 Google スプレッドシート"]
-        GAS_Form -->|2. 新着通知| Discord["💬 Discord チャンネル"]
-        GAS_Form -.->|3. 選択肢更新| Form
-    end
-    
-    subgraph SheetSection ["2. データベース"]
-        SS --- Master["「イベントマスター」<br>(イベント情報 / CalID / ステータス)"]
-        SS --- Apply["「申し込み管理」<br>(受付 / 締切 / 申込方法 / ステータス)"]
+        GAS_Form -->|新着通知| Discord["💬 Discord チャンネル"]
     end
 
-    subgraph BatchSection ["3. 自動通知・同期処理 (spreadsheet/)"]
+    subgraph SpreadsheetDB ["📊 Google スプレッドシート (データベース)"]
+        MasterSheet["📋「イベントマスター」シート<br>(イベント情報 / 会場 / CalID / ステータス)"]
+        ApplySheet["📝「申し込み管理」シート<br>(受付区分 / 締切日時 / 申込方法 / ステータス)"]
+    end
+
+    GAS_Form -->|申込データ追記| ApplySheet
+    GAS_Form -->|新規イベント時追記| MasterSheet
+    MasterSheet -.->|選択肢動的更新| Form
+
+    subgraph TimeTriggers ["定期・時間主導型バッチ処理 (spreadsheet/)"]
         Timer["⏰ 時間主導型タイマー"]
         
         Timer --> RemindApply["ライブ申込しめきりおじさん.js<br>(通常締切 / 先着前日 / リセール)"]
         Timer --> RemindPay["入金確認おじさん.js<br>(入金締切通知)"]
         Timer --> SyncCal["カレンダー自動登録.js<br>(未登録イベント同期)"]
         Timer --> NotifySched["予定通知.js<br>(明日の予定通知)"]
-        
-        SS -.->|データ参照| RemindApply
-        SS -.->|データ参照| RemindPay
-        SS <-->|イベント読込 / CalID書込| SyncCal
-        SyncCal -->|カレンダー登録| GCal["📅 Google カレンダー"]
-        GCal -.->|予定取得| NotifySched
     end
+
+    ApplySheet -.->|申込データ参照| RemindApply
+    MasterSheet -.->|イベント名結合| RemindApply
+    ApplySheet -.->|入金データ参照| RemindPay
+    MasterSheet <-->|未登録取得 / CalID書込| SyncCal
+    
+    SyncCal -->|カレンダー登録| GCal["📅 Google カレンダー"]
+    GCal -.->|予定取得| NotifySched
 
     RemindApply -->|締切・先着・リセール通知| Discord
     RemindPay -->|入金締切通知| Discord
