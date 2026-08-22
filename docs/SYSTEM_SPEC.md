@@ -22,8 +22,8 @@ flowchart TD
 
     subgraph SpreadsheetDB ["📊 Google スプレッドシート (データベース)"]
         direction LR
-        MasterSheet["📋「イベントマスター」シート<br>(イベント情報 / 会場 / CalID)"]
-        ApplySheet["📝「申し込み管理」シート<br>(受付区分 / 締切日時 / 申込方法)"]
+        MasterSheet["📋「イベントマスター」シート<br>(イベント情報 / CalID)"]
+        ApplySheet["📝「申し込み管理」シート<br>(チケット申込・スケジュール情報)"]
     end
 
     subgraph BatchSection ["⏰ 定期通知・自動化処理 (spreadsheet/)"]
