@@ -1,7 +1,7 @@
 // --------------------------------------------------
 // Discord への新着申込通知
 // --------------------------------------------------
-function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, applyEndDate, payDate, applyUrl) {
+function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, applyEndDate, payDate, applyMethod) {
   const props        = PropertiesService.getScriptProperties();
   const WEBHOOK_URL  = props.getProperty("WEBHOOK_APPLY") || "";
   const PROXY_BASE   = props.getProperty("PROXY_BASE_URL") || "";
@@ -17,7 +17,15 @@ function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, ap
   ];
   if (applyEndDate) lines.push(` └ 申込締切: **${applyEndDate}まで**`);
   if (payDate)      lines.push(` └ 入金締切: **${payDate}まで**`);
-  if (applyUrl)     lines.push(` └ 申込URL: ${applyUrl}`);
+  if (applyMethod) {
+    const trimmed = String(applyMethod).trim();
+    if (trimmed.includes("\n")) {
+      const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
+      lines.push(` └ 申込方法:\n${quoted}`);
+    } else {
+      lines.push(` └ 申込方法: ${trimmed}`);
+    }
+  }
   lines.push("\n----------------------------------------");
   lines.push("📝 **イベント・申込の登録はこちら**");
   lines.push(`・【新形式 (フォーム)】: ${FORM_URL}`);

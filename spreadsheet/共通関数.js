@@ -70,7 +70,8 @@ const APPLY_COL = {
   EVENT_NAME_ALT: 3, // D列: 代替イベント名
   APPLY_NAME: 4,     // E列: 受付区分/申し込み名称
   APPLY_END_DATE: 6, // G列: 申込締切日時
-  URL: 7,            // H列: 申込URL
+  APPLY_METHOD: 7,   // H列: 申込方法 (旧: 申込URL)
+  URL: 7,            // H列: 互換用エイリアス
   PAY_END_DATE: 9,   // J列: 入金締切日時
   STATUS: 10         // K列: ステータス
 };
@@ -161,6 +162,24 @@ function formatBrandEventTitle(brand, eventName) {
 
   const brandStr = brand ? `【${brand}】` : "";
   return `${brandStr}${name}`;
+}
+
+/**
+ * 申込方法（URLまたは複数行テキスト）をDiscord用に整形する
+ * @param {string} methodText - 申込方法の文字列
+ * @returns {string} 整形された申込方法行
+ */
+function formatApplyMethodBlock(methodText) {
+  if (!methodText) return "";
+  const trimmed = String(methodText).trim();
+  if (!trimmed) return "";
+
+  if (trimmed.includes("\n")) {
+    const quoted = trimmed.split("\n").map(line => `> ${line}`).join("\n");
+    return ` └ 申込方法:\n${quoted}\n`;
+  } else {
+    return ` └ 申込方法: ${trimmed}\n`;
+  }
 }
 
 /**

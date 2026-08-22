@@ -27,8 +27,8 @@ function onFormSubmit(e) {
   let description  = formData["イベント概要"] || "";
   
   // 申し込み情報（セクション3の項目）
-  const applyName  = formData["受付名（先行/一般など）"] || formData["受付名"];
-  const applyUrl   = formData["申込URL"] || "";
+  const applyName   = formData["受付名（先行/一般など）"] || formData["受付名"];
+  const applyMethod = formData["申込方法"] || formData["申込URL"] || "";
   
   // 日時データの整形関数
   const formatDateTime = (dateTimeStr) => {
@@ -127,12 +127,12 @@ function onFormSubmit(e) {
   let applyId = "AP-" + String(newApplyIdNum).padStart(3, '0');
   
   let nextRow = applyLastRow + 1;
-  // K列に合わせたIFS数式を作成（申込開始:F列, 申込締切:G列, 当落発表:I列, 入金締切:J列）
+  // K列に合わせたIFS数式を作成（申込開始:F列, 申込締切:G列, 当落発表:I列, 入金締切:J列 - NOW()による日時比較）
   let ifsFormula = `=IFS(
-    AND(NOT(ISBLANK(F${nextRow})), TODAY() < INT(F${nextRow})), "開始前",
-    AND(NOT(ISBLANK(G${nextRow})), TODAY() <= INT(G${nextRow})), "受付期間",
-    AND(NOT(ISBLANK(I${nextRow})), TODAY() < INT(I${nextRow})), "抽選終了・当落確認前",
-    AND(NOT(ISBLANK(J${nextRow})), TODAY() <= INT(J${nextRow})), "当落確認・入金期間",
+    AND(NOT(ISBLANK(F${nextRow})), NOW() < F${nextRow}), "開始前",
+    AND(NOT(ISBLANK(G${nextRow})), NOW() <= G${nextRow}), "受付期間",
+    AND(NOT(ISBLANK(I${nextRow})), NOW() < I${nextRow}), "抽選終了・当落確認前",
+    AND(NOT(ISBLANK(J${nextRow})), NOW() <= J${nextRow}), "当落確認・入金期間",
     TRUE, "期間終了"
   )`;
 
@@ -145,14 +145,14 @@ function onFormSubmit(e) {
     applyName, 
     applyStartDate, 
     applyEndDate, 
-    applyUrl,
+    applyMethod,
     resultDate,
     payDate,
     ifsFormula
   ]);
   
   // Discord通知
-  notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, applyEndDate, payDate, applyUrl);
+  notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, applyEndDate, payDate, applyMethod);
 
   // 最後にフォームのプルダウン選択肢を最新に更新
   updateFormOptions();
