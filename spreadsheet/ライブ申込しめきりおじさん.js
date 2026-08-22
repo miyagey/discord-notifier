@@ -37,16 +37,24 @@ function remindEndDate() {
     const firstComeItems = fetchFirstComeApplyItemsTomorrow(tomorrowStr);
     if (firstComeItems.length > 0) {
       Utilities.sleep(500);
+      const DISCORD_MAX_LENGTH = 2000;
       const headerTitle = "🏃 **明日から先着受付が始まります！忘れずに！**";
-      const formatItemFunc = (item) => {
-        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
-        if (item.url) {
-          str += ` └ 申込URL: ${item.url}\n`;
-        }
-        return str;
-      };
+      let currentMessage = headerTitle + "\n";
 
-      sendItemListNotification(WEBHOOK_APPLY, headerTitle, firstComeItems, formatItemFunc);
+      for (const item of firstComeItems) {
+        let itemText = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
+        if (item.url) {
+          itemText += ` └ 申込URL: ${item.url}\n`;
+        }
+        if ((currentMessage + itemText).length > DISCORD_MAX_LENGTH) {
+          sendNotification(WEBHOOK_APPLY, currentMessage);
+          Utilities.sleep(500);
+          currentMessage = headerTitle + "\n" + itemText;
+        } else {
+          currentMessage += itemText;
+        }
+      }
+      sendNotification(WEBHOOK_APPLY, currentMessage);
     }
 
     Logger.log("=== 申込締切通知処理が正常終了しました ===");
@@ -138,7 +146,7 @@ function fetchNewSheetApplyItems(todayStr) {
         const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
         const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
         const applyName = row[APPLY_COL.APPLY_NAME];
-        const applyUrl  = row[APPLY_COL.URL];
+        const applyUrl = row[APPLY_COL.URL];
         const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
 
         items.push({
@@ -203,12 +211,12 @@ function fetchFirstComeApplyItemsTomorrow(tomorrowStr) {
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
       const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
       const applyUrl = row[APPLY_COL.URL];
-      const formattedTime = formatDateJST(applyStartDateRaw, "HH:mm");
+      const formattedDateTime = formatDateJST(applyStartDateRaw, "yyyy/MM/dd HH:mm");
 
       items.push({
         brandEvent: brandEventTitle,
         applyName: applyName,
-        timeStr: formattedTime,
+        timeStr: formattedDateTime,
         url: applyUrl || ""
       });
     }
