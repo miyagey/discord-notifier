@@ -8,28 +8,44 @@
 
 本システムは **Google フォーム** からのイベント・申込登録を起点とし、**Google スプレッドシート** をデータベースとしてイベントマスター・申し込み管理を統合管理します。
 
-```text
-[ユーザー] ──(入力)──> [Google フォーム]
-                           │
-                 (フォーム送信時トリガー)
-                           ▼
-                 [form/コード.js (GAS)]
-                   ├── 1. スプレッドシートへのデータ追記・ID自動採番
-                   ├── 2. フォーム選択肢の動的更新 (updateFormOptions)
-                   └── 3. Discord 新着通知送信 (notifyDiscordNewApply)
-                           │
-                           ▼
-                 [Google スプレッドシート]
-                   ├── 「イベントマスター」シート (イベント単位)
-                   └── 「申し込み管理」シート   (受付・申込単位)
-                           │
-                 (時間主導型タイマー)
-                           ▼
-             [spreadsheet/ 各種スクリプト (GAS)]
-               ├── 申込締切リマインド通知 (ライブ申込しめきりおじさん.js)
-               ├── 入金締切リマインド通知 (入金確認おじさん.js)
-               ├── Google カレンダー自動同期 (カレンダー自動登録.js)
-               └── 明日の予定通知 (予定通知.js)
+```mermaid
+flowchart TD
+    User["👤 ユーザー"] -->|入力・送信| Form["📝 Google フォーム"]
+    
+    subgraph FormTrigger ["フォーム送信時処理 (form/コード.js)"]
+        Form -->|フォーム送信時トリガー| GAS_Form["form/コード.js"]
+        GAS_Form --> Act1["1. スプレッドシート追記 & ID自動採番"]
+        GAS_Form --> Act2["2. 選択肢動的更新 (updateFormOptions)"]
+        GAS_Form --> Act3["3. Discord新着通知 (notifyDiscordNewApply)"]
+    end
+    
+    Act1 --> SS
+    Act2 -.->|選択肢反映| Form
+    Act3 --> Discord["💬 Discord チャンネル"]
+    
+    subgraph DB ["Google スプレッドシート (データベース)"]
+        SS["📊 スプレッドシート"]
+        SS --- Master["「イベントマスター」シート<br>(イベント情報・CalID・ステータス)"]
+        SS --- Apply["「申し込み管理」シート<br>(受付・締切・申込方法・ステータス)"]
+    end
+
+    subgraph TimeTriggers ["定期・時間主導型処理 (spreadsheet/)"]
+        Timer["⏰ 時間主導型タイマー"]
+        Timer --> RemindApply["ライブ申込しめきりおじさん.js<br>・通常締切通知 (当日)<br>・先着前日通知 (翌日開始)<br>・リセール通知 (期間中毎日)"]
+        Timer --> RemindPay["入金確認おじさん.js<br>・入金締切通知 (当日)"]
+        Timer --> SyncCal["カレンダー自動登録.js<br>・未登録イベントをGoogleカレンダー同期"]
+        Timer --> NotifySched["予定通知.js<br>・明日の予定をカレンダーから取得通知"]
+    end
+    
+    SS --> RemindApply
+    SS --> RemindPay
+    SS <-->|イベント読込 / CalID書込| SyncCal
+    SyncCal --> GCal["📅 Google カレンダー"]
+    GCal --> NotifySched
+    
+    RemindApply --> Discord
+    RemindPay --> Discord
+    NotifySched --> Discord
 ```
 
 ---
@@ -37,6 +53,17 @@
 ## 2. Google フォーム設計仕様
 
 Google フォームは 3 つのセクション（ページ分割）で構成され、選択肢に応じて動的にページ遷移します。
+
+```mermaid
+flowchart TD
+    Start([フォーム開始]) --> Sec1["セクション 1: イベント選択<br>（既存イベント or 【新規登録】）"]
+    
+    Sec1 -->|【新規登録】を選択| Sec2["セクション 2: 新規イベント情報入力<br>（イベント名・開催日・会場等）"]
+    Sec1 -->|既存イベントを選択| Sec3["セクション 3: 申し込み情報入力<br>（受付名・申込方法・締切日等）"]
+    
+    Sec2 --> Sec3
+    Sec3 --> Submit([フォーム送信])
+```
 
 ### セクション構成と設問項目
 
