@@ -364,3 +364,21 @@ function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDat
     Logger.log("カレンダー登録処理でエラーが発生しました: " + (e && e.stack ? e.stack : e.toString()));
   }
 }
+
+/**
+ * カレンダーのアクセス権限を確認・初回認証するためのテスト関数
+ * GASエディタから手動実行して権限承認を行ってください
+ */
+function testCalendarAccess() {
+  const calendarId = PropertiesService.getScriptProperties().getProperty("CALENDAR_ID");
+  if (!calendarId) {
+    Logger.log("[WARNING] スクリプトプロパティ CALENDAR_ID が未設定です。");
+    return;
+  }
+  const calendar = CalendarApp.getCalendarById(calendarId);
+  if (calendar) {
+    Logger.log(`[SUCCESS] カレンダーへのアクセスに成功しました: ${calendar.getName()}`);
+  } else {
+    Logger.log(`[ERROR] カレンダーが見つかりません (ID: ${calendarId})`);
+  }
+}
