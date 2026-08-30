@@ -1,11 +1,21 @@
 // --------------------------------------------------
 // Discord への新着申込通知
 // --------------------------------------------------
+/**
+ * Discord へ新着申込を通知する
+ * @param {string} applyId - 申し込みID
+ * @param {string} eventId - イベントID
+ * @param {string} brand - ブランド名
+ * @param {string} eventName - イベント名
+ * @param {string} applyName - 受付区分名
+ * @param {string} applyEndDate - 申込締切日時文字列
+ * @param {string} payDate - 入金締切日時文字列
+ * @param {string} applyMethod - 申込方法
+ */
 function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, applyEndDate, payDate, applyMethod) {
   const props        = PropertiesService.getScriptProperties();
   const WEBHOOK_URL  = props.getProperty("WEBHOOK_APPLY") || "";
   const PROXY_BASE   = props.getProperty("PROXY_BASE_URL") || "";
-  const FORM_URL     = props.getProperty("FORM_URL") || "";
 
   const brandEventTitle = brand ? `【${brand}】${eventName}` : eventName;
   const webhookUrl = WEBHOOK_URL.replace("https://discord.com", PROXY_BASE);
@@ -26,10 +36,6 @@ function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, ap
       lines.push(` └ 申込方法: ${trimmed}`);
     }
   }
-  lines.push("\n----------------------------------------");
-  lines.push("📝 **イベント・申込の登録はこちら**");
-  lines.push(`・【新形式 (フォーム)】: ${FORM_URL}`);
-  lines.push(`・【旧形式 (スプレッドシート)】: ${SS_URL}`);
 
   try {
     UrlFetchApp.fetch(webhookUrl, {
