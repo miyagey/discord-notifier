@@ -183,6 +183,19 @@ function logError(context, error) {
   Logger.log(`[ERROR] ${context}: ${message}`);
 }
 
+/**
+ * 登録案内メッセージフッター（Googleフォームのみ）を生成
+ * @returns {string} 登録案内メッセージフッター
+ */
+function getRegistrationFooterMessage() {
+  const lines = [
+    "----------------------------------------",
+    "📝 **イベント・申込の登録はこちら**",
+    `・【Googleフォーム】: ${REGISTRATION_FORM_URL}`
+  ];
+  return lines.join("\n");
+}
+
 // ==================================================
 // 【共通関数】Discord（プロキシ）へのメッセージ送信
 // ==================================================
@@ -267,9 +280,12 @@ function sendNotification(webhookUrl, message) {
  * @param {string} headerTitle - メッセージ冒頭のタイトル
  * @param {Array<object>} items - 通知対象のアイテム配列
  * @param {function(object): string} formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
+ * @param {string} [footer] - 最終メッセージに付与するフッター文字列（省略可）
  */
-function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc) {
+function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc, footer) {
   const DISCORD_MAX_LENGTH = 2000;
+  const footerText = footer || "";
+  const footerLength = footerText.length;
 
   if (!items || items.length === 0) return;
 
@@ -278,9 +294,9 @@ function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc
   for (let i = 0; i < items.length; i++) {
     const itemText = formatItemFunc(items[i]);
 
-    // 「現在のメッセージ + 今回のアイテム」が上限を超えるか判定
-    if ((currentMessage + itemText).length > DISCORD_MAX_LENGTH) {
-      // 超える場合は現在のメッセージ枠を送信
+    // 「現在のメッセージ + 今回のアイテム + フッター」が上限を超えるか判定
+    if ((currentMessage + itemText + footerLength).length > DISCORD_MAX_LENGTH) {
+      // 超える場合は現在のメッセージ枠を送信（フッターなし）
       sendNotification(webhookUrl, currentMessage);
       Utilities.sleep(500);
 
@@ -291,5 +307,7 @@ function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc
     }
   }
 
+  // 最後のメッセージにフッターを付けて送信
+  currentMessage += footerText;
   sendNotification(webhookUrl, currentMessage);
 }

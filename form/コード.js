@@ -81,7 +81,7 @@ function onFormSubmit(e) {
       masterSheet.appendRow([eventId, brand, eventName, startDate, endDate, location, description, "", masterIfsFormula]);
 
       // カレンダーへリアルタイム同期
-      registerNewEventToCalendar(eventId, brand, eventName, startDate, endDate, location, description);
+      registerNewEventToCalendar(eventId, brand, eventName, startDate, formData["終了日"], location, description);
     }
     
   // --------------------------------------------------
@@ -252,25 +252,27 @@ function updateFormOptions() {
  * @param {string} eventId - 採番されたイベントID
  * @param {string} brand - ブランド名
  * @param {string} eventName - イベント名
- * @param {string} startDate - 開始日 (yyyy-MM-dd)
- * @param {string} endDate - 終了日 (yyyy-MM-dd) または空文字
+ * @param {string|Date} startDate - 開始日 (yyyy-MM-dd)
+ * @param {string|Date} [endDate] - 終了日 (yyyy-MM-dd)
  * @param {string} location - 会場
  * @param {string} summary - イベント概要
  */
 function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDate, location, summary) {
   try {
-    const props          = PropertiesService.getScriptProperties();
-    const calendarId     = props.getProperty("CALENDAR_ID") || "";
-    const webhookCal     = props.getProperty("WEBHOOK_CALENDAR") || "";
-    const proxyBase      = props.getProperty("PROXY_BASE_URL") || "";
+    const props      = PropertiesService.getScriptProperties();
+    const calendarId = props.getProperty("CALENDAR_ID") || "";
+    const webhookCal = props.getProperty("WEBHOOK_CALENDAR") || "";
+    const proxyBase  = props.getProperty("PROXY_BASE_URL") || "";
 
     if (!calendarId) {
+      console.warn("【カレンダー自動登録】CALENDAR_ID がスクリプトプロパティに設定されていません。カレンダー登録をスキップします。");
       Logger.log("CALENDAR_ID が未設定のためカレンダー登録をスキップします。");
       return;
     }
 
     const calendar = CalendarApp.getCalendarById(calendarId);
     if (!calendar) {
+      console.error(`【カレンダー自動登録】指定されたカレンダー (ID: ${calendarId}) が見つかりません。`);
       Logger.log("指定された CALENDAR_ID のカレンダーが見つかりません。");
       return;
     }
@@ -278,12 +280,29 @@ function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDat
     // タイトル組み立て
     const title = brand ? `【${brand}】${eventName} (システム登録)` : `${eventName} (システム登録)`;
 
-    // 終日イベント用の日付処理
-    const startDateObj = new Date(startDate);
+    // 日付パース用のヘルパー（JSTローカル日付を生成）
+    const parseDateJST = (d) => {
+      if (!d) return null;
+      if (d instanceof Date) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const parts = String(d).trim().split(/[-/]/);
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return new Date(d);
+    };
+
+    const startDateObj = parseDateJST(startDate);
+    if (!startDateObj || isNaN(startDateObj.getTime())) {
+      console.error("【カレンダー自動登録】開始日の形式が不正です:", startDate);
+      return;
+    }
+
+    const hasEndDate = endDate && String(endDate).trim() !== "" && String(endDate).trim() !== String(startDate).trim();
     let endDateObj;
-    if (endDate) {
-      endDateObj = new Date(endDate);
-      // Googleカレンダーの終日イベント終了日は「翌日0:00」を指定する仕様
+
+    if (hasEndDate) {
+      endDateObj = parseDateJST(endDate);
+      // 終日イベントの終了日は翌日0:00を指定
       endDateObj.setDate(endDateObj.getDate() + 1);
     } else {
       endDateObj = new Date(startDateObj);
@@ -297,24 +316,29 @@ function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDat
     // カレンダーに終日イベントを登録
     const newEvent   = calendar.createAllDayEvent(title, startDateObj, endDateObj, options);
     const newEventId = newEvent.getId();
+    Logger.log(`カレンダー登録成功: ${title} (ID: ${newEventId})`);
 
     // イベントマスターのH列（CAL_ID）にカレンダーIDを書き戻す
-    const ss          = SpreadsheetApp.openByUrl(SS_URL);
-    const masterSheet = ss.getSheetByName("イベントマスター");
-    const masterData  = masterSheet.getDataRange().getValues();
-    for (let i = 1; i < masterData.length; i++) {
-      if (masterData[i][0] === eventId) {
-        masterSheet.getRange(i + 1, 8).setValue(newEventId); // H列 = CAL_ID
-        break;
+    if (SS_URL) {
+      const ss          = SpreadsheetApp.openByUrl(SS_URL);
+      const masterSheet = ss.getSheetByName("イベントマスター");
+      if (masterSheet) {
+        const masterData = masterSheet.getDataRange().getValues();
+        for (let i = 1; i < masterData.length; i++) {
+          if (masterData[i][0] === eventId) {
+            masterSheet.getRange(i + 1, 8).setValue(newEventId); // 8列目 = H列 (CAL_ID)
+            Logger.log(`スプレッドシートへのカレンダーID書き戻し完了 (行: ${i + 1})`);
+            break;
+          }
+        }
       }
     }
-    Logger.log(`カレンダー登録成功: ${title} (ID: ${newEventId})`);
 
     // Discord へカレンダー登録完了通知
     if (webhookCal) {
       let dateStr = Utilities.formatDate(startDateObj, "JST", "MM/dd");
-      if (endDate) {
-        const actualEnd = new Date(endDate);
+      if (hasEndDate) {
+        const actualEnd = parseDateJST(endDate);
         dateStr += ` 〜 ${Utilities.formatDate(actualEnd, "JST", "MM/dd")}`;
       }
 
@@ -326,7 +350,7 @@ function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDat
       if (location) messageLines.push(`📍 場所: ${location}`);
       if (summary)  messageLines.push(`📝 概要:\n> ${summary.replace(/\n/g, "\n> ")}`);
 
-      const webhookUrl = webhookCal.replace("https://discord.com", proxyBase);
+      const webhookUrl = proxyBase ? webhookCal.replace("https://discord.com", proxyBase) : webhookCal;
       UrlFetchApp.fetch(webhookUrl, {
         method: "post",
         contentType: "application/json",
@@ -336,6 +360,7 @@ function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDat
       Logger.log("Discord へカレンダー登録完了通知を送信しました。");
     }
   } catch (e) {
-    Logger.log("カレンダー登録処理でエラーが発生しました: " + e.toString());
+    console.error("【カレンダー自動登録】エラー:", e);
+    Logger.log("カレンダー登録処理でエラーが発生しました: " + (e && e.stack ? e.stack : e.toString()));
   }
 }

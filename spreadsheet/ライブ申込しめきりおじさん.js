@@ -25,9 +25,10 @@ function remindEndDate() {
         return str;
       };
 
-      sendItemListNotification(WEBHOOK_APPLY, headerTitle, regularItems, formatItemFunc);
+      const footer = "\n" + getRegistrationFooterMessage();
+      sendItemListNotification(WEBHOOK_APPLY, headerTitle, regularItems, formatItemFunc, footer);
     } else {
-      const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！";
+      const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + getRegistrationFooterMessage();
       sendNotification(WEBHOOK_APPLY, message);
     }
 
