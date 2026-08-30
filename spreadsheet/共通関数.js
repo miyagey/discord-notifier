@@ -41,16 +41,6 @@ const REGISTRATION_FORM_URL = "https://forms.gle/VcErZhtVcUHtL6ET8";
 // 【列インデックス定義】
 // ==================================================
 
-/** 従来シート（入力用）の列インデックス（0始まり） */
-const OLD_COL = {
-  BRAND: 1,        // B列: ブランド
-  EVENT: 2,        // C列: イベント名
-  URL: 3,          // D列: URL
-  END_DATE: 6,     // G列: 申込締切日
-  NOTE: 8,         // I列: 備考
-  PAY_DEADLINE: 12 // M列: 入金締切日
-};
-
 /** 新システム「イベントマスター」シートの列インデックス（0始まり） */
 const MASTER_COL = {
   ID: 0,         // A列: イベントID
@@ -194,15 +184,14 @@ function logError(context, error) {
 }
 
 /**
- * 新形式（フォーム）と旧形式（スプレッドシート）の両URLを含む登録案内メッセージを生成
+ * 登録案内メッセージフッター（Googleフォームのみ）を生成
  * @returns {string} 登録案内メッセージフッター
  */
 function getRegistrationFooterMessage() {
   const lines = [
     "----------------------------------------",
     "📝 **イベント・申込の登録はこちら**",
-    `・【新形式 (フォーム)】: ${REGISTRATION_FORM_URL}`,
-    `・【旧形式 (スプレッドシート)】: ${COMMON_SHEET_URL}`
+    `・【Googleフォーム】: ${REGISTRATION_FORM_URL}`
   ];
   return lines.join("\n");
 }
@@ -291,11 +280,12 @@ function sendNotification(webhookUrl, message) {
  * @param {string} headerTitle - メッセージ冒頭のタイトル
  * @param {Array<object>} items - 通知対象のアイテム配列
  * @param {function(object): string} formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
+ * @param {string} [footer] - 最終メッセージに付与するフッター文字列（省略可）
  */
-function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc) {
+function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc, footer) {
   const DISCORD_MAX_LENGTH = 2000;
-  const footer = "\n" + getRegistrationFooterMessage();
-  const footerLength = footer.length;
+  const footerText = footer || "";
+  const footerLength = footerText.length;
 
   if (!items || items.length === 0) return;
 
@@ -304,9 +294,9 @@ function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc
   for (let i = 0; i < items.length; i++) {
     const itemText = formatItemFunc(items[i]);
 
-    // 「現在のメッセージ + 今回のアイテム + 最終フッター」が上限を超えるか判定
+    // 「現在のメッセージ + 今回のアイテム + フッター」が上限を超えるか判定
     if ((currentMessage + itemText + footerLength).length > DISCORD_MAX_LENGTH) {
-      // 超える場合は現在のメッセージ枠を送信
+      // 超える場合は現在のメッセージ枠を送信（フッターなし）
       sendNotification(webhookUrl, currentMessage);
       Utilities.sleep(500);
 
@@ -317,7 +307,7 @@ function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc
     }
   }
 
-  // 最後にフッターを付与して送信
-  currentMessage += footer;
+  // 最後のメッセージにフッターを付けて送信
+  currentMessage += footerText;
   sendNotification(webhookUrl, currentMessage);
 }
