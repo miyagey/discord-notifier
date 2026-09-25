@@ -12,7 +12,7 @@ function remindEndDate() {
     // --------------------------------------------------
     // 1. 通常申込（先着・リセール以外）の本日締切通知
     // --------------------------------------------------
-    const regularItems = fetchNewSheetApplyItems(todayStr);
+    const regularItems = fetchNewSheetApplyItems(todayStr, today);
 
     if (regularItems.length > 0) {
       const headerTitle = "🔔 **本日締切のチケット申込があります！**";
@@ -24,7 +24,8 @@ function remindEndDate() {
         return str;
       };
 
-      sendItemListNotification(WEBHOOK_APPLY, headerTitle, regularItems, formatItemFunc);
+      const footer = "\n" + getRegistrationFooterMessage();
+      sendItemListNotification(WEBHOOK_APPLY, headerTitle, regularItems, formatItemFunc, footer);
     } else {
       const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + getRegistrationFooterMessage();
       sendNotification(WEBHOOK_APPLY, message);
@@ -96,13 +97,13 @@ function remindEndDate() {
 // 【ヘルパー関数】データ抽出処理
 // ==================================================
 
-
 /**
  * 新システム（イベントマスター/申し込み管理）から本日の申込締切アイテム（先着・リセール以外）を抽出する
  * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
+ * @param {Date} now - 現在時刻（時刻考慮の厳密判定用）
  * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string, sourceType: string}>}
  */
-function fetchNewSheetApplyItems(todayStr) {
+function fetchNewSheetApplyItems(todayStr, now) {
   const items = [];
   try {
     Logger.log("=== 新システムの通常申込締切チェックを開始 ===");
@@ -131,21 +132,24 @@ function fetchNewSheetApplyItems(todayStr) {
 
       const applyEndStr = formatDateJST(applyEndDateRaw, "yyyy-MM-dd");
 
-      if (applyEndStr === todayStr) {
-        const masterInfo = masterMap[eventId] || {};
-        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-        const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
-        const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
-        const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
+      if (applyEndStr !== todayStr) continue;
 
-        items.push({
-          brandEvent: brandEventTitle,
-          applyName: applyName,
-          timeStr: `${formattedTime}まで`,
-          method: applyMethod,
-          sourceType: "new"
-        });
-      }
+      // 締切時刻が現在時刻より過去の場合はスキップ（時刻考慮）
+      if (new Date(applyEndDateRaw) <= now) continue;
+
+      const masterInfo = masterMap[eventId] || {};
+      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
+      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+      const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
+      const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
+
+      items.push({
+        brandEvent: brandEventTitle,
+        applyName: applyName,
+        timeStr: `${formattedTime}まで`,
+        method: applyMethod,
+        sourceType: "new"
+      });
     }
     Logger.log(`新システムの通常申込締切件数: ${items.length}件`);
   } catch (e) {

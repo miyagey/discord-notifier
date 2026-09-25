@@ -79,6 +79,9 @@ function onFormSubmit(e) {
       )`;
       
       masterSheet.appendRow([eventId, brand, eventName, startDate, endDate, location, description, "", masterIfsFormula]);
+
+      // カレンダーへリアルタイム同期
+      registerNewEventToCalendar(eventId, brand, eventName, startDate, formData["終了日"], location, description);
     }
     
   // --------------------------------------------------
@@ -238,5 +241,144 @@ function updateFormOptions() {
         mcItem.setChoices(choices);
       }
     }
+  }
+}
+
+// --------------------------------------------------
+// 新規イベントをGoogleカレンダーへリアルタイム登録する関数
+// --------------------------------------------------
+/**
+ * フォーム送信時に新規イベントをGoogleカレンダーへ登録し、Discord へ通知する
+ * @param {string} eventId - 採番されたイベントID
+ * @param {string} brand - ブランド名
+ * @param {string} eventName - イベント名
+ * @param {string|Date} startDate - 開始日 (yyyy-MM-dd)
+ * @param {string|Date} [endDate] - 終了日 (yyyy-MM-dd)
+ * @param {string} location - 会場
+ * @param {string} summary - イベント概要
+ */
+function registerNewEventToCalendar(eventId, brand, eventName, startDate, endDate, location, summary) {
+  try {
+    const props      = PropertiesService.getScriptProperties();
+    const calendarId = props.getProperty("CALENDAR_ID") || "";
+    const webhookCal = props.getProperty("WEBHOOK_CALENDAR") || "";
+    const proxyBase  = props.getProperty("PROXY_BASE_URL") || "";
+
+    if (!calendarId) {
+      console.warn("【カレンダー自動登録】CALENDAR_ID がスクリプトプロパティに設定されていません。カレンダー登録をスキップします。");
+      Logger.log("CALENDAR_ID が未設定のためカレンダー登録をスキップします。");
+      return;
+    }
+
+    const calendar = CalendarApp.getCalendarById(calendarId);
+    if (!calendar) {
+      console.error(`【カレンダー自動登録】指定されたカレンダー (ID: ${calendarId}) が見つかりません。`);
+      Logger.log("指定された CALENDAR_ID のカレンダーが見つかりません。");
+      return;
+    }
+
+    // タイトル組み立て
+    const title = brand ? `【${brand}】${eventName} (システム登録)` : `${eventName} (システム登録)`;
+
+    // 日付パース用のヘルパー（JSTローカル日付を生成）
+    const parseDateJST = (d) => {
+      if (!d) return null;
+      if (d instanceof Date) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const parts = String(d).trim().split(/[-/]/);
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return new Date(d);
+    };
+
+    const startDateObj = parseDateJST(startDate);
+    if (!startDateObj || isNaN(startDateObj.getTime())) {
+      console.error("【カレンダー自動登録】開始日の形式が不正です:", startDate);
+      return;
+    }
+
+    const hasEndDate = endDate && String(endDate).trim() !== "" && String(endDate).trim() !== String(startDate).trim();
+    let endDateObj;
+
+    if (hasEndDate) {
+      endDateObj = parseDateJST(endDate);
+      // 終日イベントの終了日は翌日0:00を指定
+      endDateObj.setDate(endDateObj.getDate() + 1);
+    } else {
+      endDateObj = new Date(startDateObj);
+      endDateObj.setDate(endDateObj.getDate() + 1);
+    }
+
+    const options = {};
+    if (location) options.location = location;
+    if (summary)  options.description = summary;
+
+    // カレンダーに終日イベントを登録
+    const newEvent   = calendar.createAllDayEvent(title, startDateObj, endDateObj, options);
+    const newEventId = newEvent.getId();
+    Logger.log(`カレンダー登録成功: ${title} (ID: ${newEventId})`);
+
+    // イベントマスターのH列（CAL_ID）にカレンダーIDを書き戻す
+    if (SS_URL) {
+      const ss          = SpreadsheetApp.openByUrl(SS_URL);
+      const masterSheet = ss.getSheetByName("イベントマスター");
+      if (masterSheet) {
+        const masterData = masterSheet.getDataRange().getValues();
+        for (let i = 1; i < masterData.length; i++) {
+          if (masterData[i][0] === eventId) {
+            masterSheet.getRange(i + 1, 8).setValue(newEventId); // 8列目 = H列 (CAL_ID)
+            Logger.log(`スプレッドシートへのカレンダーID書き戻し完了 (行: ${i + 1})`);
+            break;
+          }
+        }
+      }
+    }
+
+    // Discord へカレンダー登録完了通知
+    if (webhookCal) {
+      let dateStr = Utilities.formatDate(startDateObj, "JST", "MM/dd");
+      if (hasEndDate) {
+        const actualEnd = parseDateJST(endDate);
+        dateStr += ` 〜 ${Utilities.formatDate(actualEnd, "JST", "MM/dd")}`;
+      }
+
+      const messageLines = [
+        "## 🆕 カレンダーに新しいイベントを登録したよ！",
+        `### 📌 ${title}`,
+        `⏰ 期間: ${dateStr} [終日]`,
+      ];
+      if (location) messageLines.push(`📍 場所: ${location}`);
+      if (summary)  messageLines.push(`📝 概要:\n> ${summary.replace(/\n/g, "\n> ")}`);
+
+      const webhookUrl = proxyBase ? webhookCal.replace("https://discord.com", proxyBase) : webhookCal;
+      UrlFetchApp.fetch(webhookUrl, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify({ content: messageLines.join("\n") }),
+        muteHttpExceptions: true
+      });
+      Logger.log("Discord へカレンダー登録完了通知を送信しました。");
+    }
+  } catch (e) {
+    console.error("【カレンダー自動登録】エラー:", e);
+    Logger.log("カレンダー登録処理でエラーが発生しました: " + (e && e.stack ? e.stack : e.toString()));
+  }
+}
+
+/**
+ * カレンダーのアクセス権限を確認・初回認証するためのテスト関数
+ * GASエディタから手動実行して権限承認を行ってください
+ */
+function testCalendarAccess() {
+  const calendarId = PropertiesService.getScriptProperties().getProperty("CALENDAR_ID");
+  if (!calendarId) {
+    Logger.log("[WARNING] スクリプトプロパティ CALENDAR_ID が未設定です。");
+    return;
+  }
+  const calendar = CalendarApp.getCalendarById(calendarId);
+  if (calendar) {
+    Logger.log(`[SUCCESS] カレンダーへのアクセスに成功しました: ${calendar.getName()}`);
+  } else {
+    Logger.log(`[ERROR] カレンダーが見つかりません (ID: ${calendarId})`);
   }
 }
