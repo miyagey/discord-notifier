@@ -43,7 +43,7 @@ function registerEventsToCalendar() {
       const summary = rowData[MASTER_COL.SUMMARY];
 
       // タイトルの組み立て
-      const title = `【${brand}】${eventName} (システム登録)`;
+      const title = formatBrandEventTitle(brand, eventName);
 
       // 日付の処理（終日イベント用）
       const startDate = new Date(startDateRaw);
@@ -73,10 +73,10 @@ function registerEventsToCalendar() {
       Logger.log(`カレンダー登録成功: ${title} (ID: ${newEventId})`);
 
       // Discord通知用のオブジェクトを追加
-      let dateStr = formatDateJST(startDate, "MM/dd");
-      if (rowData[MASTER_COL.END_DATE]) {
+      let dateStr = formatDateJST(startDate, "yyyy-MM-dd");
+      if (rowData[MASTER_COL.END_DATE] && rowData[MASTER_COL.END_DATE] !== startDateRaw) {
         const actualEnd = new Date(rowData[MASTER_COL.END_DATE]);
-        dateStr += ` 〜 ${formatDateJST(actualEnd, "MM/dd")}`;
+        dateStr += ` 〜 ${formatDateJST(actualEnd, "yyyy-MM-dd")}`;
       }
 
       registeredEventsLog.push({
@@ -89,16 +89,25 @@ function registerEventsToCalendar() {
 
     // --- 新しく登録されたイベントがあればDiscordへ一括通知 ---
     if (registeredEventsLog.length > 0) {
-      const messageLines = [];
-      messageLines.push("## 🆕 カレンダーに新しいイベントを登録したよ！");
+      const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
 
       registeredEventsLog.forEach(event => {
-        messageLines.push(`### 📌 ${event.title}`);
-        messageLines.push(`⏰ 期間: ${event.date} [終日]`);
-        if (event.location) messageLines.push(`📍 場所: ${event.location}`);
-        if (event.summary) messageLines.push(`📝 概要:\n> ${event.summary.replace(/\n/g, '\n> ')}`);
-        messageLines.push("\n---\n");
+        messageLines.push(`📅 **${event.title}**`);
+        messageLines.push(` └ 期間: **${event.date} [終日]**`);
+        if (event.location) messageLines.push(` └ 会場: ${event.location}`);
+        if (event.summary) {
+          const trimmed = String(event.summary).trim();
+          if (trimmed.includes("\n")) {
+            const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
+            messageLines.push(` └ 概要:\n${quoted}`);
+          } else {
+            messageLines.push(` └ 概要: ${trimmed}`);
+          }
+        }
+        messageLines.push("");
       });
+
+      messageLines.push(getRegistrationFooterMessage());
 
       // カレンダー用のWebhook（WEBHOOK_CALENDAR）へ通知を送信
       sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));

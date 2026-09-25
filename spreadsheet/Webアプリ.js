@@ -129,22 +129,11 @@ function createEvent(data) {
           Logger.log(`カレンダー登録成功: ${title} (ID: ${calId})`);
 
           // WEBHOOK_CALENDAR へ通知を送信
-          if (WEBHOOK_CALENDAR) {
-            let dateStr = formatDateJST(startD, "MM/dd");
-            if (data.endDate && data.endDate !== data.startDate) {
-              dateStr += ` 〜 ${formatDateJST(new Date(data.endDate), "MM/dd")}`;
-            }
-            const messageLines = [
-              "## 🆕 カレンダーに新しいイベントを登録したよ！",
-              `### 📌 ${title}`,
-              `⏰ 期間: ${dateStr} [終日]`
-            ];
-            if (data.location) messageLines.push(`📍 場所: ${data.location}`);
-            if (data.summary) messageLines.push(`📝 概要:\n> ${data.summary.replace(/\n/g, '\n> ')}`);
-            messageLines.push("\n" + getRegistrationFooterMessage());
-
-            sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
+          let dateStr = formatDateJST(startD, "MM/dd");
+          if (data.endDate && data.endDate !== data.startDate) {
+            dateStr += ` 〜 ${formatDateJST(new Date(data.endDate), "MM/dd")}`;
           }
+          notifyDiscordNewCalendarEvent(title, dateStr, data.location, data.summary);
         }
       }
     } catch (calErr) {

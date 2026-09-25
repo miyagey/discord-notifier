@@ -196,6 +196,40 @@ function getRegistrationFooterMessage() {
   return lines.join("\n");
 }
 
+/**
+ * Googleカレンダー登録完了のDiscord通知メッセージを生成・送信
+ * @param {string} brandEventTitle - イベントタイトル
+ * @param {string} dateStr - 期間文字列
+ * @param {string} location - 会場
+ * @param {string} summary - 概要
+ */
+function notifyDiscordNewCalendarEvent(brandEventTitle, dateStr, location, summary) {
+  if (!WEBHOOK_CALENDAR) return;
+
+  const lines = [
+    "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
+    `📅 **${brandEventTitle}**`,
+    ` └ 期間: **${dateStr} [終日]**`
+  ];
+
+  if (location) {
+    lines.push(` └ 会場: ${location}`);
+  }
+  if (summary) {
+    const trimmed = String(summary).trim();
+    if (trimmed.includes("\n")) {
+      const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
+      lines.push(` └ 概要:\n${quoted}`);
+    } else {
+      lines.push(` └ 概要: ${trimmed}`);
+    }
+  }
+
+  lines.push("\n" + getRegistrationFooterMessage());
+
+  sendNotification(WEBHOOK_CALENDAR, lines.join('\n'));
+}
+
 // ==================================================
 // 【共通関数】Discord（プロキシ）へのメッセージ送信
 // ==================================================
