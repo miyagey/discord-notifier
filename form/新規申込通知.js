@@ -28,8 +28,7 @@ function notifyDiscordNewApply(applyId, eventId, brand, eventName, applyName, ap
   }
   lines.push("\n----------------------------------------");
   lines.push("📝 **イベント・申込の登録はこちら**");
-  lines.push(`・【新形式 (フォーム)】: ${FORM_URL}`);
-  lines.push(`・【旧形式 (スプレッドシート)】: ${SS_URL}`);
+  lines.push(`・【フォーム】: ${FORM_URL}`);
 
   try {
     UrlFetchApp.fetch(webhookUrl, {

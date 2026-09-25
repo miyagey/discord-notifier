@@ -41,16 +41,6 @@ const REGISTRATION_FORM_URL = "https://forms.gle/VcErZhtVcUHtL6ET8";
 // 【列インデックス定義】
 // ==================================================
 
-/** 従来シート（入力用）の列インデックス（0始まり） */
-const OLD_COL = {
-  BRAND: 1,        // B列: ブランド
-  EVENT: 2,        // C列: イベント名
-  URL: 3,          // D列: URL
-  END_DATE: 6,     // G列: 申込締切日
-  NOTE: 8,         // I列: 備考
-  PAY_DEADLINE: 12 // M列: 入金締切日
-};
-
 /** 新システム「イベントマスター」シートの列インデックス（0始まり） */
 const MASTER_COL = {
   ID: 0,         // A列: イベントID
@@ -194,15 +184,14 @@ function logError(context, error) {
 }
 
 /**
- * 新形式（フォーム）と旧形式（スプレッドシート）の両URLを含む登録案内メッセージを生成
+ * イベント・申込の登録案内メッセージフッターを生成
  * @returns {string} 登録案内メッセージフッター
  */
 function getRegistrationFooterMessage() {
   const lines = [
     "----------------------------------------",
     "📝 **イベント・申込の登録はこちら**",
-    `・【新形式 (フォーム)】: ${REGISTRATION_FORM_URL}`,
-    `・【旧形式 (スプレッドシート)】: ${COMMON_SHEET_URL}`
+    `・【フォーム】: ${REGISTRATION_FORM_URL}`
   ];
   return lines.join("\n");
 }

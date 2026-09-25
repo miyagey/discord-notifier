@@ -12,9 +12,7 @@ function remindEndDate() {
     // --------------------------------------------------
     // 1. 通常申込（先着・リセール以外）の本日締切通知
     // --------------------------------------------------
-    const oldItems = fetchOldSheetApplyItems(todayStr);
-    const newItems = fetchNewSheetApplyItems(todayStr);
-    const regularItems = [...oldItems, ...newItems];
+    const regularItems = fetchNewSheetApplyItems(todayStr);
 
     if (regularItems.length > 0) {
       const headerTitle = "🔔 **本日締切のチケット申込があります！**";
@@ -98,54 +96,6 @@ function remindEndDate() {
 // 【ヘルパー関数】データ抽出処理
 // ==================================================
 
-/**
- * 従来シート（入力用）から本日の申込締切アイテム（通常申込）を抽出する
- * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
- * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string, sourceType: string}>}
- */
-function fetchOldSheetApplyItems(todayStr) {
-  const items = [];
-  try {
-    Logger.log("=== 従来シートの申込締切チェックを開始 ===");
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet() || (COMMON_SHEET_URL ? SpreadsheetApp.openByUrl(COMMON_SHEET_URL) : null);
-    const sheet = spreadsheet ? spreadsheet.getSheetByName('入力用') : null;
-
-    if (sheet) {
-      const sheetData = sheet.getDataRange().getValues();
-      for (let i = 4; i < sheetData.length; i++) {
-        const rowData = sheetData[i];
-        const endDateRaw = rowData[OLD_COL.END_DATE];
-
-        if (!endDateRaw) continue;
-
-        const endDateStr = formatDateJST(endDateRaw, "yyyy-MM-dd");
-
-        if (endDateStr === todayStr) {
-          const brand = rowData[OLD_COL.BRAND] ? `【${rowData[OLD_COL.BRAND]}】` : "";
-          const eventName = rowData[OLD_COL.EVENT] || "";
-          const note = rowData[OLD_COL.NOTE] || "";
-
-          // 備考等に「先着」「リセール」を含む場合は除外
-          if (note.includes("先着") || note.includes("リセール") || eventName.includes("リセール")) continue;
-
-          const noteStr = note ? ` (備考: ${note})` : "";
-
-          items.push({
-            brandEvent: `${brand}${eventName}`,
-            applyName: `従来シート${noteStr}`,
-            timeStr: "23:59まで",
-            method: rowData[OLD_COL.URL] || "",
-            sourceType: "old"
-          });
-        }
-      }
-    }
-    Logger.log(`従来シートの申込締切件数: ${items.length}件`);
-  } catch (e) {
-    logError("fetchOldSheetApplyItems", e);
-  }
-  return items;
-}
 
 /**
  * 新システム（イベントマスター/申し込み管理）から本日の申込締切アイテム（先着・リセール以外）を抽出する
