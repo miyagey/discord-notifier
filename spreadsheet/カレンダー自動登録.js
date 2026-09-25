@@ -107,10 +107,8 @@ function registerEventsToCalendar() {
         messageLines.push("");
       });
 
-      messageLines.push(getRegistrationFooterMessage());
-
       // カレンダー用のWebhook（WEBHOOK_CALENDAR）へ通知を送信
-      sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
+      sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n').trimEnd());
       Logger.log("Discordへカレンダー登録完了通知を送信しました。");
     } else {
       Logger.log("新しく登録するカレンダーイベントはありませんでした。");

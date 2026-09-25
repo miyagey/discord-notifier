@@ -341,8 +341,6 @@ function notifyDiscordNewApplyWeb(brand, eventName, applyName, endDatetime, payE
     lines.push(formatApplyMethodBlock(method).trimEnd());
   }
 
-  lines.push("\n" + getRegistrationFooterMessage());
-
   sendNotification(WEBHOOK_APPLY, lines.join('\n'));
 }
 

@@ -17,5 +17,8 @@ const CONFIG = {
   // 各通知ごとのDiscord Webhook URL
   WEBHOOK_APPLY: "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_1", // 申込締切用
   WEBHOOK_PAYMENT: "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_2", // 入金締切用
-  WEBHOOK_CALENDAR: "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_3" // カレンダー予定用
+  WEBHOOK_CALENDAR: "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_3", // カレンダー予定用
+
+  // 閲覧用Webアプリ（カンバンボード）の短縮URL / プロキシURL (任意)
+  WEBAPP_URL: "https://your-discord-proxy.workers.dev/board"
 };
