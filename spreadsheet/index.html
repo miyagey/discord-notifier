@@ -109,6 +109,26 @@
       gap: 0.5rem;
     }
 
+    .btn-create {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 0.85rem;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-create:hover {
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      transform: translateY(-1px);
+    }
+
     .icon-btn {
       background: var(--badge-bg);
       border: 1px solid var(--card-border);
@@ -309,7 +329,7 @@
 
     @media (max-width: 960px) {
       .kanban-board {
-        display: block; /* On mobile, only the active column is displayed unless 'ALL' */
+        display: block;
       }
       .kanban-column {
         display: none !important;
@@ -320,11 +340,9 @@
     }
 
     @media (min-width: 961px) {
-      /* On desktop, show all columns in Kanban mode */
       .kanban-column {
         display: flex !important;
       }
-      /* On desktop, hide ticket status tabs only in Kanban mode (show in Timeline mode) */
       .hide-on-desktop-kanban {
         display: none !important;
       }
@@ -523,6 +541,7 @@
       flex-direction: column;
       gap: 0.6rem;
       transition: transform 0.2s ease, border-color 0.2s ease;
+      position: relative;
     }
     .event-card:hover {
       transform: translateY(-2px);
@@ -642,13 +661,13 @@
       height: 20px;
     }
 
-    /* Modal */
+    /* Modal Styles */
     .modal-backdrop {
       position: fixed;
       inset: 0;
       z-index: 60;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -662,18 +681,20 @@
       border: 1px solid var(--card-border);
       border-radius: 20px;
       width: 100%;
-      max-width: 500px;
-      max-height: 85vh;
+      max-width: 520px;
+      max-height: 88vh;
       overflow-y: auto;
       padding: 1.25rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
     .modal-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 1rem;
-      margin-bottom: 1rem;
     }
     .modal-close-btn {
       background: var(--badge-bg);
@@ -686,6 +707,111 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    /* Form Styles */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .form-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .form-label .required {
+      color: var(--accent-urgent);
+      margin-left: 2px;
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 480px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--card-border);
+    }
+    .btn-secondary {
+      background: var(--badge-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: none;
+      color: #fff;
+      padding: 0.5rem 1.25rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: calc(75px + var(--safe-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--primary);
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
     .empty-state {
@@ -708,6 +834,10 @@
         <span>Event & Ticket Hub</span>
       </div>
       <div class="header-actions">
+        <button id="openCreateMenuBtn" class="btn-create">
+          <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+          <span>新規登録</span>
+        </button>
         <button id="refreshBtn" class="icon-btn" title="データを更新">
           <i data-lucide="rotate-cw" style="width: 18px; height: 18px;"></i>
         </button>
@@ -873,20 +1003,180 @@
     </button>
   </nav>
 
+  <!-- Create Type Selector Modal -->
+  <div class="modal-backdrop" id="createChoiceModal">
+    <div class="modal-card" style="max-width: 360px;">
+      <div class="modal-header">
+        <h3 style="font-size: 1.05rem; font-weight: 700;">新規登録</h3>
+        <button class="modal-close-btn" onclick="closeModal('createChoiceModal')">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">登録する種別を選択してください</p>
+      <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+        <button id="choiceNewTicketBtn" class="ticket-card" style="display: flex; align-items: center; gap: 0.75rem; text-align: left;">
+          <div class="logo-badge" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+            <i data-lucide="ticket" style="width: 16px; height: 16px; color: #fff;"></i>
+          </div>
+          <div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: #fff;">チケット申込を登録</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">先行・一般・リセール等の申込日程</div>
+          </div>
+        </button>
+        <button id="choiceNewEventBtn" class="ticket-card" style="display: flex; align-items: center; gap: 0.75rem; text-align: left;">
+          <div class="logo-badge" style="background: linear-gradient(135deg, #06b6d4, #3b82f6);">
+            <i data-lucide="calendar" style="width: 16px; height: 16px; color: #fff;"></i>
+          </div>
+          <div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: #fff;">イベントを新規登録</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">ライブ・ツアーの基本情報</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Detail Modal -->
   <div class="modal-backdrop" id="detailModal">
     <div class="modal-card">
       <div class="modal-header">
         <div id="modalBrandTag"></div>
-        <button class="modal-close-btn" id="modalCloseBtn">
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <button id="modalEditBtn" class="icon-btn" title="編集する">
+            <i data-lucide="pencil" style="width: 15px; height: 15px;"></i>
+          </button>
+          <button class="modal-close-btn" onclick="closeModal('detailModal')">
+            <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
+      </div>
+      <h3 id="modalTitle" style="font-size: 1.1rem; line-height: 1.4;"></h3>
+      <div id="modalApplyName"></div>
+      <div id="modalBody" style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.75rem;"></div>
+      <div id="modalFooter" style="margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border);"></div>
+    </div>
+  </div>
+
+  <!-- Ticket Form Modal (Create / Edit) -->
+  <div class="modal-backdrop" id="ticketFormModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="ticketFormTitle" style="font-size: 1.05rem; font-weight: 700;">チケット申込の編集</h3>
+        <button class="modal-close-btn" onclick="closeModal('ticketFormModal')">
           <i data-lucide="x" style="width: 18px; height: 18px;"></i>
         </button>
       </div>
-      <h3 id="modalTitle" style="font-size: 1.1rem; margin-bottom: 0.5rem; line-height: 1.4;"></h3>
-      <div id="modalApplyName" style="margin-bottom: 1rem;"></div>
-      <div id="modalBody" style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.75rem;"></div>
-      <div id="modalFooter" style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border);"></div>
+      <form id="ticketForm" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <input type="hidden" id="tfApplyId">
+        
+        <div class="form-group">
+          <label class="form-label">対象イベント <span class="required">*</span></label>
+          <select id="tfEventId" class="form-select" required>
+            <option value="">イベントを選択してください</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">受付区分・申込名称 <span class="required">*</span></label>
+          <input type="text" id="tfApplyName" class="form-input" placeholder="例: アソビストアプレミアム先行, 一般先着" required>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">申込開始日時</label>
+            <input type="datetime-local" id="tfStartDatetime" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">申込締切日時</label>
+            <input type="datetime-local" id="tfEndDatetime" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">当落発表日時</label>
+            <input type="datetime-local" id="tfResultDatetime" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">入金締切日時</label>
+            <input type="datetime-local" id="tfPayEndDatetime" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">申込方法・URL・備考</label>
+          <textarea id="tfMethod" class="form-textarea" rows="3" placeholder="チケット受付URLやシリアルコード等の注意事項"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal('ticketFormModal')">キャンセル</button>
+          <button type="submit" id="tfSubmitBtn" class="btn-primary">
+            <i data-lucide="save" style="width: 15px; height: 15px;"></i>
+            <span>保存する</span>
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
+
+  <!-- Event Form Modal (Create / Edit) -->
+  <div class="modal-backdrop" id="eventFormModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="eventFormTitle" style="font-size: 1.05rem; font-weight: 700;">イベントの編集</h3>
+        <button class="modal-close-btn" onclick="closeModal('eventFormModal')">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <form id="eventForm" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <input type="hidden" id="efEventId">
+
+        <div class="form-group">
+          <label class="form-label">ブランド名</label>
+          <input type="text" id="efBrand" class="form-input" placeholder="例: 学マス, デレ, シャニ, ミリオン, 765 等">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">イベント名 <span class="required">*</span></label>
+          <input type="text" id="efName" class="form-input" placeholder="イベントの正式名称" required>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">開始日 <span class="required">*</span></label>
+            <input type="date" id="efStartDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">終了日</label>
+            <input type="date" id="efEndDate" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">会場名</label>
+          <input type="text" id="efLocation" class="form-input" placeholder="例: 武蔵野の森総合スポーツプラザ, Kアリーナ横浜">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">イベント概要・メモ</label>
+          <textarea id="efSummary" class="form-textarea" rows="3" placeholder="ツアー情報や配信情報など"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal('eventFormModal')">キャンセル</button>
+          <button type="submit" id="efSubmitBtn" class="btn-primary">
+            <i data-lucide="save" style="width: 15px; height: 15px;"></i>
+            <span>保存する</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div id="toast" class="toast">
+    <i data-lucide="check-circle" style="width: 16px; height: 16px; color: var(--accent-success);"></i>
+    <span id="toastMsg">保存しました</span>
   </div>
 
   <script>
@@ -902,7 +1192,8 @@
       activeNav: 'tickets', // 'tickets' | 'events'
       viewMode: 'kanban', // 'kanban' | 'timeline'
       selectedApplyStatus: '受付期間', // 'ALL' | '受付期間' | '開始前' | '当落待ち' | '入金期間' | '期間終了'
-      selectedEventStatus: 'ALL' // 'ALL' | '開催前' | '開催期間' | '開催終了'
+      selectedEventStatus: 'ALL', // 'ALL' | '開催前' | '開催期間' | '開催終了'
+      currentDetailApp: null
     };
 
     // サーバーサイドから直接注入された初期データを受け取る
@@ -938,6 +1229,7 @@
         btn.classList.add('spinning');
         fetchDataFromServer(() => {
           btn.classList.remove('spinning');
+          showToast('データを最新化しました');
         });
       });
 
@@ -989,10 +1281,36 @@
         setActiveNav('events');
       });
 
-      // Modal Close
-      document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
-      document.getElementById('detailModal').addEventListener('click', (e) => {
-        if (e.target.id === 'detailModal') closeModal();
+      // Create Button & Choice Modal
+      document.getElementById('openCreateMenuBtn').addEventListener('click', () => {
+        openModal('createChoiceModal');
+      });
+      document.getElementById('choiceNewTicketBtn').addEventListener('click', () => {
+        closeModal('createChoiceModal');
+        openTicketFormModal(null);
+      });
+      document.getElementById('choiceNewEventBtn').addEventListener('click', () => {
+        closeModal('createChoiceModal');
+        openEventFormModal(null);
+      });
+
+      // Detail Modal Edit Button
+      document.getElementById('modalEditBtn').addEventListener('click', () => {
+        if (state.currentDetailApp) {
+          closeModal('detailModal');
+          openTicketFormModal(state.currentDetailApp);
+        }
+      });
+
+      // Form Submits
+      document.getElementById('ticketForm').addEventListener('submit', handleTicketFormSubmit);
+      document.getElementById('eventForm').addEventListener('submit', handleEventFormSubmit);
+
+      // Modal Background Clicks
+      document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+        backdrop.addEventListener('click', (e) => {
+          if (e.target === backdrop) closeModal(backdrop.id);
+        });
       });
     }
 
@@ -1015,7 +1333,6 @@
       if (isTickets) {
         eventTabs.style.display = 'none';
         ticketTabs.style.display = 'flex';
-        // Timelineモードのときはデスクトップでもチケットステータスタブを表示
         if (state.viewMode === 'timeline') {
           ticketTabs.classList.remove('hide-on-desktop-kanban');
         } else {
@@ -1028,7 +1345,7 @@
     }
 
     // ==========================================
-    // Data Fetching
+    // Data Fetching & API
     // ==========================================
     function fetchDataFromServer(callback) {
       if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -1049,11 +1366,185 @@
           })
           .getAppData();
       } else {
-        // ローカルプレビュー用モックデータ
         console.log('Using Mock Data for Local Testing');
-        generateMockData();
+        if (state.events.length === 0) generateMockData();
         renderApp();
         if (callback) setTimeout(callback, 500);
+      }
+    }
+
+    // ==========================================
+    // Form Handling (Create & Edit)
+    // ==========================================
+    function openTicketFormModal(app) {
+      const isEdit = !!app;
+      document.getElementById('ticketFormTitle').textContent = isEdit ? 'チケット申込の編集' : 'チケット申込の新規登録';
+      document.getElementById('tfApplyId').value = isEdit ? app.id : '';
+
+      // イベント選択肢の再構築
+      const select = document.getElementById('tfEventId');
+      select.innerHTML = '<option value="">イベントを選択してください</option>' + state.events.map(ev => {
+        const label = (ev.brand ? `【${ev.brand}】` : '') + ev.name + (ev.startDate ? ` (${ev.startDate})` : '');
+        return `<option value="${escapeHtml(ev.id)}">${escapeHtml(label)}</option>`;
+      }).join('');
+
+      select.value = isEdit ? (app.eventId || '') : '';
+      document.getElementById('tfApplyName').value = isEdit ? (app.applyName || '') : '';
+      document.getElementById('tfStartDatetime').value = isEdit ? formatDateTimeLocalInput(app.startDatetime) : '';
+      document.getElementById('tfEndDatetime').value = isEdit ? formatDateTimeLocalInput(app.endDatetime) : '';
+      document.getElementById('tfResultDatetime').value = isEdit ? formatDateTimeLocalInput(app.resultDatetime) : '';
+      document.getElementById('tfPayEndDatetime').value = isEdit ? formatDateTimeLocalInput(app.payEndDatetime) : '';
+      document.getElementById('tfMethod').value = isEdit ? (app.method || '') : '';
+
+      openModal('ticketFormModal');
+    }
+
+    function openEventFormModal(ev) {
+      const isEdit = !!ev;
+      document.getElementById('eventFormTitle').textContent = isEdit ? 'イベントの編集' : 'イベントの新規登録';
+      document.getElementById('efEventId').value = isEdit ? ev.id : '';
+      document.getElementById('efBrand').value = isEdit ? (ev.brand || '') : '';
+      document.getElementById('efName').value = isEdit ? (ev.name || '') : '';
+      document.getElementById('efStartDate').value = isEdit ? (ev.startDate || '') : '';
+      document.getElementById('efEndDate').value = isEdit ? (ev.endDate || '') : '';
+      document.getElementById('efLocation').value = isEdit ? (ev.location || '') : '';
+      document.getElementById('efSummary').value = isEdit ? (ev.summary || '') : '';
+
+      openModal('eventFormModal');
+    }
+
+    function handleTicketFormSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('tfSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>保存中...</span>';
+
+      const applyId = document.getElementById('tfApplyId').value;
+      const eventId = document.getElementById('tfEventId').value;
+      const matchedEvent = state.events.find(ev => ev.id === eventId);
+
+      const payload = {
+        id: applyId,
+        eventId: eventId,
+        brand: matchedEvent ? matchedEvent.brand : '',
+        eventName: matchedEvent ? matchedEvent.name : '',
+        applyName: document.getElementById('tfApplyName').value.trim(),
+        startDatetime: formatDateTimeDisplay(document.getElementById('tfStartDatetime').value),
+        endDatetime: formatDateTimeDisplay(document.getElementById('tfEndDatetime').value),
+        resultDatetime: formatDateTimeDisplay(document.getElementById('tfResultDatetime').value),
+        payEndDatetime: formatDateTimeDisplay(document.getElementById('tfPayEndDatetime').value),
+        method: document.getElementById('tfMethod').value.trim()
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        const handler = (res) => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" style="width: 15px; height: 15px;"></i><span>保存する</span>';
+          if (res && res.success) {
+            closeModal('ticketFormModal');
+            showToast(applyId ? 'チケット申込を更新しました' : 'チケット申込を登録しました');
+            fetchDataFromServer();
+          } else {
+            alert('保存に失敗しました: ' + (res ? res.error : '不明なエラー'));
+          }
+        };
+
+        if (applyId) {
+          google.script.run.withSuccessHandler(handler).withFailureHandler(err => {
+            btn.disabled = false;
+            alert(err.message);
+          }).updateApplication(payload);
+        } else {
+          google.script.run.withSuccessHandler(handler).withFailureHandler(err => {
+            btn.disabled = false;
+            alert(err.message);
+          }).createApplication(payload);
+        }
+      } else {
+        // Mock fallback
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" style="width: 15px; height: 15px;"></i><span>保存する</span>';
+          if (applyId) {
+            const idx = state.applications.findIndex(a => a.id === applyId);
+            if (idx !== -1) {
+              state.applications[idx] = { ...state.applications[idx], ...payload };
+            }
+          } else {
+            payload.id = 'AP-' + String(state.applications.length + 1).padStart(3, '0');
+            payload.status = '受付期間';
+            state.applications.unshift(payload);
+          }
+          closeModal('ticketFormModal');
+          showToast(applyId ? 'チケット申込を更新しました (モック)' : 'チケット申込を登録しました (モック)');
+          renderApp();
+        }, 400);
+      }
+    }
+
+    function handleEventFormSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('efSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>保存中...</span>';
+
+      const eventId = document.getElementById('efEventId').value;
+      const payload = {
+        id: eventId,
+        brand: document.getElementById('efBrand').value.trim(),
+        name: document.getElementById('efName').value.trim(),
+        startDate: document.getElementById('efStartDate').value,
+        endDate: document.getElementById('efEndDate').value || document.getElementById('efStartDate').value,
+        location: document.getElementById('efLocation').value.trim(),
+        summary: document.getElementById('efSummary').value.trim()
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        const handler = (res) => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" style="width: 15px; height: 15px;"></i><span>保存する</span>';
+          if (res && res.success) {
+            closeModal('eventFormModal');
+            showToast(eventId ? 'イベントを更新しました' : 'イベントを登録しました');
+            fetchDataFromServer();
+          } else {
+            alert('保存に失敗しました: ' + (res ? res.error : '不明なエラー'));
+          }
+        };
+
+        if (eventId) {
+          google.script.run.withSuccessHandler(handler).withFailureHandler(err => {
+            btn.disabled = false;
+            alert(err.message);
+          }).updateEvent(payload);
+        } else {
+          google.script.run.withSuccessHandler(handler).withFailureHandler(err => {
+            btn.disabled = false;
+            alert(err.message);
+          }).createEvent(payload);
+        }
+      } else {
+        // Mock fallback
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="save" style="width: 15px; height: 15px;"></i><span>保存する</span>';
+          if (eventId) {
+            const idx = state.events.findIndex(e => e.id === eventId);
+            if (idx !== -1) {
+              state.events[idx] = { ...state.events[idx], ...payload };
+            }
+          } else {
+            payload.id = 'EV-' + String(state.events.length + 1).padStart(3, '0');
+            payload.status = '開催前';
+            state.events.unshift(payload);
+            if (payload.brand && !state.brands.includes(payload.brand)) {
+              state.brands.push(payload.brand);
+            }
+          }
+          closeModal('eventFormModal');
+          showToast(eventId ? 'イベントを更新しました (モック)' : 'イベントを登録しました (モック)');
+          renderApp();
+        }, 400);
       }
     }
 
@@ -1104,11 +1595,9 @@
 
     function filterItems(items) {
       return items.filter(item => {
-        // ブランド一致
         if (state.selectedBrand !== 'ALL' && item.brand !== state.selectedBrand) {
           return false;
         }
-        // キーワード検索
         if (state.searchKeyword) {
           const matchTarget = `${item.eventName || item.name || ''} ${item.brand || ''} ${item.applyName || ''} ${item.location || ''}`.toLowerCase();
           if (!matchTarget.includes(state.searchKeyword)) {
@@ -1133,7 +1622,6 @@
 
       const counts = { '開始前': 0, '受付期間': 0, '当落待ち': 0, '入金期間': 0, '期間終了': 0 };
 
-      // リスト初期化
       Object.values(columns).forEach(col => col.innerHTML = '');
 
       filtered.forEach(app => {
@@ -1142,14 +1630,12 @@
         columns[colKey].appendChild(createTicketCard(app));
       });
 
-      // カラムヘッダーのカウント反映
       document.getElementById('countBefore').textContent = counts['開始前'];
       document.getElementById('countActive').textContent = counts['受付期間'];
       document.getElementById('countWaiting').textContent = counts['当落待ち'];
       document.getElementById('countPayment').textContent = counts['入金期間'];
       document.getElementById('countFinished').textContent = counts['期間終了'];
 
-      // チケットタブのバブル反映
       document.getElementById('countActiveTab').textContent = counts['受付期間'];
       document.getElementById('countBeforeTab').textContent = counts['開始前'];
       document.getElementById('countWaitingTab').textContent = counts['当落待ち'];
@@ -1157,7 +1643,6 @@
       document.getElementById('countFinishedTab').textContent = counts['期間終了'];
       document.getElementById('countAllTab').textContent = filtered.length;
 
-      // 空カラム表示
       Object.keys(columns).forEach(key => {
         if (counts[key] === 0) {
           columns[key].innerHTML = '<div class="empty-state">該当なし</div>';
@@ -1180,7 +1665,6 @@
     function renderTimeline() {
       const filtered = filterItems(state.applications);
 
-      // ステータスタブのカウント更新
       const counts = { '開始前': 0, '受付期間': 0, '当落待ち': 0, '入金期間': 0, '期間終了': 0 };
       filtered.forEach(app => {
         const s = app.status in counts ? app.status : '期間終了';
@@ -1193,7 +1677,6 @@
       document.getElementById('countFinishedTab').textContent = counts['期間終了'];
       document.getElementById('countAllTab').textContent = filtered.length;
 
-      // 選択中ステータスで絞り込み
       const statusFiltered = filtered.filter(app => {
         if (state.selectedApplyStatus === 'ALL') return true;
         return app.status === state.selectedApplyStatus;
@@ -1216,7 +1699,6 @@
     function renderEvents() {
       const filtered = filterItems(state.events);
 
-      // イベントステータスタブのカウント更新
       const counts = { '開催前': 0, '開催期間': 0, '開催終了': 0 };
       filtered.forEach(ev => {
         if (ev.status in counts) counts[ev.status]++;
@@ -1226,7 +1708,6 @@
       document.getElementById('eventCountOngoingTab').textContent = counts['開催期間'];
       document.getElementById('eventCountFinishedTab').textContent = counts['開催終了'];
 
-      // 選択中イベントステータスで絞り込み
       const statusFiltered = filtered.filter(ev => {
         if (state.selectedEventStatus === 'ALL') return true;
         return ev.status === state.selectedEventStatus;
@@ -1241,7 +1722,6 @@
         return;
       }
 
-      // イベントIDごとに申込をマッピング
       const appMap = {};
       state.applications.forEach(app => {
         if (!appMap[app.eventId]) appMap[app.eventId] = [];
@@ -1268,7 +1748,12 @@
               ${ev.brand ? `<span class="brand-tag" data-brand="${escapeHtml(ev.brand)}">${escapeHtml(ev.brand)}</span>` : ''}
               <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.name)}</h3>
             </div>
-            <span class="event-status-tag" data-status="${escapeHtml(ev.status)}">${escapeHtml(ev.status)}</span>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <span class="event-status-tag" data-status="${escapeHtml(ev.status)}">${escapeHtml(ev.status)}</span>
+              <button class="icon-btn edit-event-btn" style="width: 28px; height: 28px; border-radius: 6px;" title="イベントを編集">
+                <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
+              </button>
+            </div>
           </div>
 
           <div class="event-meta">
@@ -1296,6 +1781,11 @@
           </div>
         `;
 
+        card.querySelector('.edit-event-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEventFormModal(ev);
+        });
+
         container.appendChild(card);
       });
     }
@@ -1310,7 +1800,12 @@
       card.innerHTML = `
         <div class="card-top">
           ${app.brand ? `<span class="brand-tag" data-brand="${escapeHtml(app.brand)}">${escapeHtml(app.brand)}</span>` : '<span></span>'}
-          ${countdown ? `<span class="deadline-countdown ${countdown.style}">${countdown.text}</span>` : ''}
+          <div style="display: flex; align-items: center; gap: 0.35rem;">
+            ${countdown ? `<span class="deadline-countdown ${countdown.style}">${countdown.text}</span>` : ''}
+            <button class="icon-btn quick-edit-btn" style="width: 24px; height: 24px; border-radius: 6px;" title="編集">
+              <i data-lucide="pencil" style="width: 12px; height: 12px;"></i>
+            </button>
+          </div>
         </div>
         <div class="card-title">${escapeHtml(app.eventName || '名称未設定イベント')}</div>
         <div class="card-apply-name">
@@ -1342,14 +1837,20 @@
         </div>
       `;
 
-      card.addEventListener('click', () => openModal(app));
+      card.querySelector('.quick-edit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openTicketFormModal(app);
+      });
+
+      card.addEventListener('click', () => openModalDetail(app));
       return card;
     }
 
     // ==========================================
     // Modal Helpers
     // ==========================================
-    function openModal(app) {
+    function openModalDetail(app) {
+      state.currentDetailApp = app;
       document.getElementById('modalBrandTag').innerHTML = app.brand ? `<span class="brand-tag" data-brand="${escapeHtml(app.brand)}">${escapeHtml(app.brand)}</span>` : '';
       document.getElementById('modalTitle').textContent = app.eventName || '名称未設定イベント';
       document.getElementById('modalApplyName').innerHTML = `<div class="card-apply-name"><i data-lucide="ticket" style="width: 13px; height: 13px;"></i><span>${escapeHtml(app.applyName)}</span></div>`;
@@ -1357,7 +1858,7 @@
       const body = document.getElementById('modalBody');
       body.innerHTML = `
         <div style="background: rgba(255,255,255,0.04); padding: 0.75rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.4rem;">
-          <div><strong style="color:var(--text-dim);">ステータス:</strong> ${escapeHtml(app.status)}</div>
+          <div><strong style="color:var(--text-dim);">ステータス:</strong> ${escapeHtml(app.status)} <span style="font-size:0.7rem; color:var(--text-dim);">(自動計算)</span></div>
           <div><strong style="color:var(--text-dim);">申込開始:</strong> ${escapeHtml(app.startDatetime || '未指定')}</div>
           <div><strong style="color:var(--text-dim);">申込締切:</strong> ${escapeHtml(app.endDatetime || '未指定')}</div>
           <div><strong style="color:var(--text-dim);">当落発表:</strong> ${escapeHtml(app.resultDatetime || '未指定')}</div>
@@ -1384,17 +1885,43 @@
         footer.innerHTML = '';
       }
 
-      document.getElementById('detailModal').classList.add('show');
+      openModal('detailModal');
+    }
+
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.add('show');
       lucide.createIcons();
     }
 
-    function closeModal() {
-      document.getElementById('detailModal').classList.remove('show');
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('show');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.add('show');
+      lucide.createIcons();
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
     }
 
     // ==========================================
     // Utility Helpers
     // ==========================================
+    function formatDateTimeLocalInput(dateStr) {
+      if (!dateStr) return '';
+      // "2026-09-28 23:59" -> "2026-09-28T23:59"
+      return dateStr.replace(' ', 'T');
+    }
+
+    function formatDateTimeDisplay(inputVal) {
+      if (!inputVal) return '';
+      // "2026-09-28T23:59" -> "2026-09-28 23:59"
+      return inputVal.replace('T', ' ');
+    }
+
     function calculateCountdown(app) {
       const now = new Date();
       let targetDateStr = app.endDatetime;

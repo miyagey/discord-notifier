@@ -26,8 +26,7 @@ function doGet(e) {
 
 /**
  * Webアプリに必要なすべてのデータ（イベントマスター＋申し込み管理）を取得する
- * クライアント側の google.script.run からも呼び出し可能
- * @returns {Object} { events: Array<Object>, applications: Array<Object>, brands: Array<string>, updatedAt: string }
+ * @returns {Object} { success: boolean, events: Array<Object>, applications: Array<Object>, brands: Array<string>, updatedAt: string }
  */
 function getAppData() {
   try {
@@ -65,6 +64,270 @@ function getAppData() {
       brands: [],
       updatedAt: formatDateJST(new Date(), 'yyyy-MM-dd HH:mm:ss')
     };
+  }
+}
+
+/**
+ * イベントの新規登録
+ * @param {Object} data - { brand, name, startDate, endDate, location, summary }
+ * @returns {Object} { success: boolean, eventId?: string, error?: string }
+ */
+function createEvent(data) {
+  try {
+    if (!data || !data.name || !data.startDate) {
+      throw new Error('イベント名と開始日は必須項目です。');
+    }
+
+    const spreadsheet = getSpreadsheet();
+    const sheet = spreadsheet.getSheetByName('イベントマスター');
+    if (!sheet) throw new Error('「イベントマスター」シートが見つかりません。');
+
+    const values = sheet.getDataRange().getValues();
+    let maxIdNum = 0;
+
+    for (let i = 1; i < values.length; i++) {
+      const idStr = String(values[i][MASTER_COL.ID] || '');
+      const match = idStr.match(/^EV-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxIdNum) maxIdNum = num;
+      }
+    }
+
+    const newIdNum = maxIdNum + 1;
+    const eventId = 'EV-' + String(newIdNum).padStart(3, '0');
+    const nextRow = sheet.getLastRow() + 1;
+
+    const masterIfsFormula = `=IFS(
+      ISBLANK(D${nextRow}), "未設定",
+      TODAY() < INT(D${nextRow}), "開催前",
+      TODAY() <= INT(IF(ISBLANK(E${nextRow}), D${nextRow}, E${nextRow})), "開催期間",
+      TRUE, "開催終了"
+    )`;
+
+    const startDate = data.startDate || '';
+    const endDate = data.endDate || startDate;
+
+    sheet.appendRow([
+      eventId,
+      data.brand || '',
+      data.name,
+      startDate,
+      endDate,
+      data.location || '',
+      data.summary || '',
+      '', // CAL_ID
+      masterIfsFormula
+    ]);
+
+    return { success: true, eventId: eventId };
+  } catch (error) {
+    logError('createEvent', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * イベント情報の更新
+ * @param {Object} data - { id, brand, name, startDate, endDate, location, summary }
+ * @returns {Object} { success: boolean, error?: string }
+ */
+function updateEvent(data) {
+  try {
+    if (!data || !data.id) {
+      throw new Error('イベントIDが指定されていません。');
+    }
+
+    const spreadsheet = getSpreadsheet();
+    const masterSheet = spreadsheet.getSheetByName('イベントマスター');
+    if (!masterSheet) throw new Error('「イベントマスター」シートが見つかりません。');
+
+    const values = masterSheet.getDataRange().getValues();
+    let targetRow = -1;
+
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][MASTER_COL.ID]) === String(data.id)) {
+        targetRow = i + 1; // 1始まりの行番号
+        break;
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error(`イベントID「${data.id}」の行が見つかりません。`);
+    }
+
+    const startDate = data.startDate || '';
+    const endDate = data.endDate || startDate;
+
+    // B列〜G列 (ブランド, イベント名, 開始日, 終了日, 会場, 概要) を更新
+    masterSheet.getRange(targetRow, MASTER_COL.BRAND + 1).setValue(data.brand || '');
+    masterSheet.getRange(targetRow, MASTER_COL.EVENT_NAME + 1).setValue(data.name || '');
+    masterSheet.getRange(targetRow, MASTER_COL.START_DATE + 1).setValue(startDate);
+    masterSheet.getRange(targetRow, MASTER_COL.END_DATE + 1).setValue(endDate);
+    masterSheet.getRange(targetRow, MASTER_COL.LOCATION + 1).setValue(data.location || '');
+    masterSheet.getRange(targetRow, MASTER_COL.SUMMARY + 1).setValue(data.summary || '');
+
+    // 申し込み管理シート側のブランド・イベント名も同期更新
+    const applySheet = spreadsheet.getSheetByName('申し込み管理');
+    if (applySheet) {
+      const applyValues = applySheet.getDataRange().getValues();
+      for (let j = 1; j < applyValues.length; j++) {
+        if (String(applyValues[j][APPLY_COL.EVENT_ID]) === String(data.id)) {
+          applySheet.getRange(j + 1, 3).setValue(data.brand || ''); // C列: ブランド
+          applySheet.getRange(j + 1, APPLY_COL.EVENT_NAME_ALT + 1).setValue(data.name || ''); // D列: イベント名
+        }
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    logError('updateEvent', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 申し込み情報の新規登録
+ * @param {Object} data - { eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+ * @returns {Object} { success: boolean, applyId?: string, error?: string }
+ */
+function createApplication(data) {
+  try {
+    if (!data || !data.applyName) {
+      throw new Error('受付名は必須項目です。');
+    }
+
+    const spreadsheet = getSpreadsheet();
+    const applySheet = spreadsheet.getSheetByName('申し込み管理');
+    if (!applySheet) throw new Error('「申し込み管理」シートが見つかりません。');
+
+    // イベント情報が未完全な場合、イベントマスターから補完
+    let eventId = data.eventId || '';
+    let brand = data.brand || '';
+    let eventName = data.eventName || '';
+
+    if (eventId && (!brand || !eventName)) {
+      const masterSheet = spreadsheet.getSheetByName('イベントマスター');
+      if (masterSheet) {
+        const mValues = masterSheet.getDataRange().getValues();
+        for (let i = 1; i < mValues.length; i++) {
+          if (String(mValues[i][MASTER_COL.ID]) === eventId) {
+            brand = brand || String(mValues[i][MASTER_COL.BRAND] || '');
+            eventName = eventName || String(mValues[i][MASTER_COL.EVENT_NAME] || '');
+            break;
+          }
+        }
+      }
+    }
+
+    const values = applySheet.getDataRange().getValues();
+    let maxIdNum = 0;
+
+    for (let i = 1; i < values.length; i++) {
+      const idStr = String(values[i][APPLY_COL.APPLY_ID] || '');
+      const match = idStr.match(/^AP-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxIdNum) maxIdNum = num;
+      }
+    }
+
+    const newIdNum = maxIdNum + 1;
+    const applyId = 'AP-' + String(newIdNum).padStart(3, '0');
+    const nextRow = applySheet.getLastRow() + 1;
+
+    const ifsFormula = `=IFS(
+      AND(NOT(ISBLANK(F${nextRow})), NOW() < F${nextRow}), "開始前",
+      AND(NOT(ISBLANK(G${nextRow})), NOW() <= G${nextRow}), "受付期間",
+      AND(NOT(ISBLANK(I${nextRow})), NOW() < I${nextRow}), "抽選終了・当落確認前",
+      AND(NOT(ISBLANK(J${nextRow})), NOW() <= J${nextRow}), "当落確認・入金期間",
+      TRUE, "期間終了"
+    )`;
+
+    applySheet.appendRow([
+      applyId,
+      eventId,
+      brand,
+      eventName,
+      data.applyName,
+      data.startDatetime || '',
+      data.endDatetime || '',
+      data.method || '',
+      data.resultDatetime || '',
+      data.payEndDatetime || '',
+      ifsFormula
+    ]);
+
+    return { success: true, applyId: applyId };
+  } catch (error) {
+    logError('createApplication', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 申し込み情報の更新
+ * @param {Object} data - { id, eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+ * @returns {Object} { success: boolean, error?: string }
+ */
+function updateApplication(data) {
+  try {
+    if (!data || !data.id) {
+      throw new Error('申込IDが指定されていません。');
+    }
+
+    const spreadsheet = getSpreadsheet();
+    const applySheet = spreadsheet.getSheetByName('申し込み管理');
+    if (!applySheet) throw new Error('「申し込み管理」シートが見つかりません。');
+
+    const values = applySheet.getDataRange().getValues();
+    let targetRow = -1;
+
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][APPLY_COL.APPLY_ID]) === String(data.id)) {
+        targetRow = i + 1;
+        break;
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error(`申込ID「${data.id}」の行が見つかりません。`);
+    }
+
+    // イベント情報が未完全な場合、イベントマスターから補完
+    let eventId = data.eventId || '';
+    let brand = data.brand || '';
+    let eventName = data.eventName || '';
+
+    if (eventId && (!brand || !eventName)) {
+      const masterSheet = spreadsheet.getSheetByName('イベントマスター');
+      if (masterSheet) {
+        const mValues = masterSheet.getDataRange().getValues();
+        for (let i = 1; i < mValues.length; i++) {
+          if (String(mValues[i][MASTER_COL.ID]) === eventId) {
+            brand = brand || String(mValues[i][MASTER_COL.BRAND] || '');
+            eventName = eventName || String(mValues[i][MASTER_COL.EVENT_NAME] || '');
+            break;
+          }
+        }
+      }
+    }
+
+    // B列〜J列を更新（K列の数式は維持）
+    applySheet.getRange(targetRow, APPLY_COL.EVENT_ID + 1).setValue(eventId);
+    applySheet.getRange(targetRow, 3).setValue(brand); // C列: ブランド
+    applySheet.getRange(targetRow, APPLY_COL.EVENT_NAME_ALT + 1).setValue(eventName); // D列: イベント名
+    applySheet.getRange(targetRow, APPLY_COL.APPLY_NAME + 1).setValue(data.applyName || '');
+    applySheet.getRange(targetRow, 6).setValue(data.startDatetime || ''); // F列: 申込開始日時
+    applySheet.getRange(targetRow, APPLY_COL.APPLY_END_DATE + 1).setValue(data.endDatetime || '');
+    applySheet.getRange(targetRow, APPLY_COL.APPLY_METHOD + 1).setValue(data.method || '');
+    applySheet.getRange(targetRow, 9).setValue(data.resultDatetime || ''); // I列: 当落発表日時
+    applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
+
+    return { success: true };
+  } catch (error) {
+    logError('updateApplication', error);
+    return { success: false, error: error.message };
   }
 }
 
