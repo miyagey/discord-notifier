@@ -37,6 +37,11 @@ const WEBHOOK_CALENDAR = (typeof CONFIG !== 'undefined' && CONFIG.WEBHOOK_CALEND
 /** イベント・申込の登録用 Google フォーム URL */
 const REGISTRATION_FORM_URL = "https://forms.gle/VcErZhtVcUHtL6ET8";
 
+/** Webアプリ（閲覧用カンバンボード）のURL（Cloudflare等で短縮されたURLまたはGAS WebApp URL） */
+const WEBAPP_URL = (typeof CONFIG !== 'undefined' && CONFIG.WEBAPP_URL)
+  ? CONFIG.WEBAPP_URL
+  : (_props.getProperty("WEBAPP_URL") || "");
+
 // ==================================================
 // 【列インデックス定義】
 // ==================================================
@@ -184,16 +189,53 @@ function logError(context, error) {
 }
 
 /**
- * 登録案内メッセージフッター（Googleフォームのみ）を生成
+ * 締切リマインド等の登録・閲覧案内メッセージフッターを生成
  * @returns {string} 登録案内メッセージフッター
  */
 function getRegistrationFooterMessage() {
   const lines = [
     "----------------------------------------",
-    "📝 **イベント・申込の登録はこちら**",
-    `・【Googleフォーム】: ${REGISTRATION_FORM_URL}`
+    "📝 **イベント・申込の確認＆登録はこちら**",
+    `・【フォーム (登録)】: ${REGISTRATION_FORM_URL}`
   ];
+
+  if (WEBAPP_URL) {
+    lines.push(`・【Webアプリ (一覧・カンバン)】: ${WEBAPP_URL}`);
+  }
+
   return lines.join("\n");
+}
+
+/**
+ * Googleカレンダー登録完了のDiscord通知メッセージを生成・送信（新規登録時はフッターなし）
+ * @param {string} brandEventTitle - イベントタイトル
+ * @param {string} dateStr - 期間文字列
+ * @param {string} location - 会場
+ * @param {string} summary - 概要
+ */
+function notifyDiscordNewCalendarEvent(brandEventTitle, dateStr, location, summary) {
+  if (!WEBHOOK_CALENDAR) return;
+
+  const lines = [
+    "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
+    `📅 **${brandEventTitle}**`,
+    ` └ 期間: **${dateStr} [終日]**`
+  ];
+
+  if (location) {
+    lines.push(` └ 会場: ${location}`);
+  }
+  if (summary) {
+    const trimmed = String(summary).trim();
+    if (trimmed.includes("\n")) {
+      const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
+      lines.push(` └ 概要:\n${quoted}`);
+    } else {
+      lines.push(` └ 概要: ${trimmed}`);
+    }
+  }
+
+  sendNotification(WEBHOOK_CALENDAR, lines.join('\n'));
 }
 
 // ==================================================

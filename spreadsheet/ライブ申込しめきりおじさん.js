@@ -12,8 +12,7 @@ function remindEndDate() {
     // --------------------------------------------------
     // 1. 通常申込（先着・リセール以外）の本日締切通知
     // --------------------------------------------------
-    const newItems = fetchNewSheetApplyItems(todayStr, today);
-    const regularItems = [...newItems];
+    const regularItems = fetchNewSheetApplyItems(todayStr, today);
 
     if (regularItems.length > 0) {
       const headerTitle = "🔔 **本日締切のチケット申込があります！**";
