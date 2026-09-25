@@ -68,7 +68,7 @@ function getAppData() {
 }
 
 /**
- * イベントの新規登録
+ * イベントの新規登録（カレンダー同期 & Discord通知付き）
  * @param {Object} data - { brand, name, startDate, endDate, location, summary }
  * @returns {Object} { success: boolean, eventId?: string, error?: string }
  */
@@ -108,6 +108,49 @@ function createEvent(data) {
     const startDate = data.startDate || '';
     const endDate = data.endDate || startDate;
 
+    // --- Google カレンダーへの自動追加 & Discord予定通知 ---
+    let calId = '';
+    try {
+      if (CALENDAR_ID) {
+        const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
+        if (calendar) {
+          const title = formatBrandEventTitle(data.brand, data.name);
+          const startD = new Date(startDate);
+          let endD = new Date(endDate);
+          // 終日イベント用の終了日は翌日を指定
+          endD.setDate(endD.getDate() + 1);
+
+          const options = {};
+          if (data.location) options.location = data.location;
+          if (data.summary) options.description = data.summary;
+
+          const calEvent = calendar.createAllDayEvent(title, startD, endD, options);
+          calId = calEvent.getId();
+          Logger.log(`カレンダー登録成功: ${title} (ID: ${calId})`);
+
+          // WEBHOOK_CALENDAR へ通知を送信
+          if (WEBHOOK_CALENDAR) {
+            let dateStr = formatDateJST(startD, "MM/dd");
+            if (data.endDate && data.endDate !== data.startDate) {
+              dateStr += ` 〜 ${formatDateJST(new Date(data.endDate), "MM/dd")}`;
+            }
+            const messageLines = [
+              "## 🆕 カレンダーに新しいイベントを登録したよ！",
+              `### 📌 ${title}`,
+              `⏰ 期間: ${dateStr} [終日]`
+            ];
+            if (data.location) messageLines.push(`📍 場所: ${data.location}`);
+            if (data.summary) messageLines.push(`📝 概要:\n> ${data.summary.replace(/\n/g, '\n> ')}`);
+            messageLines.push("\n" + getRegistrationFooterMessage());
+
+            sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
+          }
+        }
+      }
+    } catch (calErr) {
+      logError('createEvent.calendarSync', calErr);
+    }
+
     sheet.appendRow([
       eventId,
       data.brand || '',
@@ -116,7 +159,7 @@ function createEvent(data) {
       endDate,
       data.location || '',
       data.summary || '',
-      '', // CAL_ID
+      calId,
       masterIfsFormula
     ]);
 
@@ -187,7 +230,7 @@ function updateEvent(data) {
 }
 
 /**
- * 申し込み情報の新規登録
+ * 申し込み情報の新規登録（Discord通知付き）
  * @param {Object} data - { eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
  * @returns {Object} { success: boolean, applyId?: string, error?: string }
  */
@@ -258,11 +301,60 @@ function createApplication(data) {
       ifsFormula
     ]);
 
+    // --- Discordへの新着申込通知（WEBHOOK_APPLY） ---
+    try {
+      if (WEBHOOK_APPLY) {
+        notifyDiscordNewApplyWeb(
+          brand,
+          eventName,
+          data.applyName,
+          data.endDatetime,
+          data.payEndDatetime,
+          data.method
+        );
+      }
+    } catch (notifyErr) {
+      logError('createApplication.notifyDiscord', notifyErr);
+    }
+
     return { success: true, applyId: applyId };
   } catch (error) {
     logError('createApplication', error);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Webアプリ経由で登録された新着チケット申込をDiscordへ通知
+ * @param {string} brand 
+ * @param {string} eventName 
+ * @param {string} applyName 
+ * @param {string} endDatetime 
+ * @param {string} payEndDatetime 
+ * @param {string} method 
+ */
+function notifyDiscordNewApplyWeb(brand, eventName, applyName, endDatetime, payEndDatetime, method) {
+  const brandEventTitle = formatBrandEventTitle(brand, eventName);
+
+  const lines = [
+    "🆕 **新しいチケット申込が登録されたよ！**\n",
+    `📅 **${brandEventTitle}**`,
+    ` └ 受付区分: ${applyName || "未指定"}`
+  ];
+
+  if (endDatetime) {
+    lines.push(` └ 申込締切: **${endDatetime}まで**`);
+  }
+  if (payEndDatetime) {
+    lines.push(` └ 入金締切: **${payEndDatetime}まで**`);
+  }
+  if (method) {
+    lines.push(formatApplyMethodBlock(method).trimEnd());
+  }
+
+  lines.push("\n" + getRegistrationFooterMessage());
+
+  sendNotification(WEBHOOK_APPLY, lines.join('\n'));
 }
 
 /**
