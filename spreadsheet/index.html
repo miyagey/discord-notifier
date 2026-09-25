@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Event & Ticket Board</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at top left, #1e1b4b, #0f172a 40%, #020617 100%);
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --card-hover-border: rgba(99, 102, 241, 0.4);
+      --glass-panel: rgba(15, 23, 42, 0.75);
+      --glass-blur: blur(16px);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent-urgent: #ef4444;
+      --accent-warning: #f59e0b;
+      --accent-success: #10b981;
+      --accent-info: #06b6d4;
+      --badge-bg: rgba(255, 255, 255, 0.08);
+      --safe-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--glass-panel);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--card-border);
+      padding: 0.75rem 1rem;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .icon-btn {
+      background: var(--badge-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .icon-btn.spinning i {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Search & Filter Bar */
+    .filter-bar {
+      max-width: 1400px;
+      margin: 0.75rem auto 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .search-input-wrapper i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 0.45rem 0.75rem 0.45rem 2.2rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: rgba(15, 23, 42, 0.6);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+
+    .brand-chips {
+      display: flex;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .brand-chips::-webkit-scrollbar {
+      display: none;
+    }
+
+    .brand-chip {
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: 1px solid var(--card-border);
+      background: var(--badge-bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .brand-chip.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem 1rem calc(65px + var(--safe-bottom));
+    }
+
+    /* Mode Switcher (Kanban vs Timeline) */
+    .view-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+    }
+
+    .segmented-control {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .segment-btn {
+      padding: 0.35rem 0.8rem;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.2s;
+    }
+    .segment-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .stats-badge {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Mobile Column Tabs (Only shown on small screens) */
+    .mobile-col-tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
+      scrollbar-width: none;
+    }
+    .mobile-col-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    .col-tab-btn {
+      flex: 1;
+      min-width: 90px;
+      padding: 0.5rem 0.4rem;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      transition: all 0.2s;
+    }
+    .col-tab-btn .count-bubble {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .col-tab-btn.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .col-tab-btn.active .count-bubble {
+      background: var(--primary);
+    }
+
+    /* Kanban Board Layout */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(280px, 1fr));
+      gap: 1rem;
+      align-items: flex-start;
+      overflow-x: auto;
+      padding-bottom: 1rem;
+    }
+
+    @media (max-width: 960px) {
+      .kanban-board {
+        display: block; /* On mobile, only the active column is displayed */
+      }
+      .kanban-column {
+        display: none !important;
+      }
+      .kanban-column.active-mobile-col {
+        display: flex !important;
+      }
+    }
+
+    @media (min-width: 961px) {
+      .mobile-col-tabs {
+        display: none !important;
+      }
+      .kanban-column {
+        display: flex !important;
+      }
+    }
+
+    /* Column Styles */
+    .kanban-column {
+      background: var(--glass-panel);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 0.75rem;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 250px;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.25rem 0.4rem 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .column-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-dot.before { background: var(--accent-info); }
+    .status-dot.active { background: var(--accent-urgent); box-shadow: 0 0 8px var(--accent-urgent); }
+    .status-dot.waiting { background: var(--accent-warning); }
+    .status-dot.payment { background: #ec4899; box-shadow: 0 0 8px #ec4899; }
+    .status-dot.finished { background: var(--text-dim); }
+
+    .column-count {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 7px;
+      border-radius: 999px;
+      color: var(--text-muted);
+    }
+
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    /* Ticket Card Styles */
+    .ticket-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .ticket-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--card-hover-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .ticket-card.urgent-active {
+      border-left: 3px solid var(--accent-urgent);
+    }
+    .ticket-card.urgent-payment {
+      border-left: 3px solid #ec4899;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .brand-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      letter-spacing: 0.02em;
+    }
+    /* Brand Color Presets */
+    .brand-tag[data-brand*="学マス"] { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+    .brand-tag[data-brand*="デレ"] { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .brand-tag[data-brand*="シャニ"] { background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); }
+    .brand-tag[data-brand*="ミリ"] { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); }
+    .brand-tag[data-brand*="SideM"] { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .brand-tag:not([data-brand*="学マス"]):not([data-brand*="デレ"]):not([data-brand*="シャニ"]):not([data-brand*="ミリ"]):not([data-brand*="SideM"]) {
+      background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .deadline-countdown {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .countdown-urgent { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .countdown-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .countdown-normal { background: rgba(255, 255, 255, 0.08); color: var(--text-muted); }
+
+    .card-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 0.35rem;
+      color: #fff;
+    }
+
+    .card-apply-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.78rem;
+      color: #c7d2fe;
+      background: rgba(99, 102, 241, 0.12);
+      padding: 3px 7px;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-dates {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 0.45rem;
+    }
+    .date-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .card-action-bar {
+      margin-top: 0.6rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-link {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #818cf8;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-link:hover {
+      background: rgba(99, 102, 241, 0.3);
+      color: #fff;
+    }
+
+    /* Event List View */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+    .event-card {
+      background: var(--glass-panel);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .event-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--card-hover-border);
+    }
+    .event-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .event-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .event-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .event-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .event-applies-box {
+      margin-top: 0.4rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .event-applies-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .event-apply-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+    .event-apply-row:last-child {
+      border-bottom: none;
+    }
+
+    /* Timeline View */
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: var(--glass-panel);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-top: 1px solid var(--card-border);
+      padding: 0.5rem 1rem calc(0.5rem + var(--safe-bottom));
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      max-width: 600px;
+      margin: 0 auto;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .nav-item.active {
+      color: var(--primary);
+    }
+    .nav-item i {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.show {
+      display: flex;
+    }
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 1.25rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .modal-close-btn {
+      background: var(--badge-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-top">
+      <div class="logo-area">
+        <div class="logo-badge">
+          <i data-lucide="sparkles" style="width: 16px; height: 16px; color: #fff;"></i>
+        </div>
+        <span>Event & Ticket Hub</span>
+      </div>
+      <div class="header-actions">
+        <button id="refreshBtn" class="icon-btn" title="データを更新">
+          <i data-lucide="rotate-cw" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search & Brand Filter -->
+    <div class="filter-bar">
+      <div class="search-input-wrapper">
+        <i data-lucide="search" style="width: 15px; height: 15px;"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="イベント名・受付名・会場を検索...">
+      </div>
+      <div class="brand-chips" id="brandChips">
+        <button class="brand-chip active" data-brand="ALL">すべて</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- View Switcher & Counter -->
+    <div class="view-control">
+      <div class="segmented-control" id="viewModeControl">
+        <button class="segment-btn active" data-mode="kanban">
+          <i data-lucide="columns" style="width: 14px; height: 14px;"></i>
+          <span>カンバン</span>
+        </button>
+        <button class="segment-btn" data-mode="timeline">
+          <i data-lucide="clock" style="width: 14px; height: 14px;"></i>
+          <span>タイムライン</span>
+        </button>
+      </div>
+      <div class="stats-badge" id="statsBadge">読み込み中...</div>
+    </div>
+
+    <!-- Mobile Column Tabs (Shown on small screens) -->
+    <div class="mobile-col-tabs" id="mobileColTabs">
+      <button class="col-tab-btn active" data-status="受付期間">
+        <span>受付中</span>
+        <span class="count-bubble" id="mobileCountActive">0</span>
+      </button>
+      <button class="col-tab-btn" data-status="開始前">
+        <span>開始前</span>
+        <span class="count-bubble" id="mobileCountBefore">0</span>
+      </button>
+      <button class="col-tab-btn" data-status="当落待ち">
+        <span>当落待ち</span>
+        <span class="count-bubble" id="mobileCountWaiting">0</span>
+      </button>
+      <button class="col-tab-btn" data-status="入金期間">
+        <span>入金期間</span>
+        <span class="count-bubble" id="mobileCountPayment">0</span>
+      </button>
+      <button class="col-tab-btn" data-status="期間終了">
+        <span>終了</span>
+        <span class="count-bubble" id="mobileCountFinished">0</span>
+      </button>
+    </div>
+
+    <!-- Container: Application Kanban Board -->
+    <section id="kanbanContainer" class="kanban-board">
+      <!-- Column: 開始前 -->
+      <div class="kanban-column" data-status="開始前">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <div class="status-dot before"></div>
+            <span>開始前</span>
+          </div>
+          <span class="column-count" id="countBefore">0</span>
+        </div>
+        <div class="card-list" id="listBefore"></div>
+      </div>
+
+      <!-- Column: 受付期間中 -->
+      <div class="kanban-column active-mobile-col" data-status="受付期間">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <div class="status-dot active"></div>
+            <span>受付期間中</span>
+          </div>
+          <span class="column-count" id="countActive">0</span>
+        </div>
+        <div class="card-list" id="listActive"></div>
+      </div>
+
+      <!-- Column: 当落待ち -->
+      <div class="kanban-column" data-status="当落待ち">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <div class="status-dot waiting"></div>
+            <span>当落待ち</span>
+          </div>
+          <span class="column-count" id="countWaiting">0</span>
+        </div>
+        <div class="card-list" id="listWaiting"></div>
+      </div>
+
+      <!-- Column: 入金期間 -->
+      <div class="kanban-column" data-status="入金期間">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <div class="status-dot payment"></div>
+            <span>当落・入金期間</span>
+          </div>
+          <span class="column-count" id="countPayment">0</span>
+        </div>
+        <div class="card-list" id="listPayment"></div>
+      </div>
+
+      <!-- Column: 期間終了 -->
+      <div class="kanban-column" data-status="期間終了">
+        <div class="column-header">
+          <div class="column-title-wrap">
+            <div class="status-dot finished"></div>
+            <span>期間終了</span>
+          </div>
+          <span class="column-count" id="countFinished">0</span>
+        </div>
+        <div class="card-list" id="listFinished"></div>
+      </div>
+    </section>
+
+    <!-- Container: Timeline List -->
+    <section id="timelineContainer" class="timeline-list" style="display: none;"></section>
+
+    <!-- Container: Event Master Grid (Shown when Tab 2 active) -->
+    <section id="eventsContainer" class="events-grid" style="display: none;"></section>
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="navTickets">
+      <i data-lucide="ticket"></i>
+      <span>チケット申込</span>
+    </button>
+    <button class="nav-item" id="navEvents">
+      <i data-lucide="calendar"></i>
+      <span>イベント一覧</span>
+    </button>
+  </nav>
+
+  <!-- Detail Modal -->
+  <div class="modal-backdrop" id="detailModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div id="modalBrandTag"></div>
+        <button class="modal-close-btn" id="modalCloseBtn">
+          <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+        </button>
+      </div>
+      <h3 id="modalTitle" style="font-size: 1.1rem; margin-bottom: 0.5rem; line-height: 1.4;"></h3>
+      <div id="modalApplyName" style="margin-bottom: 1rem;"></div>
+      <div id="modalBody" style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 0.75rem;"></div>
+      <div id="modalFooter" style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--card-border);"></div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // State & Initial Data
+    // ==========================================
+    let state = {
+      events: [],
+      applications: [],
+      brands: [],
+      selectedBrand: 'ALL',
+      searchKeyword: '',
+      activeNav: 'tickets', // 'tickets' | 'events'
+      viewMode: 'kanban', // 'kanban' | 'timeline'
+      activeMobileStatus: '受付期間'
+    };
+
+    // サーバーサイドから直接注入された初期データを受け取る
+    try {
+      const serverData = <?= (typeof initialData !== 'undefined') ? initialData : 'null' ?>;
+      if (serverData && serverData.success) {
+        state.events = serverData.events || [];
+        state.applications = serverData.applications || [];
+        state.brands = serverData.brands || [];
+      }
+    } catch (e) {
+      console.log('Running in local/standalone preview mode');
+    }
+
+    // ==========================================
+    // Lifecycle & Initialization
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      setupEventListeners();
+
+      if (state.applications.length > 0 || state.events.length > 0) {
+        renderApp();
+      } else {
+        fetchDataFromServer();
+      }
+    });
+
+    function setupEventListeners() {
+      // Refresh Button
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        const btn = document.getElementById('refreshBtn');
+        btn.classList.add('spinning');
+        fetchDataFromServer(() => {
+          btn.classList.remove('spinning');
+        });
+      });
+
+      // Search Input
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        state.searchKeyword = e.target.value.toLowerCase().trim();
+        renderApp();
+      });
+
+      // View Mode Control (Kanban vs Timeline)
+      document.querySelectorAll('#viewModeControl .segment-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#viewModeControl .segment-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.viewMode = btn.dataset.mode;
+          renderApp();
+        });
+      });
+
+      // Mobile Column Tabs
+      document.querySelectorAll('#mobileColTabs .col-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#mobileColTabs .col-tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.activeMobileStatus = btn.dataset.status;
+          updateMobileColumnVisibility();
+        });
+      });
+
+      // Bottom Nav
+      document.getElementById('navTickets').addEventListener('click', () => {
+        setActiveNav('tickets');
+      });
+      document.getElementById('navEvents').addEventListener('click', () => {
+        setActiveNav('events');
+      });
+
+      // Modal Close
+      document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+      document.getElementById('detailModal').addEventListener('click', (e) => {
+        if (e.target.id === 'detailModal') closeModal();
+      });
+    }
+
+    function setActiveNav(nav) {
+      state.activeNav = nav;
+      document.getElementById('navTickets').classList.toggle('active', nav === 'tickets');
+      document.getElementById('navEvents').classList.toggle('active', nav === 'events');
+      document.getElementById('viewModeControl').style.display = nav === 'tickets' ? 'inline-flex' : 'none';
+      document.getElementById('mobileColTabs').style.display = nav === 'tickets' ? 'flex' : 'none';
+      renderApp();
+    }
+
+    // ==========================================
+    // Data Fetching
+    // ==========================================
+    function fetchDataFromServer(callback) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res && res.success) {
+              state.events = res.events || [];
+              state.applications = res.applications || [];
+              state.brands = res.brands || [];
+            }
+            renderApp();
+            if (callback) callback();
+          })
+          .withFailureHandler((err) => {
+            console.error(err);
+            alert('データの取得に失敗しました: ' + err.message);
+            if (callback) callback();
+          })
+          .getAppData();
+      } else {
+        // ローカルプレビュー用モックデータ
+        console.log('Using Mock Data for Local Testing');
+        generateMockData();
+        renderApp();
+        if (callback) setTimeout(callback, 500);
+      }
+    }
+
+    // ==========================================
+    // Rendering Functions
+    // ==========================================
+    function renderApp() {
+      renderBrandChips();
+
+      if (state.activeNav === 'tickets') {
+        document.getElementById('eventsContainer').style.display = 'none';
+        if (state.viewMode === 'kanban') {
+          document.getElementById('kanbanContainer').style.display = 'grid';
+          document.getElementById('timelineContainer').style.display = 'none';
+          renderKanban();
+        } else {
+          document.getElementById('kanbanContainer').style.display = 'none';
+          document.getElementById('timelineContainer').style.display = 'flex';
+          renderTimeline();
+        }
+      } else {
+        document.getElementById('kanbanContainer').style.display = 'none';
+        document.getElementById('timelineContainer').style.display = 'none';
+        document.getElementById('eventsContainer').style.display = 'grid';
+        renderEvents();
+      }
+
+      lucide.createIcons();
+    }
+
+    function renderBrandChips() {
+      const container = document.getElementById('brandChips');
+      const allBrands = ['ALL', ...state.brands];
+
+      container.innerHTML = allBrands.map(b => {
+        const isActive = state.selectedBrand === b;
+        const label = b === 'ALL' ? 'すべて' : b;
+        return `<button class="brand-chip ${isActive ? 'active' : ''}" data-brand="${escapeHtml(b)}">${escapeHtml(label)}</button>`;
+      }).join('');
+
+      container.querySelectorAll('.brand-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          state.selectedBrand = chip.dataset.brand;
+          renderApp();
+        });
+      });
+    }
+
+    function filterItems(items) {
+      return items.filter(item => {
+        // ブランド一致
+        if (state.selectedBrand !== 'ALL' && item.brand !== state.selectedBrand) {
+          return false;
+        }
+        // キーワード検索
+        if (state.searchKeyword) {
+          const matchTarget = `${item.eventName || item.name || ''} ${item.brand || ''} ${item.applyName || ''} ${item.location || ''}`.toLowerCase();
+          if (!matchTarget.includes(state.searchKeyword)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function renderKanban() {
+      const filtered = filterItems(state.applications);
+      document.getElementById('statsBadge').textContent = `申込数: ${filtered.length} 件`;
+
+      const columns = {
+        '開始前': document.getElementById('listBefore'),
+        '受付期間': document.getElementById('listActive'),
+        '当落待ち': document.getElementById('listWaiting'),
+        '入金期間': document.getElementById('listPayment'),
+        '期間終了': document.getElementById('listFinished')
+      };
+
+      const counts = { '開始前': 0, '受付期間': 0, '当落待ち': 0, '入金期間': 0, '期間終了': 0 };
+
+      // リスト初期化
+      Object.values(columns).forEach(col => col.innerHTML = '');
+
+      filtered.forEach(app => {
+        const colKey = app.status in columns ? app.status : '期間終了';
+        counts[colKey]++;
+        columns[colKey].appendChild(createTicketCard(app));
+      });
+
+      // カウント反映
+      document.getElementById('countBefore').textContent = counts['開始前'];
+      document.getElementById('countActive').textContent = counts['受付期間'];
+      document.getElementById('countWaiting').textContent = counts['当落待ち'];
+      document.getElementById('countPayment').textContent = counts['入金期間'];
+      document.getElementById('countFinished').textContent = counts['期間終了'];
+
+      document.getElementById('mobileCountBefore').textContent = counts['開始前'];
+      document.getElementById('mobileCountActive').textContent = counts['受付期間'];
+      document.getElementById('mobileCountWaiting').textContent = counts['当落待ち'];
+      document.getElementById('mobileCountPayment').textContent = counts['入金期間'];
+      document.getElementById('mobileCountFinished').textContent = counts['期間終了'];
+
+      // 空カラム表示
+      Object.keys(columns).forEach(key => {
+        if (counts[key] === 0) {
+          columns[key].innerHTML = '<div class="empty-state">該当なし</div>';
+        }
+      });
+
+      updateMobileColumnVisibility();
+    }
+
+    function updateMobileColumnVisibility() {
+      document.querySelectorAll('.kanban-column').forEach(col => {
+        if (col.dataset.status === state.activeMobileStatus) {
+          col.classList.add('active-mobile-col');
+        } else {
+          col.classList.remove('active-mobile-col');
+        }
+      });
+    }
+
+    function renderTimeline() {
+      const filtered = filterItems(state.applications);
+      const container = document.getElementById('timelineContainer');
+      container.innerHTML = '';
+      document.getElementById('statsBadge').textContent = `申込数: ${filtered.length} 件`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">該当する申込はありません</div>';
+        return;
+      }
+
+      filtered.forEach(app => {
+        container.appendChild(createTicketCard(app));
+      });
+    }
+
+    function renderEvents() {
+      const filtered = filterItems(state.events);
+      const container = document.getElementById('eventsContainer');
+      container.innerHTML = '';
+      document.getElementById('statsBadge').textContent = `イベント数: ${filtered.length} 件`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">該当するイベントはありません</div>';
+        return;
+      }
+
+      // イベントIDごとに申込をマッピング
+      const appMap = {};
+      state.applications.forEach(app => {
+        if (!appMap[app.eventId]) appMap[app.eventId] = [];
+        appMap[app.eventId].push(app);
+      });
+
+      filtered.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+
+        const applies = appMap[ev.id] || [];
+        const appliesHtml = applies.length > 0
+          ? applies.map(a => `
+            <div class="event-apply-row">
+              <span style="font-weight: 500;">${escapeHtml(a.applyName)}</span>
+              <span class="deadline-countdown ${getDeadlineStyle(a.endDatetime)}">${escapeHtml(a.endDatetime || '締切未設定')}</span>
+            </div>
+          `).join('')
+          : '<div style="font-size:0.75rem; color: var(--text-dim);">登録済みの申込情報なし</div>';
+
+        card.innerHTML = `
+          <div class="event-card-header">
+            <div>
+              ${ev.brand ? `<span class="brand-tag" data-brand="${escapeHtml(ev.brand)}">${escapeHtml(ev.brand)}</span>` : ''}
+              <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.name)}</h3>
+            </div>
+            <span class="brand-chip" style="font-size:0.68rem;">${escapeHtml(ev.status)}</span>
+          </div>
+
+          <div class="event-meta">
+            <div class="event-meta-item">
+              <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+              <span>${escapeHtml(ev.startDate)}${ev.endDate && ev.endDate !== ev.startDate ? ' 〜 ' + escapeHtml(ev.endDate) : ''}</span>
+            </div>
+            ${ev.location ? `
+              <div class="event-meta-item">
+                <i data-lucide="map-pin" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+                <span>${escapeHtml(ev.location)}</span>
+              </div>
+            ` : ''}
+            ${ev.summary ? `
+              <div class="event-meta-item" style="color: var(--text-dim);">
+                <i data-lucide="align-left" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+                <span>${escapeHtml(ev.summary)}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="event-applies-box">
+            <div class="event-applies-title">関連チケット申込 (${applies.length})</div>
+            ${appliesHtml}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function createTicketCard(app) {
+      const card = document.createElement('div');
+      card.className = `ticket-card ${app.status === '受付期間' ? 'urgent-active' : ''} ${app.status === '入金期間' ? 'urgent-payment' : ''}`;
+
+      const countdown = calculateCountdown(app);
+      const url = extractUrl(app.method);
+
+      card.innerHTML = `
+        <div class="card-top">
+          ${app.brand ? `<span class="brand-tag" data-brand="${escapeHtml(app.brand)}">${escapeHtml(app.brand)}</span>` : '<span></span>'}
+          ${countdown ? `<span class="deadline-countdown ${countdown.style}">${countdown.text}</span>` : ''}
+        </div>
+        <div class="card-title">${escapeHtml(app.eventName || '名称未設定イベント')}</div>
+        <div class="card-apply-name">
+          <i data-lucide="ticket" style="width: 13px; height: 13px;"></i>
+          <span>${escapeHtml(app.applyName)}</span>
+        </div>
+        <div class="card-dates">
+          ${app.endDatetime ? `
+            <div class="date-row">
+              <i data-lucide="clock" style="width: 12px; height: 12px; color: var(--text-dim);"></i>
+              <span>締切: ${escapeHtml(app.endDatetime)}</span>
+            </div>
+          ` : ''}
+          ${app.payEndDatetime ? `
+            <div class="date-row" style="color: #f472b6;">
+              <i data-lucide="credit-card" style="width: 12px; height: 12px;"></i>
+              <span>入金締切: ${escapeHtml(app.payEndDatetime)}</span>
+            </div>
+          ` : ''}
+        </div>
+        <div class="card-action-bar">
+          ${url ? `
+            <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="btn-link" onclick="event.stopPropagation();">
+              <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+              <span>申込ページ</span>
+            </a>
+          ` : '<span style="font-size:0.7rem; color: var(--text-dim);">詳細を見る</span>'}
+          <i data-lucide="chevron-right" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+        </div>
+      `;
+
+      card.addEventListener('click', () => openModal(app));
+      return card;
+    }
+
+    // ==========================================
+    // Modal Helpers
+    // ==========================================
+    function openModal(app) {
+      document.getElementById('modalBrandTag').innerHTML = app.brand ? `<span class="brand-tag" data-brand="${escapeHtml(app.brand)}">${escapeHtml(app.brand)}</span>` : '';
+      document.getElementById('modalTitle').textContent = app.eventName || '名称未設定イベント';
+      document.getElementById('modalApplyName').innerHTML = `<div class="card-apply-name"><i data-lucide="ticket" style="width: 13px; height: 13px;"></i><span>${escapeHtml(app.applyName)}</span></div>`;
+
+      const body = document.getElementById('modalBody');
+      body.innerHTML = `
+        <div style="background: rgba(255,255,255,0.04); padding: 0.75rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.4rem;">
+          <div><strong style="color:var(--text-dim);">ステータス:</strong> ${escapeHtml(app.status)}</div>
+          <div><strong style="color:var(--text-dim);">申込開始:</strong> ${escapeHtml(app.startDatetime || '未指定')}</div>
+          <div><strong style="color:var(--text-dim);">申込締切:</strong> ${escapeHtml(app.endDatetime || '未指定')}</div>
+          <div><strong style="color:var(--text-dim);">当落発表:</strong> ${escapeHtml(app.resultDatetime || '未指定')}</div>
+          <div><strong style="color:var(--text-dim);">入金締切:</strong> ${escapeHtml(app.payEndDatetime || '未指定')}</div>
+        </div>
+        ${app.method ? `
+          <div>
+            <strong style="color:var(--text-dim); display:block; margin-bottom: 0.25rem;">申込方法・備考:</strong>
+            <div style="white-space: pre-wrap; background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; line-height: 1.5;">${formatMethodText(app.method)}</div>
+          </div>
+        ` : ''}
+      `;
+
+      const url = extractUrl(app.method);
+      const footer = document.getElementById('modalFooter');
+      if (url) {
+        footer.innerHTML = `
+          <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="btn-link" style="width: 100%; justify-content: center; padding: 0.6rem; font-size: 0.85rem;">
+            <i data-lucide="external-link" style="width: 15px; height: 15px;"></i>
+            <span>公式サイト / 申込ページへ飛ぶ</span>
+          </a>
+        `;
+      } else {
+        footer.innerHTML = '';
+      }
+
+      document.getElementById('detailModal').classList.add('show');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').classList.remove('show');
+    }
+
+    // ==========================================
+    // Utility Helpers
+    // ==========================================
+    function calculateCountdown(app) {
+      const now = new Date();
+      let targetDateStr = app.endDatetime;
+      let isPayment = false;
+
+      if (app.status === '入金期間' && app.payEndDatetime) {
+        targetDateStr = app.payEndDatetime;
+        isPayment = true;
+      }
+
+      if (!targetDateStr) return null;
+
+      const targetDate = new Date(targetDateStr.replace(/-/g, '/'));
+      if (isNaN(targetDate.getTime())) return null;
+
+      const diffMs = targetDate.getTime() - now.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMs <= 0) {
+        return { text: '締切済', style: 'countdown-normal' };
+      }
+
+      if (diffHours < 24) {
+        return {
+          text: `あと ${diffHours}時間`,
+          style: 'countdown-urgent'
+        };
+      } else if (diffDays <= 3) {
+        return {
+          text: `あと ${diffDays}日`,
+          style: 'countdown-warn'
+        };
+      } else {
+        return {
+          text: `あと ${diffDays}日`,
+          style: 'countdown-normal'
+        };
+      }
+    }
+
+    function getDeadlineStyle(dateStr) {
+      if (!dateStr) return 'countdown-normal';
+      const target = new Date(dateStr.replace(/-/g, '/'));
+      if (isNaN(target.getTime())) return 'countdown-normal';
+      const diffMs = target.getTime() - new Date().getTime();
+      if (diffMs < 0) return 'countdown-normal';
+      if (diffMs < 24 * 60 * 60 * 1000) return 'countdown-urgent';
+      if (diffMs < 3 * 24 * 60 * 60 * 1000) return 'countdown-warn';
+      return 'countdown-normal';
+    }
+
+    function extractUrl(text) {
+      if (!text) return null;
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const match = text.match(urlRegex);
+      return match ? match[0] : null;
+    }
+
+    function formatMethodText(text) {
+      if (!text) return '';
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return escapeHtml(text).replace(urlRegex, (url) => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline;">${url}</a>`;
+      });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function generateMockData() {
+      state.brands = ['学マス', 'デレ', 'シャニ', 'ミリオン'];
+      state.events = [
+        {
+          id: 'EV-001',
+          brand: '学マス',
+          name: '初星学園 1st ライブ TOUR',
+          startDate: '2026-10-10',
+          endDate: '2026-10-11',
+          location: '武蔵野の森総合スポーツプラザ',
+          summary: '学園アイドルマスターの記念すべきファーストライブ！',
+          status: '開催前'
+        },
+        {
+          id: 'EV-002',
+          brand: 'デレ',
+          name: 'THE IDOLM@STER CINDERELLA GIRLS 12thLIVE',
+          startDate: '2026-11-20',
+          endDate: '2026-11-22',
+          location: 'Kアリーナ横浜',
+          summary: 'シンデレラガールズ単独アリーナツアー',
+          status: '開催前'
+        }
+      ];
+      state.applications = [
+        {
+          id: 'AP-001',
+          eventId: 'EV-001',
+          brand: '学マス',
+          eventName: '初星学園 1st ライブ TOUR',
+          applyName: 'アソビストアプレミアム先行',
+          startDatetime: '2026-09-01 12:00',
+          endDatetime: '2026-09-28 23:59',
+          resultDatetime: '2026-10-02 13:00',
+          payEndDatetime: '2026-10-05 21:00',
+          method: 'https://asobistore.jp/ticket/test\nCD封入シリアルコード必須',
+          status: '受付期間'
+        },
+        {
+          id: 'AP-002',
+          eventId: 'EV-002',
+          brand: 'デレ',
+          eventName: 'THE IDOLM@STER CINDERELLA GIRLS 12thLIVE',
+          applyName: '公式Web先行抽選',
+          startDatetime: '2026-10-01 10:00',
+          endDatetime: '2026-10-15 23:59',
+          resultDatetime: '2026-10-19 13:00',
+          payEndDatetime: '2026-10-22 21:00',
+          method: 'https://eplus.jp/cinderella12th/',
+          status: '開始前'
+        }
+      ];
+    }
+  </script>
+</body>
+</html>
