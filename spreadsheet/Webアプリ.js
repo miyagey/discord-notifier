@@ -125,6 +125,8 @@ function createEvent(data) {
           if (data.summary) options.description = data.summary;
 
           const calEvent = calendar.createAllDayEvent(title, startD, endD, options);
+          // イベント色をグラファイト（薄いグレー）に設定（白は未対応のため最も明るいグレー系を使用）
+          calEvent.setColor(CalendarApp.EventColor.GRAPHITE);
           calId = calEvent.getId();
           Logger.log(`カレンダー登録成功: ${title} (ID: ${calId})`);
 
