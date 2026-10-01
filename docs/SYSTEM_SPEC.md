@@ -19,7 +19,7 @@ flowchart TD
         direction TB
         Form["📝 Google フォーム"]
         WebApp_New["🌐 Webアプリ 新規登録モーダル"]
-        GAS_Register["⚙️ 登録処理 (GAS)<br>・form/コード.js<br>・Webアプリ.js: create* API"]
+        GAS_Register["⚙️ 登録処理 (GAS)<br>・form/コード.js<br>・メイン.js: create* API"]
         GCal_Sync["📅 Google カレンダー<br>(イベント即時同期)"]
 
         Form -->|送信イベント| GAS_Register
@@ -34,7 +34,7 @@ flowchart TD
         direction TB
         WebApp_View["🌐 Webアプリ カンバン / タイムライン / 一覧"]
         WebApp_Edit["✏️ Webアプリ 編集モーダル"]
-        GAS_ViewEdit["⚙️ 閲覧・更新処理 (GAS)<br>・Webアプリ.js: doGet<br>・Webアプリ.js: update* API"]
+        GAS_ViewEdit["⚙️ 閲覧・更新処理 (GAS)<br>・メイン.js: doGet<br>・メイン.js: update* API"]
 
         WebApp_View -->|一覧データ取得| GAS_ViewEdit
         WebApp_Edit -->|更新API呼び出し| GAS_ViewEdit
@@ -66,10 +66,10 @@ flowchart TD
     %% ==========================================
     subgraph LaneBatch ["⏰ 定期通知バッチ (時間主導トリガー)"]
         direction LR
-        RemindApply["ライブ申込しめきりおじさん.js<br>締切 / 先着 / リセール"]
-        RemindPay["入金確認おじさん.js<br>入金締切リマインド"]
-        SyncCal["カレンダー自動登録.js<br>未登録同期"]
-        NotifySched["予定通知.js<br>明日の予定通知"]
+        RemindApply["メイン.js: remindEndDate<br>締切 / 先着 / リセール"]
+        RemindPay["メイン.js: remindPaymentEndDate<br>入金締切リマインド"]
+        SyncCal["メイン.js: registerEventsToCalendar<br>未登録同期"]
+        NotifySched["メイン.js: notifyTomorrowEvents<br>明日の予定通知"]
     end
 
     ApplySheet -->|申込参照| RemindApply
@@ -332,8 +332,8 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いたカンバ
 | :--- | :--- | :--- | :--- | :--- |
 | **`form/コード.js`** | `onFormSubmit` | **フォーム** | **フォーム送信時** | 1. フォームの回答からイベント/申込行を追記<br>2. ID自動採番 & IFS数式を挿入<br>3. フォーム選択肢を更新<br>4. Discord（`WEBHOOK_APPLY`）に新着申込を通知 |
 | **`form/コード.js`** | `updateFormOptions` | 関数呼出 | フォーム送信時 | 終了日が今日以降のイベントを取得し、フォームの選択肢（ドロップダウン）を動的に再構築 |
-| **`spreadsheet/Webアプリ.js`** | `doGet` / 各API | **Webアプリ** | **HTTPリクエスト時** | イベント・申込の閲覧・新規登録・更新。カレンダー同期とDiscord通知も実行 |
-| **`spreadsheet/ライブ申込しめきりおじさん.js`** | `remindEndDate` | 時間主導型 | 毎日 (午前) | 1. 本日申込締切の通常チケットを Discord へ通知<br>2. 翌日開始の**先着受付**がある場合は2通目として別途通知<br>3. 受付期間中の**リセール**がある場合は3通目として別途通知 |
-| **`spreadsheet/入金確認おじさん.js`** | `remindPaymentEndDate` | 時間主導型 | 毎日 (午前) | 本日入金締切のチケットを抽出して Discord へ一覧通知 |
-| **`spreadsheet/予定通知.js`** | `notifyTomorrowEvents` | 時間主導型 | 毎日 (夕方〜夜) | 明日開催予定のイベントを Google カレンダーから取得し Discord へ通知 |
-| **`spreadsheet/カレンダー自動登録.js`** | `registerEventsToCalendar` | 時間主導型 | 定期 (1時間毎推奨) | スプレッドシート上の未登録イベントを Google カレンダーに自動登録し、H列に CalID を書き戻す |
+| **`spreadsheet/メイン.js`** | `doGet` / 各API | **Webアプリ** | **HTTPリクエスト時** | イベント・申込の閲覧・新規登録・更新。カレンダー同期とDiscord通知も実行 |
+| **`spreadsheet/メイン.js`** | `remindEndDate` | 時間主導型 | 毎日 (午前) | 1. 本日申込締切の通常チケットを Discord へ通知<br>2. 翌日開始の**先着受付**がある場合は2通目として別途通知<br>3. 受付期間中の**リセール**がある場合は3通目として別途通知 |
+| **`spreadsheet/メイン.js`** | `remindPaymentEndDate` | 時間主導型 | 毎日 (午前) | 本日入金締切のチケットを抽出して Discord へ一覧通知 |
+| **`spreadsheet/メイン.js`** | `notifyTomorrowEvents` | 時間主導型 | 毎日 (夕方〜夜) | 明日開催予定のイベントを Google カレンダーから取得し Discord へ通知 |
+| **`spreadsheet/メイン.js`** | `registerEventsToCalendar` | 時間主導型 | 定期 (1時間毎推奨) | スプレッドシート上の未登録イベントを Google カレンダーに自動登録し、H列に CalID を書き戻す |

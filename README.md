@@ -22,11 +22,13 @@ Google Apps Script (GAS) を活用し、Google フォームの送信受付、Goo
 │   ├── .clasp.json           # clasp 設定ファイル
 │   ├── .claspignore
 │   ├── appsscript.json       # GAS マニフェストファイル
-│   ├── 共通関数.js           # 設定読み込み・Discord送信等の共通処理
-│   ├── 予定通知.js           # 予定通知処理
-│   ├── 入金確認おじさん.js   # 入金締切確認・通知処理
-│   ├── ライブ申込しめきりおじさん.js # チケット申込締切確認・通知処理
-│   └── カレンダー自動登録.js # Googleカレンダーへのイベント自動登録処理
+│   ├── メイン.js             # バッチ処理 & WebアプリAPIのエントリーポイント
+│   ├── スプレッドシート操作.js # シートCRUD・データマッピング処理
+│   ├── カレンダー操作.js     # Googleカレンダー連携処理
+│   ├── Discord操作.js        # Discord Webhook送信・メッセージ整形処理
+│   ├── 設定値.js             # 設定値・URL・列インデックス定数管理
+│   ├── 共通関数.js           # 日付フォーマット・エラーログ・ステータス計算
+│   └── index.html            # Webアプリ (カンバン・タイムラインビューア) UI
 └── form/                     # フォーム側 GAS プロジェクト
     ├── .clasp.json           # clasp 設定ファイル
     ├── .claspignore
