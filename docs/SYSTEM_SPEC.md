@@ -10,56 +10,86 @@
 
 ```mermaid
 flowchart TD
-    User["👤 ユーザー"] -->|入力・送信| Form["📝 Google フォーム"]
-    User -->|登録・編集・閲覧| WebApp["🌐 Webアプリ"]
+    User["👤 ユーザー"]
 
-    subgraph FormTrigger ["Google フォーム (form/コード.js)"]
-        Form -->|送信トリガー| GAS_Form["form/コード.js"]
+    %% ==========================================
+    %% 左レーン: 新規登録フロー
+    %% ==========================================
+    subgraph LaneRegister ["【新規登録フロー】(Create)"]
+        direction TB
+        Form["📝 Google フォーム"]
+        WebApp_New["🌐 Webアプリ 新規登録モーダル"]
+        GAS_Register["⚙️ 登録処理 (GAS)<br>・form/コード.js<br>・Webアプリ.js: create* API"]
+        GCal_Sync["📅 Google カレンダー<br>(イベント即時同期)"]
+
+        Form -->|送信イベント| GAS_Register
+        WebApp_New -->|登録API呼び出し| GAS_Register
+        GAS_Register -->|即時イベント登録| GCal_Sync
     end
 
-    GAS_Form -->|新規イベント追記| MasterSheet
-    GAS_Form -->|申込データ追記| ApplySheet
-    MasterSheet -.->|選択肢動的同期| Form
+    %% ==========================================
+    %% 右レーン: 閲覧・更新フロー
+    %% ==========================================
+    subgraph LaneViewEdit ["【閲覧・更新フロー】(Read / Update)"]
+        direction TB
+        WebApp_View["🌐 Webアプリ カンバン / タイムライン / 一覧"]
+        WebApp_Edit["✏️ Webアプリ 編集モーダル"]
+        GAS_ViewEdit["⚙️ 閲覧・更新処理 (GAS)<br>・Webアプリ.js: doGet<br>・Webアプリ.js: update* API"]
 
-    subgraph WebAppSection ["🌐 Webアプリ (spreadsheet/Webアプリ.js + index.html)"]
-        WebApp -->|CRUD API呼び出し| GAS_Web["Webアプリ.js (doGet / API関数)"]
+        WebApp_View -->|一覧データ取得| GAS_ViewEdit
+        WebApp_Edit -->|更新API呼び出し| GAS_ViewEdit
     end
 
-    GAS_Web -->|新規・更新| MasterSheet
-    GAS_Web -->|新規・更新| ApplySheet
-    GAS_Web -->|カレンダー登録| GCal["📅 Google カレンダー"]
+    User -->|フォーム入力| Form
+    User -->|画面から登録| WebApp_New
+    User -->|データ閲覧| WebApp_View
+    User -->|編集・ステータス変更| WebApp_Edit
 
-    subgraph SpreadsheetDB ["📊 Google スプレッドシート (データベース)"]
+    %% ==========================================
+    %% 中央: データベース
+    %% ==========================================
+    subgraph LaneDB ["📊 Google スプレッドシート (データベース)"]
         direction LR
-        MasterSheet["📋「イベントマスター」シート<br>(イベント情報 / CalID)"]
-        ApplySheet["📝「申し込み管理」シート<br>(チケット申込・スケジュール情報)"]
+        MasterSheet["📋「イベントマスター」シート<br>イベント基本情報 / カレンダーID"]
+        ApplySheet["📝「申し込み管理」シート<br>チケット申込・スケジュール情報"]
     end
 
-    subgraph BatchSection ["⏰ 定期通知・自動化処理 (spreadsheet/)"]
-        RemindApply["ライブ申込しめきりおじさん.js<br>(通常締切 / 先着前日 / リセール)"]
-        RemindPay["入金確認おじさん.js<br>(入金締切通知)"]
-        SyncCal["カレンダー自動登録.js<br>(未登録イベント同期)"]
-        NotifySched["予定通知.js<br>(明日の予定通知)"]
+    GAS_Register -->|新規追記| MasterSheet
+    GAS_Register -->|新規追記| ApplySheet
+    MasterSheet -.->|選択肢を動的同期| Form
+
+    GAS_ViewEdit <-->|データ読込・更新| MasterSheet
+    GAS_ViewEdit <-->|データ読込・更新| ApplySheet
+
+    %% ==========================================
+    %% 下部: 定期バッチ & Discord通知
+    %% ==========================================
+    subgraph LaneBatch ["⏰ 定期通知バッチ (時間主導トリガー)"]
+        direction LR
+        RemindApply["ライブ申込しめきりおじさん.js<br>締切 / 先着 / リセール"]
+        RemindPay["入金確認おじさん.js<br>入金締切リマインド"]
+        SyncCal["カレンダー自動登録.js<br>未登録同期"]
+        NotifySched["予定通知.js<br>明日の予定通知"]
     end
 
-    ApplySheet -->|申込データ参照| RemindApply
-    ApplySheet -->|入金データ参照| RemindPay
-    MasterSheet <-->|イベント読込 / CalID書込| SyncCal
+    ApplySheet -->|申込参照| RemindApply
+    ApplySheet -->|入金参照| RemindPay
+    MasterSheet <-->|イベント参照・ID保存| SyncCal
+    SyncCal -->|定期登録| GCal_Sync
+    GCal_Sync -->|予定取得| NotifySched
 
-    SyncCal -->|カレンダー自動登録| GCal
-    GCal -->|明日の予定取得| NotifySched
-
-    subgraph DiscordServer ["💬 Discord (通知チャンネル / Webhook)"]
-        WebhookApply["🔔 申込通知 (WEBHOOK_APPLY)<br>・新着申込 / 締切 / 先着 / リセール"]
-        WebhookPay["💸 入金締切通知 (WEBHOOK_PAYMENT)<br>・入金リマインド"]
-        WebhookCal["📅 予定通知 (WEBHOOK_CALENDAR)<br>・カレンダー新規登録 / 明日の予定一覧"]
+    subgraph LaneDiscord ["💬 Discord 通知チャンネル"]
+        direction LR
+        WebhookApply["🔔 申込通知 (WEBHOOK_APPLY)<br>新着・締切・先着・リセール"]
+        WebhookPay["💸 入金締切通知 (WEBHOOK_PAYMENT)<br>入金リマインド"]
+        WebhookCal["📅 予定通知 (WEBHOOK_CALENDAR)<br>カレンダー登録・明日の予定"]
     end
 
-    GAS_Form -->|新着申込通知| WebhookApply
-    GAS_Web -->|新着申込通知| WebhookApply
-    GAS_Web -->|カレンダー登録通知| WebhookCal
-    RemindApply -->|締切・先着・リセール通知| WebhookApply
-    RemindPay -->|入金締切通知| WebhookPay
+    GAS_Register -->|新着申込通知| WebhookApply
+    GAS_Register -->|登録完了通知| WebhookCal
+    RemindApply -->|締切通知| WebhookApply
+    RemindPay -->|入金通知| WebhookPay
+    SyncCal -->|登録完了通知| WebhookCal
     NotifySched -->|明日の予定通知| WebhookCal
 ```
 
