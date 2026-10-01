@@ -12,33 +12,27 @@
 flowchart TD
     User["👤 ユーザー"]
 
-    %% ユーザー操作・インターフェース
-    subgraph UserAction ["ユーザー操作 / インターフェース"]
-        direction LR
-
-        subgraph ActionRegister ["🆕 新規登録"]
-            direction TB
-            Form["📝 Google フォーム"]
-            WebApp_Create["🌐 Webアプリ<br>(新規登録モーダル)"]
-        end
-
-        subgraph ActionViewEdit ["👀 閲覧・更新"]
-            direction TB
-            WebApp_View["🌐 Webアプリ<br>(カンバン / タイムライン / 一覧)"]
-            WebApp_Edit["✏️ Webアプリ<br>(編集・ステータス変更)"]
-        end
+    %% ユーザー操作: 新規登録
+    subgraph ActionRegister ["🆕 ユーザー操作: 新規登録"]
+        Form["📝 Google フォーム"]
+        WebApp_Create["🌐 Webアプリ (新規登録モーダル)"]
     end
 
-    User -->|フォーム入力・送信| Form
-    User -->|画面から新規登録| WebApp_Create
-    User -->|イベント・申込閲覧| WebApp_View
-    User -->|内容変更・ステータス更新| WebApp_Edit
+    %% ユーザー操作: 閲覧・更新
+    subgraph ActionViewEdit ["👀 ユーザー操作: 閲覧・更新"]
+        WebApp_View["🌐 Webアプリ (カンバン / タイムライン / 一覧)"]
+        WebApp_Edit["✏️ Webアプリ (編集・ステータス変更)"]
+    end
+
+    User -->|フォーム送信| Form
+    User -->|新規登録| WebApp_Create
+    User -->|一覧・詳細閲覧| WebApp_View
+    User -->|編集・ステータス変更| WebApp_Edit
 
     %% GAS処理レイヤー
     subgraph BackendLayer ["GAS バックエンド処理"]
-        direction LR
         GAS_Form["form/コード.js<br>(フォーム送信時トリガー)"]
-        GAS_Web["spreadsheet/Webアプリ.js<br>(doGet / 各種API関数)"]
+        GAS_Web["spreadsheet/Webアプリ.js<br>(doGet / API処理)"]
     end
 
     Form -->|送信イベント| GAS_Form
@@ -48,25 +42,24 @@ flowchart TD
 
     %% データベース
     subgraph SpreadsheetDB ["📊 Google スプレッドシート (データベース)"]
-        direction LR
         MasterSheet["📋「イベントマスター」シート<br>(イベント情報 / CalID)"]
         ApplySheet["📝「申し込み管理」シート<br>(チケット申込・スケジュール情報)"]
     end
 
-    GAS_Form -->|イベント・申込追記| SpreadsheetDB
-    GAS_Web <-->|CRUD操作 (作成・取得・更新)| SpreadsheetDB
+    GAS_Form -->|イベント・申込追記| MasterSheet
+    GAS_Form -->|申込データ追記| ApplySheet
+    GAS_Web <-->|CRUD操作| MasterSheet
+    GAS_Web <-->|CRUD操作| ApplySheet
     MasterSheet -.->|選択肢動的同期| Form
 
-    %% 外部連携（カレンダー・Discord）
-    subgraph ExternalServices ["外部連携サービス"]
-        direction LR
-        GCal["📅 Google カレンダー<br>(終日イベント同期)"]
+    %% 外部サービス: Google カレンダー
+    GCal["📅 Google カレンダー (終日イベント同期)"]
 
-        subgraph DiscordServer ["💬 Discord (通知チャンネル)"]
-            WebhookApply["🔔 申込通知 (WEBHOOK_APPLY)<br>・新着申込 / 締切 / 先着 / リセール"]
-            WebhookPay["💸 入金締切通知 (WEBHOOK_PAYMENT)<br>・入金リマインド"]
-            WebhookCal["📅 予定通知 (WEBHOOK_CALENDAR)<br>・カレンダー登録 / 明日の予定"]
-        end
+    %% 外部サービス: Discord
+    subgraph DiscordServer ["💬 Discord (通知チャンネル)"]
+        WebhookApply["🔔 申込通知 (WEBHOOK_APPLY)<br>・新着申込 / 締切 / 先着 / リセール"]
+        WebhookPay["💸 入金締切通知 (WEBHOOK_PAYMENT)<br>・入金リマインド"]
+        WebhookCal["📅 予定通知 (WEBHOOK_CALENDAR)<br>・カレンダー登録 / 明日の予定"]
     end
 
     GAS_Web -->|イベント即時登録| GCal
@@ -76,7 +69,6 @@ flowchart TD
 
     %% バッチ処理
     subgraph BatchSection ["⏰ 定期通知・自動化処理 (時間主導トリガー)"]
-        direction LR
         RemindApply["ライブ申込しめきりおじさん.js<br>(締切 / 先着前日 / リセール)"]
         RemindPay["入金確認おじさん.js<br>(入金締切リマインド)"]
         SyncCal["カレンダー自動登録.js<br>(未登録イベント同期)"]
