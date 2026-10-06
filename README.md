@@ -22,10 +22,11 @@ Google Apps Script (GAS) を活用し、Google フォームの送信受付、Goo
 │   ├── .clasp.json           # clasp 設定ファイル
 │   ├── .claspignore
 │   ├── appsscript.json       # GAS マニフェストファイル
-│   ├── メイン.js             # バッチ処理 & WebアプリAPIのエントリーポイント
-│   ├── スプレッドシート操作.js # シートCRUD・データマッピング処理
-│   ├── カレンダー操作.js     # Googleカレンダー連携処理
-│   ├── Discord操作.js        # Discord Webhook送信・メッセージ整形処理
+│   ├── Webアプリ.js          # Webアプリ公開 (doGet) & フロントエンドSPA向け RPC API
+│   ├── 定期通知バッチ.js     # 時間主導型トリガーによる定期実行バッチ関数群
+│   ├── スプレッドシート操作.js # SheetService: シートCRUD・データマッピング処理
+│   ├── カレンダー操作.js     # CalendarService: Googleカレンダー連携処理
+│   ├── Discord操作.js        # DiscordService: Webhook送信・メッセージ整形処理
 │   ├── 設定値.js             # 設定値・URL・列インデックス定数管理
 │   ├── 共通関数.js           # 日付フォーマット・エラーログ・ステータス計算
 │   └── index.html            # Webアプリ (カンバン・タイムラインビューア) UI
@@ -139,10 +140,10 @@ npm run pull:all
 | スクリプト | トリガー対象の関数 | イベントのソース | イベントの種類 | 役割・概要 |
 | :--- | :--- | :--- | :--- | :--- |
 | **フォーム** | `onFormSubmit` | **フォーム** | **フォーム送信時** | フォーム回答受付、スプレッドシート書き戻し、選択肢更新、即時 Discord 通知 |
-| スプレッドシート | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
-| スプレッドシート | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
-| スプレッドシート | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
-| スプレッドシート | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
+| スプレッドシート (`定期通知バッチ.js`) | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
 
 ---
 
