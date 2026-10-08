@@ -55,12 +55,16 @@ jobs:
         run: npm run push:spreadsheet:force
 
       - name: Redeploy Web App Version (optional)
-        if: (steps.filter.outputs.spreadsheet == 'true' || github.event_name == 'workflow_dispatch') && secrets.WEBAPP_DEPLOYMENT_ID != ''
+        if: steps.filter.outputs.spreadsheet == 'true' || github.event_name == 'workflow_dispatch'
         env:
           WEBAPP_DEPLOYMENT_ID: ${{ secrets.WEBAPP_DEPLOYMENT_ID }}
         run: |
-          echo "Redeploying Web App with Deployment ID: $WEBAPP_DEPLOYMENT_ID"
-          cd spreadsheet && npx clasp deploy -i "$WEBAPP_DEPLOYMENT_ID" -d "GitHub Actions deploy: ${{ github.sha }}"
+          if [ -n "$WEBAPP_DEPLOYMENT_ID" ]; then
+            echo "Redeploying Web App with Deployment ID: $WEBAPP_DEPLOYMENT_ID"
+            cd spreadsheet && npx clasp deploy -i "$WEBAPP_DEPLOYMENT_ID" -d "GitHub Actions deploy: ${{ github.sha }}"
+          else
+            echo "WEBAPP_DEPLOYMENT_ID is not configured. Skipping Web App version redeploy."
+          fi
 
       - name: Deploy Form GAS (clasp push)
         if: steps.filter.outputs.form == 'true' || github.event_name == 'workflow_dispatch'
