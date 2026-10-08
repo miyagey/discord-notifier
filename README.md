@@ -2,7 +2,9 @@
 
 Google Apps Script (GAS) を活用し、Google フォームの送信受付、Google スプレッドシートのイベント・申込・入金締切情報の管理、Google カレンダーへの自動登録および Discord チャンネルへの通知を行うシステムです。
 
-> 📖 **フォーム設問項目、スプレッドシート列定義、自動数式などの詳細仕様**: [docs/SYSTEM_SPEC.md](docs/SYSTEM_SPEC.md)
+> 📖 **詳細仕様書**:
+> - [docs/SYSTEM_SPEC.md](docs/SYSTEM_SPEC.md): システム構造・スプレッドシート定義・Webアプリ・通知仕様
+> - [docs/FORM_SPEC.md](docs/FORM_SPEC.md): Google フォーム連携・設問項目・トリガー仕様
 
 ---
 
@@ -15,18 +17,22 @@ Google Apps Script (GAS) を活用し、Google フォームの送信受付、Goo
 ├── .gitignore                # Git 除外設定
 ├── README.md                 # 本ドキュメント
 ├── docs/                     # 各種仕様書・ドキュメント
-│   └── SYSTEM_SPEC.md        # フォーム・スプレッドシート構造・自動数式仕様書
+│   ├── SYSTEM_SPEC.md        # システム構造・スプレッドシート定義・Webアプリ仕様書
+│   └── FORM_SPEC.md          # Google フォーム連携・設問項目・処理フロー仕様書
 ├── package.json              # clasp 一括操作用スクリプト・依存関係定義
 ├── jsconfig.json             # JS開発サポート設定
 ├── spreadsheet/              # スプレッドシート側 GAS プロジェクト
 │   ├── .clasp.json           # clasp 設定ファイル
 │   ├── .claspignore
 │   ├── appsscript.json       # GAS マニフェストファイル
-│   ├── 共通関数.js           # 設定読み込み・Discord送信等の共通処理
-│   ├── 予定通知.js           # 予定通知処理
-│   ├── 入金確認おじさん.js   # 入金締切確認・通知処理
-│   ├── ライブ申込しめきりおじさん.js # チケット申込締切確認・通知処理
-│   └── カレンダー自動登録.js # Googleカレンダーへのイベント自動登録処理
+│   ├── Webアプリ.js          # Webアプリ公開 (doGet) & フロントエンドSPA向け RPC API
+│   ├── 定期通知バッチ.js     # 時間主導型トリガーによる定期実行バッチ関数群
+│   ├── スプレッドシート操作.js # SheetService: シートCRUD・データマッピング処理
+│   ├── カレンダー操作.js     # CalendarService: Googleカレンダー連携処理
+│   ├── Discord操作.js        # DiscordService: Webhook送信・メッセージ整形処理
+│   ├── 設定値.js             # 設定値・URL・列インデックス定数管理
+│   ├── 共通関数.js           # 日付フォーマット・エラーログ・ステータス計算
+│   └── index.html            # Webアプリ (カンバン・タイムラインビューア) UI
 └── form/                     # フォーム側 GAS プロジェクト
     ├── .clasp.json           # clasp 設定ファイル
     ├── .claspignore
@@ -137,10 +143,10 @@ npm run pull:all
 | スクリプト | トリガー対象の関数 | イベントのソース | イベントの種類 | 役割・概要 |
 | :--- | :--- | :--- | :--- | :--- |
 | **フォーム** | `onFormSubmit` | **フォーム** | **フォーム送信時** | フォーム回答受付、スプレッドシート書き戻し、選択肢更新、即時 Discord 通知 |
-| スプレッドシート | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
-| スプレッドシート | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
-| スプレッドシート | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
-| スプレッドシート | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
+| スプレッドシート (`定期通知バッチ.js`) | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
+| スプレッドシート (`定期通知バッチ.js`) | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
 
 ---
 
