@@ -2,7 +2,9 @@
 
 Google Apps Script (GAS) を活用し、Google フォームの送信受付、Google スプレッドシートのイベント・申込・入金締切情報の管理、Google カレンダーへの自動登録および Discord チャンネルへの通知を行うシステムです。
 
-> 📖 **フォーム設問項目、スプレッドシート列定義、自動数式などの詳細仕様**: [docs/SYSTEM_SPEC.md](docs/SYSTEM_SPEC.md)
+> 📖 **詳細仕様書**:
+> - [docs/SYSTEM_SPEC.md](docs/SYSTEM_SPEC.md): システム構造・スプレッドシート定義・Webアプリ・通知仕様
+> - [docs/FORM_SPEC.md](docs/FORM_SPEC.md): Google フォーム連携・設問項目・トリガー仕様
 
 ---
 
@@ -15,7 +17,8 @@ Google Apps Script (GAS) を活用し、Google フォームの送信受付、Goo
 ├── .gitignore                # Git 除外設定
 ├── README.md                 # 本ドキュメント
 ├── docs/                     # 各種仕様書・ドキュメント
-│   └── SYSTEM_SPEC.md        # フォーム・スプレッドシート構造・自動数式仕様書
+│   ├── SYSTEM_SPEC.md        # システム構造・スプレッドシート定義・Webアプリ仕様書
+│   └── FORM_SPEC.md          # Google フォーム連携・設問項目・処理フロー仕様書
 ├── package.json              # clasp 一括操作用スクリプト・依存関係定義
 ├── jsconfig.json             # JS開発サポート設定
 ├── spreadsheet/              # スプレッドシート側 GAS プロジェクト
