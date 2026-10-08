@@ -2,21 +2,25 @@
   "name": "discord-notifier",
   "version": "1.0.0",
   "description": "",
-  "main": "spreadsheet/カレンダー自動登録.js",
+  "main": "spreadsheet/定期通知バッチ.js",
   "scripts": {
-    "push:spreadsheet": "cd spreadsheet && npx @google/clasp push",
-    "push:form": "cd form && npx @google/clasp push",
+    "lint": "node --check spreadsheet/*.js form/*.js",
+    "push:spreadsheet": "cd spreadsheet && clasp push",
+    "push:form": "cd form && clasp push",
     "push:all": "npm run push:spreadsheet && npm run push:form",
-    "pull:spreadsheet": "cd spreadsheet && npx @google/clasp pull",
-    "pull:form": "cd form && npx @google/clasp pull",
-    "pull:all": "npm run pull:spreadsheet && npm run pull:form",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "push:spreadsheet:force": "cd spreadsheet && clasp push -f",
+    "push:form:force": "cd form && clasp push -f",
+    "push:all:force": "npm run push:spreadsheet:force && npm run push:form:force",
+    "pull:spreadsheet": "cd spreadsheet && clasp pull",
+    "pull:form": "cd form && clasp pull",
+    "pull:all": "npm run pull:spreadsheet && npm run pull:form"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@google/clasp": "^3.4.1",
     "@types/google-apps-script": "^2.0.11"
   }
 }
