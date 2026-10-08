@@ -1,0 +1,75 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to GAS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            spreadsheet:
+              - 'spreadsheet/**'
+              - 'package*.json'
+            form:
+              - 'form/**'
+              - 'package*.json'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: npm run lint
+
+      - name: Setup clasp authentication
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::GitHub Secret 'CLASPRC_JSON' is not configured."
+            exit 1
+          fi
+          echo "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+
+      - name: Deploy Spreadsheet GAS (clasp push)
+        if: steps.filter.outputs.spreadsheet == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run push:spreadsheet:force
+
+      - name: Redeploy Web App Version (optional)
+        if: steps.filter.outputs.spreadsheet == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          WEBAPP_DEPLOYMENT_ID: ${{ secrets.WEBAPP_DEPLOYMENT_ID }}
+        run: |
+          if [ -n "$WEBAPP_DEPLOYMENT_ID" ]; then
+            echo "Redeploying Web App with Deployment ID: $WEBAPP_DEPLOYMENT_ID"
+            cd spreadsheet && npx clasp deploy -i "$WEBAPP_DEPLOYMENT_ID" -d "GitHub Actions deploy: ${{ github.sha }}"
+          else
+            echo "WEBAPP_DEPLOYMENT_ID is not configured. Skipping Web App version redeploy."
+          fi
+
+      - name: Deploy Form GAS (clasp push)
+        if: steps.filter.outputs.form == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm run push:form:force
+
+      - name: Cleanup clasp credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
