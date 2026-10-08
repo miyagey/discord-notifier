@@ -124,7 +124,7 @@ GAS の Web エディタ上で本番稼働させる場合、コード内に直�
 | Secret 名 | 必須 | 内容・設定方法 |
 | :--- | :---: | :--- |
 | `CLASPRC_JSON` | **必須** | ローカルの `~/.clasprc.json` の**中身全体（JSON文字列）**。<br>※ 下記のコマンドでクリップボードにコピーできます。<br>`cat ~/.clasprc.json \| pbcopy` (Mac) |
-| `WEBAPP_DEPLOYMENT_ID` | 任意 | スプレッドシート Web アプリのデプロイメント ID（例: `AKfycbxeW3b...`）。<br>設定するとコード反映後に `clasp deploy -i <ID>` が実行され、Webアプリのバージョンが自動更新されます。 |
+| `WEBAPP_DEPLOYMENT_ID` | 任意 | スプレッドシート Web アプリのデプロイメント ID（例: `AKfycbxPLQx...`）。<br>設定するとコード反映後に `clasp deploy -i <ID>` が実行され、Webアプリのバージョンが自動更新されます。 |
  
 ---
  
