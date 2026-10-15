@@ -242,29 +242,15 @@ const DiscordService = {
   },
 
   /**
-   * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する (DTO対応)
-   * @param {Object|string} paramsOrWebhookUrl - DTOオブジェクトまたはWebhook URL
-   * @param {string} [legacyHeaderTitle] - タイトル
-   * @param {Array<object>} [legacyItems] - アイテム配列
-   * @param {function(object): string} [legacyFormatItemFunc] - フォーマット関数
-   * @param {string} [legacyFooter] - フッター
+   * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する (DTOパターン)
+   * @param {Object} params - パラメータオブジェクト
+   * @param {string} params.webhookUrl - 送信先の Discord Webhook URL
+   * @param {string} params.headerTitle - メッセージ冒頭のタイトル
+   * @param {Array<object>} params.items - 通知対象のアイテム配列
+   * @param {function(object): string} params.formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
+   * @param {string} [params.footer] - 最終メッセージに付与するフッター文字列（省略可）
    */
-  sendItemListNotification(paramsOrWebhookUrl, legacyHeaderTitle, legacyItems, legacyFormatItemFunc, legacyFooter) {
-    let webhookUrl, headerTitle, items, formatItemFunc, footer;
-    if (paramsOrWebhookUrl && typeof paramsOrWebhookUrl === 'object' && !Array.isArray(paramsOrWebhookUrl)) {
-      webhookUrl = paramsOrWebhookUrl.webhookUrl;
-      headerTitle = paramsOrWebhookUrl.headerTitle;
-      items = paramsOrWebhookUrl.items;
-      formatItemFunc = paramsOrWebhookUrl.formatItemFunc;
-      footer = paramsOrWebhookUrl.footer;
-    } else {
-      webhookUrl = paramsOrWebhookUrl;
-      headerTitle = legacyHeaderTitle;
-      items = legacyItems;
-      formatItemFunc = legacyFormatItemFunc;
-      footer = legacyFooter;
-    }
-
+  sendItemListNotification({ webhookUrl, headerTitle, items, formatItemFunc, footer }) {
     const DISCORD_MAX_LENGTH = 2000;
     const footerText = footer || "";
     const footerLength = footerText.length;
@@ -290,27 +276,15 @@ const DiscordService = {
   },
 
   /**
-   * Googleカレンダー登録完了のDiscord通知を送信 (DTO対応)
-   * @param {Object|string} paramsOrTitle - DTOオブジェクトまたはタイトル
-   * @param {string} [legacyDateStr] - 期間文字列
-   * @param {string} [legacyLocation] - 会場
-   * @param {string} [legacySummary] - 概要
+   * Googleカレンダー登録完了のDiscord通知を送信 (DTOパターン)
+   * @param {Object} params - パラメータオブジェクト
+   * @param {string} params.brandEventTitle - イベントタイトル
+   * @param {string} params.dateStr - 期間文字列
+   * @param {string} [params.location] - 会場
+   * @param {string} [params.summary] - 概要
    */
-  notifyNewCalendarEvent(paramsOrTitle, legacyDateStr, legacyLocation, legacySummary) {
+  notifyNewCalendarEvent({ brandEventTitle, dateStr, location, summary }) {
     if (!WEBHOOK_CALENDAR) return;
-
-    let brandEventTitle, dateStr, location, summary;
-    if (paramsOrTitle && typeof paramsOrTitle === 'object') {
-      brandEventTitle = paramsOrTitle.brandEventTitle;
-      dateStr = paramsOrTitle.dateStr;
-      location = paramsOrTitle.location;
-      summary = paramsOrTitle.summary;
-    } else {
-      brandEventTitle = paramsOrTitle;
-      dateStr = legacyDateStr;
-      location = legacyLocation;
-      summary = legacySummary;
-    }
 
     const lines = [
       "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
@@ -333,33 +307,17 @@ const DiscordService = {
   },
 
   /**
-   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知 (DTO対応)
-   * @param {Object|string} paramsOrBrand - DTOオブジェクトまたはブランド名
-   * @param {string} [legacyEventName] - イベント名
-   * @param {string} [legacyApplyName] - 受付名
-   * @param {string} [legacyEndDatetime] - 締切日時
-   * @param {string} [legacyPayEndDatetime] - 入金締切日時
-   * @param {string} [legacyMethod] - 申込方法
+   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知 (DTOパターン)
+   * @param {Object} params - パラメータオブジェクト
+   * @param {string} params.brand - ブランド名
+   * @param {string} params.eventName - イベント名
+   * @param {string} [params.applyName] - 受付名
+   * @param {string} [params.endDatetime] - 締切日時
+   * @param {string} [params.payEndDatetime] - 入金締切日時
+   * @param {string} [params.method] - 申込方法
    */
-  notifyNewApplication(paramsOrBrand, legacyEventName, legacyApplyName, legacyEndDatetime, legacyPayEndDatetime, legacyMethod) {
+  notifyNewApplication({ brand, eventName, applyName, endDatetime, payEndDatetime, method }) {
     if (!WEBHOOK_APPLY) return;
-
-    let brand, eventName, applyName, endDatetime, payEndDatetime, method;
-    if (paramsOrBrand && typeof paramsOrBrand === 'object') {
-      brand = paramsOrBrand.brand;
-      eventName = paramsOrBrand.eventName;
-      applyName = paramsOrBrand.applyName;
-      endDatetime = paramsOrBrand.endDatetime;
-      payEndDatetime = paramsOrBrand.payEndDatetime;
-      method = paramsOrBrand.method;
-    } else {
-      brand = paramsOrBrand;
-      eventName = legacyEventName;
-      applyName = legacyApplyName;
-      endDatetime = legacyEndDatetime;
-      payEndDatetime = legacyPayEndDatetime;
-      method = legacyMethod;
-    }
 
     const brandEventTitle = this.formatBrandEventTitle(brand, eventName);
     const lines = [
@@ -426,25 +384,3 @@ const DiscordService = {
     this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
   }
 };
-
-// ==================================================
-// 後方互換用グローバル関数エイリアス
-// ==================================================
-function formatBrandEventTitle(brand, eventName) {
-  return DiscordService.formatBrandEventTitle(brand, eventName);
-}
-function formatApplyMethodBlock(methodText) {
-  return DiscordService.formatApplyMethodBlock(methodText);
-}
-function getRegistrationFooterMessage() {
-  return DiscordService.getRegistrationFooterMessage();
-}
-function sendNotification(webhookUrl, message) {
-  return DiscordService.sendNotification(webhookUrl, message);
-}
-function sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc, footer) {
-  return DiscordService.sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc, footer);
-}
-function notifyDiscordNewCalendarEvent(brandEventTitle, dateStr, location, summary) {
-  return DiscordService.notifyNewCalendarEvent(brandEventTitle, dateStr, location, summary);
-}

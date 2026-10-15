@@ -8,23 +8,35 @@
 
 本システムは、責務の混在を防ぎ高い保守性を維持するため、以下の 4 層構造で構成されています。
 
-```
-[ 定期通知バッチ.js ] [ Webアプリ.js (doGet / API) ]
-       │                         │
-       └────────────┬────────────┘
-                    ▼
-     [ 1. オーケストレーション層 ]
-                    │
-         ┌──────────┴──────────┐
-         ▼                     ▼
-[ 2. データアクセス層 ]   [ 3. プレゼンテーション / メッセージ層 ]
- (SheetService /          (DiscordService /
-  スプレッドシート操作.js)      メッセージフォーマッター)
-         │                     │
-         └──────────┬──────────┘
-                    ▼
-       [ 4. 外部リソース連携層 ]
- (CalendarService / UrlFetchApp / Google Apps Script APIs)
+```mermaid
+flowchart TD
+    subgraph Orchestration ["1. オーケストレーション層"]
+        Batch["定期通知バッチ.js"]
+        WebApp["Webアプリ.js (doGet / API)"]
+    end
+
+    subgraph DataAccess ["2. データアクセス層"]
+        SheetService["SheetService (スプレッドシート操作.js)"]
+    end
+
+    subgraph Presentation ["3. プレゼンテーション / メッセージ層"]
+        DiscordService["DiscordService (Discord操作.js)"]
+    end
+
+    subgraph External ["4. 外部リソース連携層"]
+        CalendarService["CalendarService (カレンダー操作.js)"]
+        UrlFetch["UrlFetchApp (Discord Webhook)"]
+    end
+
+    Batch -->|"データ取得・更新"| SheetService
+    Batch -->|"フォーマット・送信"| DiscordService
+    Batch -->|"カレンダー同期"| CalendarService
+
+    WebApp -->|"データ操作"| SheetService
+    WebApp -->|"新着通知"| DiscordService
+    WebApp -->|"カレンダー追加"| CalendarService
+
+    DiscordService -->|"Webhook送信"| UrlFetch
 ```
 
 ### 1.1 各層の役割とファイル対応

@@ -28,13 +28,13 @@ flowchart TB
 
     User -->|閲覧 / 登録 / 編集| WebApp
 
-    WebApp <-->|データ操作 (SheetService)| GSheet
-    WebApp -->|イベント同期 (CalendarService)| GCal
-    WebApp -->|登録通知 (DiscordService)| Discord
+    WebApp ---|"データ操作 (SheetService)"| GSheet
+    WebApp -->|"イベント同期 (CalendarService)"| GCal
+    WebApp -->|"登録通知 (DiscordService)"| Discord
 
-    Batch -->|データ参照 (SheetService)| GSheet
-    Batch <-->|同期・予定取得 (CalendarService)| GCal
-    Batch -->|リマインド通知 (DiscordService)| Discord
+    Batch -->|"データ参照 (SheetService)"| GSheet
+    Batch ---|"同期・予定取得 (CalendarService)"| GCal
+    Batch -->|"リマインド通知 (DiscordService)"| Discord
 ```
 
 ---
