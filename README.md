@@ -124,7 +124,7 @@ GAS の Web エディタ上で本番稼働させる場合、**スクリプトの
 `main` ブランチに Pull Request がマージされると、GitHub Actions（`.github/workflows/deploy.yml`）が自動実行され、GAS プロジェクトへ自動デプロイ（`clasp push --force`）されます。
 
 - **差分検知**: `spreadsheet/` 変更時はスプレッドシート側、`form/` 変更時はフォーム側を自動判別して push します。
-- **構文チェック**: デプロイ直前に `npm run lint` (`node --check`) を実行し、構文エラーのあるコードの混入を防止します。
+- **構文チェック & 単体テスト**: デプロイ直前に `npm run lint` (`node --check`) による構文検証および `npm test` (`vitest`) による単体テストを実行し、品質基準を満たした場合のみデプロイを実行します。
 - **Webアプリバージョン自動更新**: `WEBAPP_DEPLOYMENT_ID` が登録されている場合、マージされた PR 名またはコミット内容をバージョン説明欄に自動記録しながら `clasp deploy` を実行します。
 
 ### 必要な GitHub Secrets 設定
@@ -142,6 +142,12 @@ GAS の Web エディタ上で本番稼働させる場合、**スクリプトの
 ```bash
 # 構文チェック (全スクリプトの node --check 検証)
 npm run lint
+
+# 単体テスト (Vitest による実行)
+npm test
+
+# 単体テスト (ウォッチモード)
+npm run test:watch
 
 # GAS からコードを取得 (clasp pull)
 npm run pull:spreadsheet

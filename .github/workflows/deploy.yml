@@ -43,6 +43,9 @@ jobs:
       - name: Syntax check
         run: npm run lint
 
+      - name: Run unit tests
+        run: npm test
+
       - name: Setup clasp authentication
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
