@@ -5,6 +5,8 @@
   "main": "spreadsheet/定期通知バッチ.js",
   "scripts": {
     "lint": "node --check spreadsheet/*.js form/*.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "push:spreadsheet": "cd spreadsheet && clasp push",
     "push:form": "cd form && clasp push",
     "push:all": "npm run push:spreadsheet && npm run push:form",
@@ -21,6 +23,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@google/clasp": "^3.4.1",
-    "@types/google-apps-script": "^2.0.11"
+    "@types/google-apps-script": "^2.0.11",
+    "vitest": "^5.0.5"
   }
 }
