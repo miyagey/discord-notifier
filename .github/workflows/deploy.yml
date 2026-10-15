@@ -11,6 +11,10 @@ jobs:
     name: Deploy to GAS
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -58,10 +62,27 @@ jobs:
         if: steps.filter.outputs.spreadsheet == 'true' || github.event_name == 'workflow_dispatch'
         env:
           WEBAPP_DEPLOYMENT_ID: ${{ secrets.WEBAPP_DEPLOYMENT_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$WEBAPP_DEPLOYMENT_ID" ]; then
+            # PR情報の取得（マージコミットに対応するPR番号とタイトル）
+            PR_TITLE=""
+            if command -v gh >/dev/null 2>&1; then
+              PR_TITLE=$(gh pr list --state merged --limit 5 --json number,title,mergeCommit --jq ".[] | select(.mergeCommit.oid == \"$GITHUB_SHA\") | \"#\(.number) \(.title)\"" 2>/dev/null || true)
+            fi
+
+            if [ -n "$PR_TITLE" ]; then
+              DEPLOY_DESC="$PR_TITLE"
+            else
+              DEPLOY_DESC="$(git log -1 --pretty=%s)"
+            fi
+
+            # 説明文のサニタイズ（改行除去・ダブルクォート置換・文字数制限）
+            DEPLOY_DESC=$(echo "$DEPLOY_DESC" | tr '\n' ' ' | tr '"' "'" | cut -c 1-100)
             echo "Redeploying Web App with Deployment ID: $WEBAPP_DEPLOYMENT_ID"
-            cd spreadsheet && npx clasp deploy -i "$WEBAPP_DEPLOYMENT_ID" -d "GitHub Actions deploy: ${{ github.sha }}"
+            echo "Deployment description: $DEPLOY_DESC"
+
+            cd spreadsheet && npx clasp deploy -i "$WEBAPP_DEPLOYMENT_ID" -d "$DEPLOY_DESC"
           else
             echo "WEBAPP_DEPLOYMENT_ID is not configured. Skipping Web App version redeploy."
           fi
