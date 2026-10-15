@@ -26,15 +26,16 @@ const CalendarService = {
   },
 
   /**
-   * 終日イベントを Google カレンダーに登録する
-   * @param {string} title - イベントタイトル
-   * @param {Date|string} startDate - 開始日
-   * @param {Date|string} [endDate] - 終了日 (省略時は開始日当日)
-   * @param {string} [location] - 会場
-   * @param {string} [summary] - 概要
+   * 終日イベントを Google カレンダーに登録する (DTOパターン)
+   * @param {Object} params - パラメータオブジェクト
+   * @param {string} params.title - イベントタイトル
+   * @param {Date|string} params.startDate - 開始日
+   * @param {Date|string} [params.endDate] - 終了日 (省略時は開始日当日)
+   * @param {string} [params.location] - 会場
+   * @param {string} [params.summary] - 概要
    * @returns {string|null} 登録されたイベントID、失敗時は null
    */
-  createAllDayEvent(title, startDate, endDate, location, summary) {
+  createAllDayEvent({ title, startDate, endDate, location, summary }) {
     const calendar = this.getCalendar();
     if (!calendar) return null;
 

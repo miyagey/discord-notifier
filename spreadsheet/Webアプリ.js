@@ -71,16 +71,25 @@ function createEvent(data) {
     let calId = '';
     try {
       const title = DiscordService.formatBrandEventTitle(data.brand, data.name);
-      calId = CalendarService.createAllDayEvent(
-        title, data.startDate, data.endDate, data.location, data.summary
-      ) || '';
+      calId = CalendarService.createAllDayEvent({
+        title: title,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        location: data.location,
+        summary: data.summary
+      }) || '';
 
       if (calId) {
         let dateStr = formatDateJST(new Date(data.startDate), "MM/dd");
         if (data.endDate && data.endDate !== data.startDate) {
           dateStr += ` 〜 ${formatDateJST(new Date(data.endDate), "MM/dd")}`;
         }
-        DiscordService.notifyNewCalendarEvent(title, dateStr, data.location, data.summary);
+        DiscordService.notifyNewCalendarEvent({
+          brandEventTitle: title,
+          dateStr: dateStr,
+          location: data.location,
+          summary: data.summary
+        });
       }
     } catch (calErr) {
       logError('createEvent.calendarSync', calErr);
@@ -127,14 +136,14 @@ function createApplication(data) {
 
     // Discord通知
     try {
-      DiscordService.notifyNewApplication(
-        data.brand,
-        data.eventName,
-        data.applyName,
-        data.endDatetime,
-        data.payEndDatetime,
-        data.method
-      );
+      DiscordService.notifyNewApplication({
+        brand: data.brand,
+        eventName: data.eventName,
+        applyName: data.applyName,
+        endDatetime: data.endDatetime,
+        payEndDatetime: data.payEndDatetime,
+        method: data.method
+      });
     } catch (notifyErr) {
       logError('createApplication.notifyDiscord', notifyErr);
     }

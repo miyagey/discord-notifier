@@ -1,69 +1,85 @@
 # Discord Notifier (GAS Project)
 
-Google Apps Script (GAS) を活用し、Google フォームの送信受付、Google スプレッドシートのイベント・申込・入金締切情報の管理、Google カレンダーへの自動登録および Discord チャンネルへの通知を行うシステムです。
-
-> 📖 **詳細仕様書**:
-> - [docs/SYSTEM_SPEC.md](docs/SYSTEM_SPEC.md): システム構造・スプレッドシート定義・Webアプリ・通知仕様
-> - [docs/FORM_SPEC.md](docs/FORM_SPEC.md): Google フォーム連携・設問項目・トリガー仕様
+Google Apps Script (GAS) を活用し、チケット申込・イベントスケジュールの管理、Google カレンダーへの自動同期、Webアプリ（カンバンボード）による閲覧・登録、および Discord へのリマインド通知を行う統合通知システムです。
 
 ---
 
-## 📁 プロジェクト構成
+## 📚 ドキュメント構成（4層構造）
 
-本リポジトリでは、スプレッドシート側のGASスクリプトとフォーム側のGASスクリプトをサブディレクトリで分離し、一括管理しています。
+プロジェクトの理解・開発・保守のためのドキュメントは以下の体系で整理されています。目的に応じて参照してください。
+
+```
+.
+├── README.md                 # 【本ドキュメント】オンボーディング & 開発者ガイド
+├── AGENTS.md                 # AI エージェント用行動規範 & 制約ルール
+└── docs/
+    ├── ARCHITECTURE.md       # アーキテクチャ・設計方針・レイヤー構造・DTO規約
+    ├── SYSTEM_SPEC.md        # システム仕様・データエンティティ・バッチ仕様書
+    └── FORM_SPEC.md          # Google フォーム連携・設問項目・トリガー仕様書
+```
+
+| ドキュメント | 対象・目的 |
+| :--- | :--- |
+| **[`README.md`](README.md)** | **開発者向け**: 環境構築、クレデンシャル設定、clasp 操作、CI/CD 手順 |
+| **[`AGENTS.md`](AGENTS.md)** | **AI エージェント向け**: コード生成制約、カプセル化ルール、Git 運用規約 |
+| **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** | **設計者・開発者向け**: レイヤー構造（オーケストレーション/データアクセス/メッセージ）、DTOパターン、429リトライ |
+| **[`docs/SYSTEM_SPEC.md`](docs/SYSTEM_SPEC.md)** | **システム仕様**: スプレッドシートエンティティ、定期通知バッチ、Webアプリ API |
+| **[`docs/FORM_SPEC.md`](docs/FORM_SPEC.md)** | **フォーム仕様**: 設問項目、動的選択肢更新、フォーム送信時トリガー |
+
+---
+
+## 📁 ディレクトリ構成
+
+本リポジトリでは、スプレッドシート側の GAS スクリプトとフォーム側の GAS スクリプトをサブディレクトリで分離し、一括管理しています。
 
 ```text
 .
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml        # GitHub Actions 自動デプロイワークフロー
-├── .gitignore                # Git 除外設定
-├── README.md                 # 本ドキュメント
-├── docs/                     # 各種仕様書・ドキュメント
-│   ├── SYSTEM_SPEC.md        # システム構造・スプレッドシート定義・Webアプリ仕様書
-│   └── FORM_SPEC.md          # Google フォーム連携・設問項目・処理フロー仕様書
-├── package.json              # clasp 一括操作用スクリプト・依存関係定義
-├── jsconfig.json             # JS開発サポート設定
-├── spreadsheet/              # スプレッドシート側 GAS プロジェクト
+│       └── deploy.yml        # GitHub Actions 自動デプロイワークフロー (CI/CD)
+├── AGENTS.md                 # AI エージェント用プロンプトルール & 開発規約
+├── docs/                     # 各種設計・仕様書
+│   ├── ARCHITECTURE.md       # アーキテクチャ & 設計方針書
+│   ├── SYSTEM_SPEC.md        # システム & データエンティティ仕様書
+│   └── FORM_SPEC.md          # Google フォーム連携仕様書
+├── package.json              # clasp 一括操作・構文検証用スクリプト
+├── jsconfig.json             # JS 開発用エディタ設定
+├── spreadsheet/              # スプレッドシート側 GAS プロジェクト (メイン)
 │   ├── .clasp.json           # clasp 設定ファイル
-│   ├── .claspignore
-│   ├── appsscript.json       # GAS マニフェストファイル
-│   ├── Webアプリ.js          # Webアプリ公開 (doGet) & フロントエンドSPA向け RPC API
-│   ├── 定期通知バッチ.js     # 時間主導型トリガーによる定期実行バッチ関数群
-│   ├── スプレッドシート操作.js # SheetService: シートCRUD・データマッピング処理
-│   ├── カレンダー操作.js     # CalendarService: Googleカレンダー連携処理
-│   ├── Discord操作.js        # DiscordService: Webhook送信・メッセージ整形処理
-│   ├── 設定値.js             # 設定値・URL・列インデックス定数管理
-│   ├── 共通関数.js           # 日付フォーマット・エラーログ・ステータス計算
-│   └── index.html            # Webアプリ (カンバン・タイムラインビューア) UI
+│   ├── appsscript.json       # GAS マニフェスト (Webアプリ設定含む)
+│   ├── Webアプリ.js          # Webアプリ公開 (doGet) & フロントエンド向け RPC API
+│   ├── 定期通知バッチ.js     # 定期リマインド・カレンダー同期オーケストレーション
+│   ├── スプレッドシート操作.js # SheetService: 列インデックス隠蔽 & データアクセス
+│   ├── カレンダー操作.js     # CalendarService: Google カレンダー同期処理
+│   ├── Discord操作.js        # DiscordService: メッセージフォーマット & Webhook送信
+│   ├── 設定値.js             # 外部連携URL・プロパティキー等の定数管理
+│   ├── 共通関数.js           # 日付フォーマット・共通エラーロガー
+│   └── index.html            # Webアプリ (カンバン / タイムライン) SPA UI
 └── form/                     # フォーム側 GAS プロジェクト
     ├── .clasp.json           # clasp 設定ファイル
-    ├── .claspignore
-    ├── appsscript.json       # GAS マニフェストファイル
-    ├── コード.js             # フォーム送信受付・シート書込・プルダウン自動更新処理
-    └── 新規申込通知.js       # Discord への新着申込通知送信処理
+    ├── appsscript.json       # GAS マニフェスト
+    ├── コード.js             # フォーム送信受付・シート追記・選択肢動的同期
+    └── 新規申込通知.js       # Discord への新着申込即時通知
 ```
 
 ---
 
-## 🔐 クレデンシャル情報・環境変数のセットアップ方法
+## 🔐 クレデンシャル & 環境設定
 
-本プロジェクトでは、Discord Webhook URL やスプレッドシート ID などの機密情報を安全に管理するため、ローカル環境と本番（GAS環境）で以下の方法を提供しています。
-
----
+機密情報（Webhook URL やスプレッドシート ID 等）を保護するため、ローカル環境と本番環境（GAS）で設定方法を分離しています。
 
 ### 方法 A: ローカル開発環境での設定 (推奨)
 
-`clasp push` などでローカルからコードをアップロード・開発する場合の設定方法です。
+ローカルから `clasp push` 等を行う場合の設定です。
 
 1. **設定ファイルの作成**  
-   `config.local.example.js` を参考に、各対象フォルダ（例: `spreadsheet/`）に `config.local.js` を作成します。
+   `config.local.example.js` をコピーして `spreadsheet/config.local.js` を作成します。
    ```bash
    cp config.local.example.js spreadsheet/config.local.js
    ```
 
 2. **設定値の入力**  
-   `spreadsheet/config.local.js` を開き、実際の URL や ID を設定します。
+   `spreadsheet/config.local.js` に実際の URL や ID を設定します（`.gitignore` により Git コミット対象外）。
    ```javascript
    const CONFIG = {
      COMMON_SHEET_URL: "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit",
@@ -71,108 +87,83 @@ Google Apps Script (GAS) を活用し、Google フォームの送信受付、Goo
      PROXY_BASE_URL: "https://your-discord-proxy.workers.dev",
      WEBHOOK_APPLY: "https://discord.com/api/webhooks/...",
      WEBHOOK_PAYMENT: "https://discord.com/api/webhooks/...",
-     WEBHOOK_CALENDAR: "https://discord.com/api/webhooks/..."
+     WEBHOOK_CALENDAR: "https://discord.com/api/webhooks/...",
+     WEBAPP_URL: "https://your-domain.workers.dev" // 任意: Webアプリ短縮URL
    };
    ```
-
-> [!IMPORTANT]
-> `config.local.js` は `.gitignore` により Git 管理対象外となっています。
 
 ---
 
 ### 方法 B: GAS 本番環境での設定 (スクリプトのプロパティ)
 
-GAS の Web エディタ上で本番稼働させる場合、コード内に直接クレデンシャルを書かず、**スクリプトのプロパティ**を使用します。
+GAS の Web エディタ上で本番稼働させる場合、**スクリプトのプロパティ**（`⚙️ プロジェクトの設定 > スクリプトのプロパティ`）に登録します。
 
-1. ブラウザで Google Apps Script エディタを開きます。
-2. 左メニューの **⚙️ プロジェクトの設定** をクリックします。
-3. **「スクリプトのプロパティ」** の項目で **「スクリプトのプロパティを追加」** を選択し、以下のプロパティ名（キー）と値を登録します。
-
+#### スプレッドシート側 (`spreadsheet/`)
 | プロパティ名 (キー) | 説明 | 設定例 |
 | :--- | :--- | :--- |
-| `COMMON_SHEET_URL` | 管理用スプレッドシートのURL | `https://docs.google.com/spreadsheets/d/...` |
+| `COMMON_SHEET_URL` | 管理用スプレッドシートの URL | `https://docs.google.com/spreadsheets/d/...` |
 | `CALENDAR_ID` | Google カレンダー ID | `xxxx@group.calendar.google.com` |
 | `PROXY_BASE_URL` | Discord 送信用プロキシのベース URL | `https://my-discord-proxy.workers.dev` |
-| `WEBHOOK_APPLY` | 申込締切用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
-| `WEBHOOK_PAYMENT` | 入金締切用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
-| `WEBHOOK_CALENDAR` | カレンダー予定用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
+| `WEBHOOK_APPLY` | 申込締切通知用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
+| `WEBHOOK_PAYMENT` | 入金締切通知用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
+| `WEBHOOK_CALENDAR` | カレンダー同期・予定通知用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
+| `WEBAPP_URL` | Webアプリ公開 URL（Cloudflare 等の短縮 URL） | `https://ticket.example.com` |
 
-#### フォーム側 (`form/`) プロジェクトに設定するプロパティ
-
+#### フォーム側 (`form/`)
 | プロパティ名 (キー) | 説明 | 設定例 |
 | :--- | :--- | :--- |
-| `COMMON_SHEET_URL` | 管理用スプレッドシートのURL | `https://docs.google.com/spreadsheets/d/...` |
+| `COMMON_SHEET_URL` | 管理用スプレッドシートの URL | `https://docs.google.com/spreadsheets/d/...` |
 | `PROXY_BASE_URL` | Discord 送信用プロキシのベース URL | `https://my-discord-proxy.workers.dev` |
 | `WEBHOOK_APPLY` | 新着申込通知用 Discord Webhook URL | `https://discord.com/api/webhooks/...` |
-| `FORM_URL` | このフォーム自身のURL（通知メッセージ内で表示） | `https://forms.gle/...` |
+| `FORM_URL` | フォーム自身の URL（通知メッセージ内リンク用） | `https://forms.gle/...` |
 
 ---
-
 
 ## 🚀 GitHub Actions 自動デプロイ (CI/CD)
- 
-`main` ブランチに Pull Request がマージ（または push）されると、GitHub Actions が自動でトリガーされ、GAS プロジェクトへコードを自動デプロイ（`clasp push --force`）します。
- 
-- **差分検知**: `spreadsheet/` フォルダに変更があればスプレッドシート側、`form/` フォルダに変更があればフォーム側を自動判別して反映します。
-- **構文チェック**: デプロイ前に `npm run lint` (`node --check`) による構文検証を実行し、不正なコードの反映を防ぎます。
-- **Webアプリのバージョン更新 (任意)**: `WEBAPP_DEPLOYMENT_ID` が設定されていれば、Webアプリの本番デプロイバージョンも自動更新されます。
- 
+
+`main` ブランチに Pull Request がマージされると、GitHub Actions（`.github/workflows/deploy.yml`）が自動実行され、GAS プロジェクトへ自動デプロイ（`clasp push --force`）されます。
+
+- **差分検知**: `spreadsheet/` 変更時はスプレッドシート側、`form/` 変更時はフォーム側を自動判別して push します。
+- **構文チェック**: デプロイ直前に `npm run lint` (`node --check`) を実行し、構文エラーのあるコードの混入を防止します。
+- **Webアプリバージョン自動更新**: `WEBAPP_DEPLOYMENT_ID` が登録されている場合、マージされた PR 名またはコミット内容をバージョン説明欄に自動記録しながら `clasp deploy` を実行します。
+
 ### 必要な GitHub Secrets 設定
- 
-リポジトリの **Settings > Secrets and variables > Actions > Secrets** に以下の Secret を登録します：
- 
-| Secret 名 | 必須 | 内容・設定方法 |
+リポジトリの **Settings > Secrets and variables > Actions** に以下を登録します：
+
+| Secret 名 | 必須 | 内容 |
 | :--- | :---: | :--- |
-| `CLASPRC_JSON` | **必須** | ローカルの `~/.clasprc.json` の**中身全体（JSON文字列）**。<br>※ 下記のコマンドでクリップボードにコピーできます。<br>`cat ~/.clasprc.json \| pbcopy` (Mac) |
-| `WEBAPP_DEPLOYMENT_ID` | 任意 | スプレッドシート Web アプリのデプロイメント ID（例: `AKfycbxPLQx...`）。<br>設定するとコード反映後に `clasp deploy -i <ID>` が実行され、Webアプリのバージョンが自動更新されます。 |
- 
+| `CLASPRC_JSON` | **必須** | ローカルの `~/.clasprc.json` の JSON 文字列全体。<br>`cat ~/.clasprc.json \| pbcopy` (Mac) で取得可能。 |
+| `WEBAPP_DEPLOYMENT_ID` | 任意 | スプレッドシート Web アプリのデプロイ ID。設定すると本番バージョンが自動更新されます。 |
+
 ---
- 
-## 🛠️ clasp による開発・デプロイ手順 (ローカル)
 
-`npm scripts` を使用して、ルートディレクトリから各プロジェクトの管理が行えます。
+## 🛠️ ローカル開発コマンド (`npm scripts`)
 
-### コードのプッシュ (GASへ反映)
 ```bash
-# スプレッドシート側のみプッシュ
+# 構文チェック (全スクリプトの node --check 検証)
+npm run lint
+
+# GAS からコードを取得 (clasp pull)
+npm run pull:spreadsheet
+npm run pull:form
+npm run pull:all
+
+# GAS へコードを反映 (clasp push)
 npm run push:spreadsheet
-
-# フォーム側のみプッシュ
 npm run push:form
-
-# 両方をまとめてプッシュ
 npm run push:all
 ```
 
-### コードのプル (GASから取得)
-```bash
-# スプレッドシート側のみプル
-npm run pull:spreadsheet
-
-# フォーム側のみプル
-npm run pull:form
-
-# 両方をまとめてプル
-npm run pull:all
-```
-
 ---
 
-## ⏰ GAS トリガーの設定方法
+## ⏰ 自動化トリガー設定
 
-本プロジェクトの各自動通知機能を有効化するには、Google Apps Script エディタの **「⏰ トリガー」** メニューより以下のイベントを設定します。
+GAS エディタの **「⏰ トリガー」** メニューより、以下のトリガーを設定します。
 
-| スクリプト | トリガー対象の関数 | イベントのソース | イベントの種類 | 役割・概要 |
+| スクリプト | 関数名 | イベントのソース | 実行頻度 / タイミング | 概要 |
 | :--- | :--- | :--- | :--- | :--- |
-| **フォーム** | `onFormSubmit` | **フォーム** | **フォーム送信時** | フォーム回答受付、スプレッドシート書き戻し、選択肢更新、即時 Discord 通知 |
-| スプレッドシート (`定期通知バッチ.js`) | `remindEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日申込締切のチケット一覧通知 |
-| スプレッドシート (`定期通知バッチ.js`) | `remindPaymentEndDate` | 時間主導型 | 日時タイマー (毎日午前中推奨) | 本日入金締切のイベント一覧通知 |
-| スプレッドシート (`定期通知バッチ.js`) | `notifyTomorrowEvents` | 時間主導型 | 日時タイマー (毎日夕方/夜推奨) | 明日の Google カレンダー予定通知 |
-| スプレッドシート (`定期通知バッチ.js`) | `registerEventsToCalendar` | 時間主導型 | 日時タイマー (1時間おき等) | カレンダー未登録イベントの自動同期 |
-
----
-
-## ⚠️ セキュリティに関する注意点
-
-- `config.local.js` や認証情報ファイル (`.clasprc.json` 等) をコミット・公開しないよう注意してください。
-- 万が一 Webhook URL や API キーが外部に漏洩した場合は、Discord サーバーの設定画面より対象の Webhook を再生成（削除・作成）してください。
+| **フォーム** | `onFormSubmit` | **フォーム** | **フォーム送信時** | 回答受付、シート追記、選択肢自動更新、Discord 即時通知 |
+| **スプレッドシート** | `remindEndDate` | 時間主導型 | 毎日 午前 (08:00〜09:00推奨) | 本日申込締切（通常/先着前日/リセール）通知 |
+| **スプレッドシート** | `remindPaymentEndDate` | 時間主導型 | 毎日 午前 (08:00〜09:00推奨) | 本日入金締切通知（対象なし時は送信せずログ終了） |
+| **スプレッドシート** | `notifyTomorrowEvents` | 時間主導型 | 毎日 夕方〜夜 (20:00〜21:00推奨) | 明日の Google カレンダー予定通知 |
+| **スプレッドシート** | `registerEventsToCalendar` | 時間主導型 | 1時間おき推奨 | 未登録イベントの Google カレンダー自動同期 |
