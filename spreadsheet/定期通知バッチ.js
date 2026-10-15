@@ -1,6 +1,7 @@
 // ==================================================
 // 【定期通知バッチ処理】
 // 時間主導型トリガーによって定期実行されるメイン関数群
+// （オーケストレーション層：データ取得・メッセージ生成・送信のフロー制御に専念）
 // ==================================================
 
 /**
@@ -17,19 +18,7 @@ function remindEndDate() {
 
     // 1. 通常申込（先着・リセール以外）の本日締切通知
     const regularItems = SheetService.fetchDeadlineApplyItems(todayStr, today);
-    if (regularItems.length > 0) {
-      const headerTitle = "🔔 **本日締切のチケット申込があります！**";
-      const formatItemFunc = (item) => {
-        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切時刻: **${item.timeStr}**\n`;
-        if (item.method) str += DiscordService.formatApplyMethodBlock(item.method);
-        return str;
-      };
-      const footer = "\n" + DiscordService.getRegistrationFooterMessage();
-      DiscordService.sendItemListNotification(WEBHOOK_APPLY, headerTitle, regularItems, formatItemFunc, footer);
-    } else {
-      const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + DiscordService.getRegistrationFooterMessage();
-      DiscordService.sendNotification(WEBHOOK_APPLY, message);
-    }
+    DiscordService.sendApplyRemindNotification(regularItems);
 
     // 2. 翌日開始の先着受付通知
     const tomorrow = new Date(today);
@@ -39,26 +28,14 @@ function remindEndDate() {
 
     if (firstComeItems.length > 0) {
       Utilities.sleep(500);
-      const headerTitle = "🏃 **明日から先着受付が始まります！忘れずに！**";
-      const formatItemFunc = (item) => {
-        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
-        if (item.method) str += DiscordService.formatApplyMethodBlock(item.method);
-        return str;
-      };
-      DiscordService.sendItemListNotification(WEBHOOK_APPLY, headerTitle, firstComeItems, formatItemFunc);
+      DiscordService.sendFirstComeRemindNotification(firstComeItems);
     }
 
     // 3. 受付期間中のリセール通知
     const resaleItems = SheetService.fetchResaleApplyItems(todayStr);
     if (resaleItems.length > 0) {
       Utilities.sleep(500);
-      const headerTitle = "🔄 **受付中のリセールがあります！**";
-      const formatItemFunc = (item) => {
-        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切日時: **${item.deadlineStr}まで**\n`;
-        if (item.method) str += DiscordService.formatApplyMethodBlock(item.method);
-        return str;
-      };
-      DiscordService.sendItemListNotification(WEBHOOK_APPLY, headerTitle, resaleItems, formatItemFunc);
+      DiscordService.sendResaleRemindNotification(resaleItems);
     }
 
     Logger.log("=== 申込通知処理が正常終了しました ===");
@@ -69,6 +46,7 @@ function remindEndDate() {
 
 /**
  * 入金締切情報を抽出し、Discord へリマインド通知するメイン関数
+ * ※ 対象がない場合は送信せずログを出力して終了する（フッターなし）
  */
 function remindPaymentEndDate() {
   try {
@@ -76,21 +54,17 @@ function remindPaymentEndDate() {
     const today = new Date();
     const todayStr = formatDateJST(today, "yyyy-MM-dd");
 
+    // 1. データ取得
     const paymentItems = SheetService.fetchPaymentApplyItems(todayStr, today);
 
-    if (paymentItems.length > 0) {
-      const headerTitle = "💸 **本日入金締切のチケットがあります！**";
-      const formatItemFunc = (item) => {
-        let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 入金締切: **${item.timeStr}**\n`;
-        if (item.method) str += DiscordService.formatApplyMethodBlock(item.method);
-        return str;
-      };
-      const footer = "\n" + DiscordService.getRegistrationFooterMessage();
-      DiscordService.sendItemListNotification(WEBHOOK_PAYMENT, headerTitle, paymentItems, formatItemFunc, footer);
-    } else {
-      const message = "💸 **本日入金締切のチケットはありません！**\n\n漏れがあれば教えてね！\n\n" + DiscordService.getRegistrationFooterMessage();
-      DiscordService.sendNotification(WEBHOOK_PAYMENT, message);
+    // 該当なしの場合は通知せずログ出力して終了
+    if (!paymentItems || paymentItems.length === 0) {
+      Logger.log("本日入金締切のチケットはありませんでした。処理を終了します。");
+      return;
     }
+
+    // 2. メッセージ生成 & 3. Discord送信（フッターなし）
+    DiscordService.sendPaymentRemindNotification(paymentItems);
 
     Logger.log("=== 入金締切通知処理が正常終了しました ===");
   } catch (e) {
@@ -104,6 +78,7 @@ function remindPaymentEndDate() {
 function registerEventsToCalendar() {
   try {
     Logger.log("=== カレンダー自動登録処理を開始 ===");
+    // 1. 未同期イベントのデータ取得
     const unsyncedEvents = SheetService.getUnsyncedMasterEvents();
 
     if (unsyncedEvents.length === 0) {
@@ -113,11 +88,16 @@ function registerEventsToCalendar() {
 
     const registeredEventsLog = [];
 
+    // 2. カレンダー登録（DTOパターン）およびスプレッドシート更新
     for (const ev of unsyncedEvents) {
       const title = DiscordService.formatBrandEventTitle(ev.brand, ev.eventName);
-      const calId = CalendarService.createAllDayEvent(
-        title, ev.startDateRaw, ev.endDateRaw, ev.location, ev.summary
-      );
+      const calId = CalendarService.createAllDayEvent({
+        title: title,
+        startDate: ev.startDateRaw,
+        endDate: ev.endDateRaw,
+        location: ev.location,
+        summary: ev.summary
+      });
 
       if (calId) {
         SheetService.updateMasterCalendarId(ev.rowIndex, calId);
@@ -136,6 +116,7 @@ function registerEventsToCalendar() {
       }
     }
 
+    // 3. Discordへ同期完了通知を送信
     if (registeredEventsLog.length > 0) {
       DiscordService.notifyBatchCalendarEvents(registeredEventsLog);
       Logger.log(`Discordへ ${registeredEventsLog.length} 件のカレンダー登録完了通知を送信しました。`);

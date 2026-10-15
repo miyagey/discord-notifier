@@ -131,14 +131,140 @@ const DiscordService = {
   },
 
   /**
-   * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する
-   * @param {string} webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} headerTitle - メッセージ冒頭のタイトル
-   * @param {Array<object>} items - 通知対象のアイテム配列
-   * @param {function(object): string} formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
-   * @param {string} [footer] - 最終メッセージに付与するフッター文字列（省略可）
+   * 申込締切リマインドの各アイテム文字列をフォーマット
+   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * @returns {string}
    */
-  sendItemListNotification(webhookUrl, headerTitle, items, formatItemFunc, footer) {
+  formatApplyRemindItem(item) {
+    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切時刻: **${item.timeStr}**\n`;
+    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    return str;
+  },
+
+  /**
+   * 先着受付リマインドの各アイテム文字列をフォーマット
+   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * @returns {string}
+   */
+  formatFirstComeRemindItem(item) {
+    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
+    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    return str;
+  },
+
+  /**
+   * リセールリマインドの各アイテム文字列をフォーマット
+   * @param {{brandEvent: string, applyName: string, deadlineStr: string, method?: string}} item
+   * @returns {string}
+   */
+  formatResaleRemindItem(item) {
+    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切日時: **${item.deadlineStr}まで**\n`;
+    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    return str;
+  },
+
+  /**
+   * 入金締切リマインドの各アイテム文字列をフォーマット
+   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * @returns {string}
+   */
+  formatPaymentRemindItem(item) {
+    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 入金締切: **${item.timeStr}**\n`;
+    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    return str;
+  },
+
+  /**
+   * 本日締切の申込一覧リマインド通知を送信
+   * @param {Array<Object>} items - 申込アイテム配列
+   */
+  sendApplyRemindNotification(items) {
+    if (items && items.length > 0) {
+      const headerTitle = "🔔 **本日締切のチケット申込があります！**";
+      const footer = "\n" + this.getRegistrationFooterMessage();
+      this.sendItemListNotification({
+        webhookUrl: WEBHOOK_APPLY,
+        headerTitle: headerTitle,
+        items: items,
+        formatItemFunc: (item) => this.formatApplyRemindItem(item),
+        footer: footer
+      });
+    } else {
+      const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + this.getRegistrationFooterMessage();
+      this.sendNotification(WEBHOOK_APPLY, message);
+    }
+  },
+
+  /**
+   * 翌日開始の先着受付リマインド通知を送信
+   * @param {Array<Object>} items - 先着アイテム配列
+   */
+  sendFirstComeRemindNotification(items) {
+    if (!items || items.length === 0) return;
+    const headerTitle = "🏃 **明日から先着受付が始まります！忘れずに！**";
+    this.sendItemListNotification({
+      webhookUrl: WEBHOOK_APPLY,
+      headerTitle: headerTitle,
+      items: items,
+      formatItemFunc: (item) => this.formatFirstComeRemindItem(item)
+    });
+  },
+
+  /**
+   * 受付期間中のリセールリマインド通知を送信
+   * @param {Array<Object>} items - リセールアイテム配列
+   */
+  sendResaleRemindNotification(items) {
+    if (!items || items.length === 0) return;
+    const headerTitle = "🔄 **受付中のリセールがあります！**";
+    this.sendItemListNotification({
+      webhookUrl: WEBHOOK_APPLY,
+      headerTitle: headerTitle,
+      items: items,
+      formatItemFunc: (item) => this.formatResaleRemindItem(item)
+    });
+  },
+
+  /**
+   * 本日入金締切リマインド通知を送信（フッターなし）
+   * @param {Array<Object>} items - 入金アイテム配列
+   */
+  sendPaymentRemindNotification(items) {
+    if (!items || items.length === 0) return;
+    const headerTitle = "💸 **本日入金締切のチケットがあります！**";
+    // 入金締切通知はフッター不要のため footer は指定しない
+    this.sendItemListNotification({
+      webhookUrl: WEBHOOK_PAYMENT,
+      headerTitle: headerTitle,
+      items: items,
+      formatItemFunc: (item) => this.formatPaymentRemindItem(item)
+    });
+  },
+
+  /**
+   * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する (DTO対応)
+   * @param {Object|string} paramsOrWebhookUrl - DTOオブジェクトまたはWebhook URL
+   * @param {string} [legacyHeaderTitle] - タイトル
+   * @param {Array<object>} [legacyItems] - アイテム配列
+   * @param {function(object): string} [legacyFormatItemFunc] - フォーマット関数
+   * @param {string} [legacyFooter] - フッター
+   */
+  sendItemListNotification(paramsOrWebhookUrl, legacyHeaderTitle, legacyItems, legacyFormatItemFunc, legacyFooter) {
+    let webhookUrl, headerTitle, items, formatItemFunc, footer;
+    if (paramsOrWebhookUrl && typeof paramsOrWebhookUrl === 'object' && !Array.isArray(paramsOrWebhookUrl)) {
+      webhookUrl = paramsOrWebhookUrl.webhookUrl;
+      headerTitle = paramsOrWebhookUrl.headerTitle;
+      items = paramsOrWebhookUrl.items;
+      formatItemFunc = paramsOrWebhookUrl.formatItemFunc;
+      footer = paramsOrWebhookUrl.footer;
+    } else {
+      webhookUrl = paramsOrWebhookUrl;
+      headerTitle = legacyHeaderTitle;
+      items = legacyItems;
+      formatItemFunc = legacyFormatItemFunc;
+      footer = legacyFooter;
+    }
+
     const DISCORD_MAX_LENGTH = 2000;
     const footerText = footer || "";
     const footerLength = footerText.length;
@@ -164,14 +290,27 @@ const DiscordService = {
   },
 
   /**
-   * Googleカレンダー登録完了のDiscord通知を送信（新規登録時はフッターなし）
-   * @param {string} brandEventTitle - イベントタイトル
-   * @param {string} dateStr - 期間文字列
-   * @param {string} location - 会場
-   * @param {string} summary - 概要
+   * Googleカレンダー登録完了のDiscord通知を送信 (DTO対応)
+   * @param {Object|string} paramsOrTitle - DTOオブジェクトまたはタイトル
+   * @param {string} [legacyDateStr] - 期間文字列
+   * @param {string} [legacyLocation] - 会場
+   * @param {string} [legacySummary] - 概要
    */
-  notifyNewCalendarEvent(brandEventTitle, dateStr, location, summary) {
+  notifyNewCalendarEvent(paramsOrTitle, legacyDateStr, legacyLocation, legacySummary) {
     if (!WEBHOOK_CALENDAR) return;
+
+    let brandEventTitle, dateStr, location, summary;
+    if (paramsOrTitle && typeof paramsOrTitle === 'object') {
+      brandEventTitle = paramsOrTitle.brandEventTitle;
+      dateStr = paramsOrTitle.dateStr;
+      location = paramsOrTitle.location;
+      summary = paramsOrTitle.summary;
+    } else {
+      brandEventTitle = paramsOrTitle;
+      dateStr = legacyDateStr;
+      location = legacyLocation;
+      summary = legacySummary;
+    }
 
     const lines = [
       "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
@@ -194,16 +333,33 @@ const DiscordService = {
   },
 
   /**
-   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知
-   * @param {string} brand - ブランド名
-   * @param {string} eventName - イベント名
-   * @param {string} applyName - 受付名
-   * @param {string} endDatetime - 締切日時
-   * @param {string} payEndDatetime - 入金締切日時
-   * @param {string} method - 申込方法
+   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知 (DTO対応)
+   * @param {Object|string} paramsOrBrand - DTOオブジェクトまたはブランド名
+   * @param {string} [legacyEventName] - イベント名
+   * @param {string} [legacyApplyName] - 受付名
+   * @param {string} [legacyEndDatetime] - 締切日時
+   * @param {string} [legacyPayEndDatetime] - 入金締切日時
+   * @param {string} [legacyMethod] - 申込方法
    */
-  notifyNewApplication(brand, eventName, applyName, endDatetime, payEndDatetime, method) {
+  notifyNewApplication(paramsOrBrand, legacyEventName, legacyApplyName, legacyEndDatetime, legacyPayEndDatetime, legacyMethod) {
     if (!WEBHOOK_APPLY) return;
+
+    let brand, eventName, applyName, endDatetime, payEndDatetime, method;
+    if (paramsOrBrand && typeof paramsOrBrand === 'object') {
+      brand = paramsOrBrand.brand;
+      eventName = paramsOrBrand.eventName;
+      applyName = paramsOrBrand.applyName;
+      endDatetime = paramsOrBrand.endDatetime;
+      payEndDatetime = paramsOrBrand.payEndDatetime;
+      method = paramsOrBrand.method;
+    } else {
+      brand = paramsOrBrand;
+      eventName = legacyEventName;
+      applyName = legacyApplyName;
+      endDatetime = legacyEndDatetime;
+      payEndDatetime = legacyPayEndDatetime;
+      method = legacyMethod;
+    }
 
     const brandEventTitle = this.formatBrandEventTitle(brand, eventName);
     const lines = [

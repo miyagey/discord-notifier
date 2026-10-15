@@ -42,34 +42,5 @@ const WEBAPP_URL = (typeof CONFIG !== 'undefined' && CONFIG.WEBAPP_URL)
   ? CONFIG.WEBAPP_URL
   : (_props.getProperty("WEBAPP_URL") || "");
 
-// ==================================================
-// 【列インデックス定義】
-// ==================================================
 
-/** 新システム「イベントマスター」シートの列インデックス（0始まり） */
-const MASTER_COL = {
-  ID: 0,         // A列: イベントID
-  BRAND: 1,      // B列: ブランド名
-  EVENT_NAME: 2, // C列: イベント名
-  START_DATE: 3, // D列: 開始日
-  END_DATE: 4,   // E列: 終了日
-  LOCATION: 5,   // F列: 会場
-  SUMMARY: 6,    // G列: イベント概要
-  CAL_ID: 7      // H列: カレンダー登録ID
-};
 
-/** 新システム「申し込み管理」シートの列インデックス（0始まり） */
-const APPLY_COL = {
-  APPLY_ID: 0,       // A列: 申し込みID
-  EVENT_ID: 1,       // B列: イベントID
-  BRAND: 2,          // C列: ブランド名
-  EVENT_NAME_ALT: 3, // D列: 代替イベント名
-  APPLY_NAME: 4,     // E列: 受付区分/申し込み名称
-  START_DATE: 5,     // F列: 申込開始日時
-  APPLY_END_DATE: 6, // G列: 申込締切日時
-  APPLY_METHOD: 7,   // H列: 申込方法 (旧: 申込URL)
-  URL: 7,            // H列: 互換用エイリアス
-  RESULT_DATE: 8,    // I列: 当落発表日時
-  PAY_END_DATE: 9,   // J列: 入金締切日時
-  STATUS: 10         // K列: ステータス
-};

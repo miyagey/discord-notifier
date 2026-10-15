@@ -26,17 +26,37 @@ const CalendarService = {
   },
 
   /**
-   * 終日イベントを Google カレンダーに登録する
-   * @param {string} title - イベントタイトル
-   * @param {Date|string} startDate - 開始日
-   * @param {Date|string} [endDate] - 終了日 (省略時は開始日当日)
-   * @param {string} [location] - 会場
-   * @param {string} [summary] - 概要
+   * 終日イベントを Google カレンダーに登録する (DTOパターン対応)
+   * @param {Object|string} paramsOrTitle - パラメータオブジェクト、またはイベントタイトル
+   * @param {string} paramsOrTitle.title - イベントタイトル
+   * @param {Date|string} paramsOrTitle.startDate - 開始日
+   * @param {Date|string} [paramsOrTitle.endDate] - 終了日 (省略時は開始日当日)
+   * @param {string} [paramsOrTitle.location] - 会場
+   * @param {string} [paramsOrTitle.summary] - 概要
+   * @param {Date|string} [legacyStartDate] - (旧シグネチャ互換用) 開始日
+   * @param {Date|string} [legacyEndDate] - (旧シグネチャ互換用) 終了日
+   * @param {string} [legacyLocation] - (旧シグネチャ互換用) 会場
+   * @param {string} [legacySummary] - (旧シグネチャ互換用) 概要
    * @returns {string|null} 登録されたイベントID、失敗時は null
    */
-  createAllDayEvent(title, startDate, endDate, location, summary) {
+  createAllDayEvent(paramsOrTitle, legacyStartDate, legacyEndDate, legacyLocation, legacySummary) {
     const calendar = this.getCalendar();
     if (!calendar) return null;
+
+    let title, startDate, endDate, location, summary;
+    if (paramsOrTitle && typeof paramsOrTitle === 'object' && !(paramsOrTitle instanceof Date)) {
+      title = paramsOrTitle.title;
+      startDate = paramsOrTitle.startDate;
+      endDate = paramsOrTitle.endDate;
+      location = paramsOrTitle.location;
+      summary = paramsOrTitle.summary;
+    } else {
+      title = paramsOrTitle;
+      startDate = legacyStartDate;
+      endDate = legacyEndDate;
+      location = legacyLocation;
+      summary = legacySummary;
+    }
 
     const startD = (startDate instanceof Date) ? new Date(startDate) : new Date(startDate);
     const endRaw = endDate || startDate;
