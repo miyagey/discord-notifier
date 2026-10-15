@@ -1,15 +1,15 @@
-# システム構造 & スプレッドシート仕様書
+# システム構造 & データ仕様書 (`docs/SYSTEM_SPEC.md`)
 
-本ドキュメントは `discord-notifier` システムにおける主要な処理フロー、Google スプレッドシートのテーブル定義、Webアプリ仕様、Discord 通知仕様および自動化トリガー定義に関する仕様書です。
+本ドキュメントは `discord-notifier` システムにおけるデータエンティティ定義、定期通知バッチ仕様、Webアプリ API 仕様、Discord 通知仕様および自動化トリガーに関する仕様書です。
 
-> 📖 **Google フォーム連携の詳細仕様**: [docs/FORM_SPEC.md](FORM_SPEC.md)
+> 📖 **設計原則・レイヤー構造**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)  
+> 📖 **Google フォーム連携仕様**: [docs/FORM_SPEC.md](FORM_SPEC.md)
 
 ---
 
-## 1. システム概要・データフロー
+## 1. システム全体データフロー
 
-本システムは **Webアプリ** からのイベント・申込登録と、**定期バッチ処理** による Discord 通知を主軸としています。  
-Google スプレッドシートをデータベース、Google カレンダーおよび Discord を外部リソースとして連携します。
+本システムは **Webアプリ**（および Google フォーム）からのイベント・申込登録と、**定期通知バッチ** による Discord リマインド通知を主軸としています。
 
 ```mermaid
 flowchart TB
@@ -17,10 +17,10 @@ flowchart TB
 
     subgraph AppLayer ["アプリケーション層"]
         WebApp["🌐 Webアプリ (Webアプリ.js)<br>閲覧 / 新規登録 / 編集"]
-        Batch["⏰ 定期通知バッチ (定期通知バッチ.js)<br>締切通知 / 明日の予定通知 等"]
+        Batch["⏰ 定期通知バッチ (定期通知バッチ.js)<br>締切通知 / カレンダー同期 / 予定通知"]
     end
 
-    subgraph ResourceLayer ["リソース層"]
+    subgraph ResourceLayer ["データ・リソース層"]
         GSheet["📊 Google スプレッドシート<br>イベントマスター / 申し込み管理"]
         GCal["📅 Google カレンダー"]
         Discord["💬 Discord<br>申込 / 入金 / 予定 通知チャンネル"]
@@ -28,43 +28,37 @@ flowchart TB
 
     User -->|閲覧 / 登録 / 編集| WebApp
 
-    WebApp <-->|データ読み書き| GSheet
-    WebApp -->|イベント同期| GCal
-    WebApp -->|登録完了通知| Discord
+    WebApp <-->|データ操作 (SheetService)| GSheet
+    WebApp -->|イベント同期 (CalendarService)| GCal
+    WebApp -->|登録通知 (DiscordService)| Discord
 
-    Batch -->|データ参照| GSheet
-    Batch <-->|予定取得 / 登録| GCal
-    Batch -->|リマインド通知| Discord
+    Batch -->|データ参照 (SheetService)| GSheet
+    Batch <-->|同期・予定取得 (CalendarService)| GCal
+    Batch -->|リマインド通知 (DiscordService)| Discord
 ```
 
-> [!NOTE]
-> Google フォームを経由した登録フロー（`form/コード.js`）も並存しています。詳細は [FORM_SPEC.md](FORM_SPEC.md) を参照してください。
-
 ---
 
-## 2. Google スプレッドシート構造仕様
+## 2. データエンティティ定義（スプレッドシート）
 
-本システムが参照・書き込みを行うスプレッドシートの全シート構造です。
+スプレッドシートはデータストアとして機能し、データアクセス層（`SheetService`）が列構造を隠蔽して外部層にエンティティオブジェクト（DTO）を提供します。
 
----
+### 2.1 イベントエンティティ (`EventMaster`)
+「イベントマスター」シートで管理されるイベント基本情報です。
 
-### 2.1 「イベントマスター」シート
+| 項目名 (プロパティ) | 表示列名 | データ型 | 説明・仕様 |
+| :--- | :--- | :--- | :--- |
+| `id` | イベントID | 文字列 | `EV-001`, `EV-002` ... 形式で自動採番 |
+| `brand` | ブランド名 | 文字列 | ブランド表記 (例: `学マス`, `デレ`, `シャニ`) |
+| `name` | イベント名 | 文字列 | イベントの正式名称 |
+| `startDate` | 開始日 | 日付 | 開催開始日 (`yyyy-MM-dd`) |
+| `endDate` | 終了日 | 日付 | 開催終了日 (`yyyy-MM-dd`)。単日の場合は開始日と同日 |
+| `location` | 会場 | 文字列 | 開催場所・会場名 |
+| `summary` | イベント概要 | 文字列 | 補足説明・メモ |
+| `calId` | カレンダー登録ID | 文字列 | Google カレンダー同期時の Event ID |
+| `status` | ステータス | 文字列 | 自動計算ステータス (`開催前` / `開催期間` / `開催終了`) |
 
-イベントの基本情報を管理するマスターテーブルです。
-
-| 列 | 列名 | 定数名 (`MASTER_COL`) | データ型 | 説明・自動計算ルール |
-| :---: | :--- | :--- | :--- | :--- |
-| **A** | イベントID | `ID` (0) | 文字列 | `EV-001`, `EV-002` ... の形式で自動採番 |
-| **B** | ブランド名 | `BRAND` (1) | 文字列 | ブランド表記 (例: `学マス`) |
-| **C** | イベント名 | `EVENT_NAME` (2) | 文字列 | イベントの正式名称 |
-| **D** | 開始日 | `START_DATE` (3) | 日付 | 開催開始日 (`yyyy-MM-dd`) |
-| **E** | 終了日 | `END_DATE` (4) | 日付 | 開催終了日 (`yyyy-MM-dd`) |
-| **F** | 会場 | `LOCATION` (5) | 文字列 | 開催場所 |
-| **G** | イベント概要 | `SUMMARY` (6) | 文字列 | 補足説明 |
-| **H** | カレンダー登録ID | `CAL_ID` (7) | 文字列 | Google カレンダー同期時の Event ID |
-| **I** | ステータス | - (8) | 数式 | 自動計算ステータス (`開催前` / `開催期間` / `開催終了`) |
-
-#### I列の自動計算数式 (`masterIfsFormula`)
+#### ステータス自動計算ルール (数式)
 ```excel
 =IFS(
   ISBLANK(D2), "未設定",
@@ -76,25 +70,25 @@ flowchart TB
 
 ---
 
-### 2.2 「申し込み管理」シート
+### 2.2 申し込みエンティティ (`Application`)
+「申し込み管理」シートで管理されるチケット申し込み・抽選・入金スケジュールです。
 
-各チケットの申し込み・抽選・入金スケジュールを管理するテーブルです。
+| 項目名 (プロパティ) | 表示列名 | データ型 | 説明・仕様 |
+| :--- | :--- | :--- | :--- |
+| `id` | 申し込みID | 文字列 | `AP-001`, `AP-002` ... 形式で自動採番 |
+| `eventId` | イベントID | 文字列 | 紐付く「イベントマスター」の `id` (`EV-xxx`) |
+| `brand` | ブランド名 | 文字列 | 表示用ブランド名（親イベントと同期） |
+| `eventName` | イベント名 | 文字列 | 表示用イベント名（親イベントと同期） |
+| `applyName` | 受付名/区分 | 文字列 | 受付区分 (例: `アソビストア限定先行`, `一般先着`, `公式リセール`) |
+| `startDatetime` | 申込開始日時 | 日時 | `yyyy-MM-dd HH:mm` |
+| `endDatetime` | 申込締切日時 | 日時 | `yyyy-MM-dd HH:mm` |
+| `method` | 申込方法 | 文字列 | チケット申込URLまたは応募手順などのテキスト |
+| `resultDatetime` | 当落発表日時 | 日時 | `yyyy-MM-dd HH:mm` |
+| `payEndDatetime` | 入金締切日時 | 日時 | `yyyy-MM-dd HH:mm` |
+| `status` | ステータス | 文字列 | 自動計算ステータス (下記参照) |
+| `parentEvent` | 親イベント情報 | オブジェクト | 紐付くイベントの日程・会場等のオブジェクト |
 
-| 列 | 列名 | 定数名 (`APPLY_COL`) | データ型 | 説明・自動計算ルール |
-| :---: | :--- | :--- | :--- | :--- |
-| **A** | 申し込みID | `APPLY_ID` (0) | 文字列 | `AP-001`, `AP-002` ... の形式で自動採番 |
-| **B** | イベントID | `EVENT_ID` (1) | 文字列 | 「イベントマスター」と結合する `EV-xxx` |
-| **C** | ブランド | - (2) | 文字列 | ブランド表記 |
-| **D** | イベント名 | `EVENT_NAME_ALT` (3) | 文字列 | イベント名表記 |
-| **E** | 受付名/申し込み名称 | `APPLY_NAME` (4) | 文字列 | 受付区分 (例: `一般先行`, `一般先着`, `公式リセール`) |
-| **F** | 申込開始日時 | - (5) | 日時 | `yyyy-MM-dd HH:mm` |
-| **G** | 申込締切日時 | `APPLY_END_DATE` (6) | 日時 | `yyyy-MM-dd HH:mm` |
-| **H** | 申込方法 | `APPLY_METHOD` / `URL` (7) | 文字列 | チケット申込方法（URLまたは応募手順などのテキスト） |
-| **I** | 当落発表日時 | - (8) | 日時 | `yyyy-MM-dd HH:mm` |
-| **J** | 入金締切日時 | `PAY_END_DATE` (9) | 日時 | `yyyy-MM-dd HH:mm` |
-| **K** | ステータス | `STATUS` (10) | 数式 | 自動計算ステータス (下記参照) |
-
-#### K列の自動計算数式 (`ifsFormula`)
+#### ステータス自動計算ルール (数式)
 ```excel
 =IFS(
   AND(NOT(ISBLANK(F2)), NOW() < F2), "開始前",
@@ -105,115 +99,71 @@ flowchart TB
 )
 ```
 
----
-
-## 3. Webアプリ仕様 (`spreadsheet/Webアプリ.js` + `spreadsheet/index.html`)
-
-Google Apps Script の Webアプリ機能（HTML Service）を用いたカンバン風ビューワー兼管理アプリです。
-
-### 3.1 アクセス・デプロイ
-
-| 項目 | 詳細 |
-| :--- | :--- |
-| **エントリーポイント** | `doGet(e)` — GAS Webアプリとして公開 |
-| **フロントエンド** | `spreadsheet/index.html`（SPA / Glassmorphism UI） |
-| **URL短縮** | Cloudflare 等のプロキシで短縮した URL を `WEBAPP_URL` に設定 |
-| **スマホ対応** | モバイルファースト・縦画面最適化（bottom navigation, ステータスタブ） |
-
-### 3.2 提供機能
-
-| 機能 | 説明 |
-| :--- | :--- |
-| **イベント一覧（カード表示）** | ブランド・ステータス（開催前/開催期間/開催終了）でフィルタリング可能 |
-| **申込カンバンボード** | ステータス列（開始前/受付期間/当落待ち/入金期間/期間終了）にカード表示 |
-| **タイムラインビュー** | 締切日時順の一覧表示。スマホ時はステータスタブで絞り込み可能 |
-| **イベント新規登録** | フォームUIから登録 → スプレッドシート追記 + カレンダー自動追加 + Discord通知 |
-| **申込新規登録** | フォームUIから登録 → スプレッドシート追記 + Discord通知（開催終了イベントは選択肢から除外） |
-| **イベント編集** | カードから編集モーダルを開き情報を更新（ステータスは数式のため編集不可） |
-| **申込編集** | カードから編集モーダルを開き情報を更新 |
-| **ブランドフィルター** | ブランドチップで全ビュー横断フィルタリング |
-
-### 3.3 GAS API 関数一覧
-
-| 関数名 | 処理概要 |
-| :--- | :--- |
-| `doGet(e)` | HTML テンプレートを返す。初期データをサーバー側で注入し表示を高速化 |
-| `getAppData()` | イベント・申込・ブランド一覧を取得して返す |
-| `createEvent(data)` | イベントを新規登録。Google カレンダー追加 & Discord（`WEBHOOK_CALENDAR`）通知 |
-| `updateEvent(data)` | イベント情報を更新。申し込み管理シートのブランド・イベント名も同期 |
-| `createApplication(data)` | 申込を新規登録。Discord（`WEBHOOK_APPLY`）通知 |
-| `updateApplication(data)` | 申込情報を更新（ステータス数式は維持） |
+> [!NOTE]
+> スプレッドシート上の列インデックス（0始まり）はすべて `spreadsheet/スプレッドシート操作.js` 内の定数（`MASTER_COL`, `APPLY_COL`）としてカプセル化されており、プログラムが列位置に直接依存することはありません。
 
 ---
 
-## 4. 共通設定・定数 (`spreadsheet/設定値.js`)
+## 3. Webアプリ仕様 (`spreadsheet/Webアプリ.js`)
 
-### 4.1 環境変数（スクリプトプロパティ / `config.local.js`）
+Google Apps Script の Webアプリ機能（HTML Service）を用いた Single Page Application (SPA) です。
 
-| 定数名 | 説明 |
-| :--- | :--- |
-| `COMMON_SHEET_URL` | 管理用スプレッドシートの URL |
-| `CALENDAR_ID` | Google カレンダーの ID |
-| `PROXY_BASE_URL` | Discord Webhook 送信用プロキシのベース URL |
-| `WEBHOOK_APPLY` | 申込通知用 Discord Webhook URL |
-| `WEBHOOK_PAYMENT` | 入金締切通知用 Discord Webhook URL |
-| `WEBHOOK_CALENDAR` | カレンダー予定・イベント登録通知用 Discord Webhook URL |
-| `WEBAPP_URL` | Webアプリの公開 URL（Cloudflare 等で短縮したもの） |
+### 3.1 構成とアクセス
+- **エントリーポイント**: `doGet(e)`
+- **フロントエンド**: `spreadsheet/index.html`（Glassmorphism UI / モバイルファースト）
+- **公開URL**: `WEBAPP_URL`（Cloudflare 経由の短縮ドメイン等）
 
-> **ローカル環境**: `config.local.js` で定義（`.gitignore` 対象）  
-> **本番環境 (GAS)**: `PropertiesService.getScriptProperties()` から取得
+### 3.2 サーバー側 API インターフェース
 
-### 4.2 定数オブジェクト
+| 関数名 | 引数 | 戻り値 | 処理内容 |
+| :--- | :--- | :--- | :--- |
+| `doGet(e)` | `e` (イベント) | `HtmlOutput` | Webアプリ画面を返却。初期データ（`events`, `applications`, `brands`）をHTMLに直接注入して高速表示 |
+| `getAppData()` | なし | `{ events, applications, brands }` | 最新のイベント・申込一覧を取得 |
+| `createEvent(data)` | `{ brand, name, startDate, endDate, location, summary }` | `{ success, eventId }` | イベント新規登録。Googleカレンダー追加および Discord 通知（`WEBHOOK_CALENDAR`）を実行 |
+| `updateEvent(data)` | `{ id, brand, name, startDate, endDate, location, summary }` | `{ success }` | イベント情報更新。申し込み管理シートのブランド名・イベント名も同期更新 |
+| `createApplication(data)` | `{ eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success, applyId }` | 申込新規登録。Discord 通知（`WEBHOOK_APPLY`）を実行 |
+| `updateApplication(data)` | `{ id, eventId, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success }` | 申込情報更新（数式列は維持） |
 
-| 定数名 | 説明 |
-| :--- | :--- |
-| `MASTER_COL` | 「イベントマスター」シートの列インデックス（0始まり） |
-| `APPLY_COL` | 「申し込み管理」シートの列インデックス（0始まり） |
-| `REGISTRATION_FORM_URL` | イベント・申込の Google フォーム URL（ハードコード） |
+---
+
+## 4. 定期通知バッチ仕様 (`spreadsheet/定期通知バッチ.js`)
+
+時間主導型トリガーによって定期実行されるバッチ処理群です。
+
+### 4.1 バッチジョブ一覧
+
+| 関数名 | 実行タイミング (推奨) | 抽出条件 | 通知先 Webhook | 対象なし時の挙動 |
+| :--- | :--- | :--- | :--- | :--- |
+| `remindEndDate` | 毎日 午前 (例: 08:00〜09:00) | ① 本日締切の通常申込（先着・リセール除く、締切時刻考慮）<br>② 翌日開始の先着受付<br>③ 現在受付期間中のリセール | `WEBHOOK_APPLY` | 通常申込なし時は「本日締切のチケット申込はありません」と送信。<br>先着・リセールは対象なし時送信スキップ |
+| `remindPaymentEndDate` | 毎日 午前 (例: 08:00〜09:00) | 本日入金締切のチケット（締切時刻考慮） | `WEBHOOK_PAYMENT` | **対象なし時は通知を送信せず、ログ出力のみで終了** |
+| `registerEventsToCalendar` | 定期実行 (1時間毎推奨) | カレンダー未登録（`calId` が空）かつ開始日が入っているイベント | `WEBHOOK_CALENDAR` | 対象なし時はログ出力のみで終了。<br>登録成功時は一括で Discord 通知 |
+| `notifyTomorrowEvents` | 毎日 夕方〜夜 (例: 20:00〜21:00) | Google カレンダーの翌日終日・時間指定イベント | `WEBHOOK_CALENDAR` | 予定なし時は「明日の予定はありません」と通知 |
 
 ---
 
 ## 5. Discord 通知仕様
 
-### 5.1 通知チャンネル別の送信ルール
+### 5.1 チャンネル別の通知送信・フッター要件
 
-| Webhook | 送信タイミング | フッター |
-| :--- | :--- | :--- |
-| `WEBHOOK_APPLY` | フォーム送信時・Webアプリ登録時（新着申込）<br>毎日の申込締切リマインド（通常 / 先着前日 / リセール） | 新着登録時：**フッターなし**<br>締切リマインド時：登録フォームURL + WebアプリURL |
-| `WEBHOOK_PAYMENT` | 毎日の入金締切リマインド | 登録フォームURL + WebアプリURL |
-| `WEBHOOK_CALENDAR` | Webアプリからのイベント新規登録時<br>毎日の明日の予定通知 | 新規登録時：**フッターなし**<br>予定通知時：フッターなし |
+| チャンネル / Webhook | 送信トリガー | フッター有無 | 備考 |
+| :--- | :--- | :--- | :--- |
+| `WEBHOOK_APPLY` | 申込締切リマインド（通常） | **あり** (登録フォーム + WebアプリURL) | 対象0件時も案内通知 |
+| `WEBHOOK_APPLY` | 翌日先着リマインド / リセールリマインド | **なし** | 該当がある場合のみ送信 |
+| `WEBHOOK_APPLY` | Webアプリ / フォームからの新規申込登録 | **なし** | 即時通知 |
+| `WEBHOOK_PAYMENT` | 本日入金締切リマインド | **なし** | **対象0件時は送信せずスキップ** |
+| `WEBHOOK_CALENDAR` | Google カレンダー同期完了通知 | **なし** | バッチ / Webアプリ共通 |
+| `WEBHOOK_CALENDAR` | 明日の予定一覧通知 | **なし** | 予定サマリー |
 
-### 5.2 主要な通知フォーマット
+### 5.2 通知メッセージサンプル
 
-#### 新着申込通知（フォーム経由・Webアプリ経由 共通）
-```
-🆕 **新しいチケット申込が登録されたよ！**
-
-📅 **【ブランド】イベント名**
- └ 受付区分: 受付名
- └ 申込締切: **yyyy-MM-dd HH:mmまで**
- └ 入金締切: **yyyy-MM-dd HH:mmまで**（入金締切がある場合）
- └ 申込方法: URL または手順テキスト
-```
-
-#### Googleカレンダー新規登録通知
-```
-🆕 **Googleカレンダーに新しいイベントを登録したよ！**
-
-📅 **【ブランド】イベント名**
- └ 期間: **MM/dd 〜 MM/dd [終日]**
- └ 会場: 会場名（あれば）
- └ 概要: テキスト（あれば）
-```
-
-#### 申込締切リマインド
+#### 申込締切リマインド (フッターあり)
 ```
 🔔 **本日締切のチケット申込があります！**
 
-📅 **【ブランド】イベント名**
- └ 受付区分: 受付名
- └ 締切時刻: **HH:mmまで**
- └ 申込方法: URL または手順テキスト
+📅 **【デレ】THE IDOLM@STER CINDERELLA GIRLS...**
+ └ 受付区分: 一般先行
+ └ 締切時刻: **23:59まで**
+ └ 申込方法: https://eplus.jp/...
 
 ----------------------------------------
 📝 **イベント・申込の確認＆登録はこちら**
@@ -221,18 +171,12 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いたカンバ
 ・【Webアプリ (一覧・カンバン)】: https://your-webapp-url
 ```
 
----
+#### 入金締切リマインド (フッターなし・対象がある場合のみ送信)
+```
+💸 **本日入金締切のチケットがあります！**
 
-## 6. 自動化機能 & トリガー定義
-
-システム内で稼働する自動化機能の一覧です。
-
-| 実行スクリプト | 関数名 | トリガー種別 | 実行頻度 / イベント | 処理概要 |
-| :--- | :--- | :--- | :--- | :--- |
-| **`spreadsheet/Webアプリ.js`** | `doGet` / 各API | **Webアプリ** | **HTTPリクエスト時** | イベント・申込の閲覧・新規登録・更新。カレンダー同期とDiscord通知も実行 |
-| **`spreadsheet/定期通知バッチ.js`** | `remindEndDate` | 時間主導型 | 毎日 (午前) | 1. 本日申込締切の通常チケットを Discord へ通知<br>2. 翌日開始の**先着受付**がある場合は2通目として別途通知<br>3. 受付期間中の**リセール**がある場合は3通目として別途通知 |
-| **`spreadsheet/定期通知バッチ.js`** | `remindPaymentEndDate` | 時間主導型 | 毎日 (午前) | 本日入金締切のチケットを抽出して Discord へ一覧通知 |
-| **`spreadsheet/定期通知バッチ.js`** | `notifyTomorrowEvents` | 時間主導型 | 毎日 (夕方〜夜) | 明日開催予定のイベントを Google カレンダーから取得し Discord へ通知 |
-| **`spreadsheet/定期通知バッチ.js`** | `registerEventsToCalendar` | 時間主導型 | 定期 (1時間毎推奨) | スプレッドシート上の未登録イベントを Google カレンダーに自動登録し、H列に CalID を書き戻す |
-
-> 📖 **フォーム経由のトリガー** (`onFormSubmit` 等) については [FORM_SPEC.md](FORM_SPEC.md) を参照してください。
+📅 **【学マス】学園アイドルマスター DEBUT LIVE...**
+ └ 受付区分: アソビストア限定先行
+ └ 入金締切: **21:00まで**
+ └ 申込方法: https://asobistore.jp/...
+```
