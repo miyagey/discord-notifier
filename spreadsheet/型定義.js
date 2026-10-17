@@ -7,10 +7,8 @@
  * イベント情報 DTO
  * @typedef {Object} EventDto
  * @property {string} [id] - イベントマスターID (例: "EV-202611-001")
- * @property {string} [eventId] - イベントマスターID (互換用エイリアス)
  * @property {string} [brand] - ブランド名 (例: "シャニ", "学マス", "デレ")
  * @property {string} eventName - イベント名
- * @property {string} [name] - イベント名 (互換用エイリアス)
  * @property {string} startDate - 開始日 (yyyy-MM-dd)
  * @property {string} [endDate] - 終了日 (yyyy-MM-dd)
  * @property {string} [location] - 会場名
@@ -25,7 +23,6 @@
  * チケット申込情報 DTO
  * @typedef {Object} ApplicationDto
  * @property {string} [id] - 申込管理ID (例: "AP-202611-001")
- * @property {string} [applyId] - 申込管理ID (互換用エイリアス)
  * @property {string} [eventId] - 紐づくイベントID (EV-xxx)
  * @property {string} [brand] - ブランド名
  * @property {string} [eventName] - イベント名

@@ -106,7 +106,7 @@ flowchart TD
   - `DiscordService` や `CalendarService` などの外部サービス用モジュール内に、汎用的な文字列整形関数を持たせてはならない。
 - **イベントDTO受け渡しの原則**:
   - オーケストレーション層（`Webアプリ.js`, `定期通知バッチ.js`）でタイトル文字列や日付範囲文字列（`dateStr`）などの表示用データを事前生成してはならない。
-  - サービス層（`CalendarService`, `DiscordService`）は、基本情報を持つイベントオブジェクト（DTO: `{ eventId, brand, eventName, startDate, endDate, location, description }`）を引数として直接受け取り、必要な加工は各サービス内部で共通関数を用いて行う。
+  - サービス層（`CalendarService`, `DiscordService`）は、基本情報を持つイベントオブジェクト（DTO: `{ id, brand, eventName, startDate, endDate, location, description }`）を引数として直接受け取り、必要な加工は各サービス内部で共通関数を用いて行う。
 
 ### 2.6 関数の配置ルール（トップダウン設計）
 コードの可読性を最大化し、新規参画者や保守者がコードの全体像を即座に把握できるよう、全ファイルで**トップダウン配置（新聞記事スタイル）**を徹底する：

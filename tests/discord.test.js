@@ -573,7 +573,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       };
 
       const eventObj = {
-        eventId: 'EV-001',
+        id: 'EV-001',
         brand: '学マス',
         eventName: '初星公演',
         startDate: '2027-03-27',
@@ -624,11 +624,11 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       };
 
       const eventData = {
-        eventId: 'EV-002',
+        id: 'EV-002',
         brand: 'シャニ',
         displayName: '283 Production LIVE',
         dateStr: '2027-04-01 〜 2027-04-02',
-        venue: '幕張メッセ',
+        location: '幕張メッセ',
         description: '特記事項メモ'
       };
 

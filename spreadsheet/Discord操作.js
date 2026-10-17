@@ -373,10 +373,10 @@ const DiscordService = {
       fields: [
         { name: "公演名", value: event.displayName || "未定", inline: false },
         { name: "開催日時", value: event.dateStr || "未定", inline: true },
-        { name: "会場", value: event.location || event.venue || "未定", inline: true },
+        { name: "会場", value: event.location || "未定", inline: true },
         { name: "概要", value: event.description || "特記事項なし", inline: false }
       ],
-      footer: { text: `Event ID: ${event.eventId || 'NEW'}` }
+      footer: { text: `Event ID: ${event.id || 'NEW'}` }
     };
 
     const res = this.fetchDiscordApi(`/channels/${channelId}/messages`, {
