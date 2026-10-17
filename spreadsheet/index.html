@@ -1406,7 +1406,7 @@
       const select = document.getElementById('tfEventId');
       select.innerHTML = '<option value="">イベントを選択してください</option>' + availableEvents.map(ev => {
         const statusBadge = ev.status === '開催期間' ? ' [開催中]' : '';
-        const label = (ev.brand ? `【${ev.brand}】` : '') + ev.name + (ev.startDate ? ` (${ev.startDate})` : '') + statusBadge;
+        const label = (ev.brand ? `【${ev.brand}】` : '') + ev.eventName + (ev.startDate ? ` (${ev.startDate})` : '') + statusBadge;
         return `<option value="${escapeHtml(ev.id)}">${escapeHtml(label)}</option>`;
       }).join('');
 
@@ -1426,11 +1426,11 @@
       document.getElementById('eventFormTitle').textContent = isEdit ? 'イベントの編集' : 'イベントの新規登録';
       document.getElementById('efEventId').value = isEdit ? ev.id : '';
       document.getElementById('efBrand').value = isEdit ? (ev.brand || '') : '';
-      document.getElementById('efName').value = isEdit ? (ev.name || '') : '';
+      document.getElementById('efName').value = isEdit ? (ev.eventName || '') : '';
       document.getElementById('efStartDate').value = isEdit ? (ev.startDate || '') : '';
       document.getElementById('efEndDate').value = isEdit ? (ev.endDate || '') : '';
       document.getElementById('efLocation').value = isEdit ? (ev.location || '') : '';
-      document.getElementById('efSummary').value = isEdit ? (ev.summary || '') : '';
+      document.getElementById('efSummary').value = isEdit ? (ev.description || '') : '';
 
       // ブランド候補チップとdatalistの更新
       const datalist = document.getElementById('brandDatalist');
@@ -1462,7 +1462,7 @@
         id: applyId,
         eventId: eventId,
         brand: matchedEvent ? matchedEvent.brand : '',
-        eventName: matchedEvent ? matchedEvent.name : '',
+        eventName: matchedEvent ? matchedEvent.eventName : '',
         applyName: document.getElementById('tfApplyName').value.trim(),
         startDatetime: formatDateTimeDisplay(document.getElementById('tfStartDatetime').value),
         endDatetime: formatDateTimeDisplay(document.getElementById('tfEndDatetime').value),
@@ -1527,11 +1527,11 @@
       const payload = {
         id: eventId,
         brand: document.getElementById('efBrand').value.trim(),
-        name: document.getElementById('efName').value.trim(),
+        eventName: document.getElementById('efName').value.trim(),
         startDate: document.getElementById('efStartDate').value,
         endDate: document.getElementById('efEndDate').value || document.getElementById('efStartDate').value,
         location: document.getElementById('efLocation').value.trim(),
-        summary: document.getElementById('efSummary').value.trim()
+        description: document.getElementById('efSummary').value.trim()
       };
 
       if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -1634,7 +1634,7 @@
           return false;
         }
         if (state.searchKeyword) {
-          const matchTarget = `${item.eventName || item.name || ''} ${item.brand || ''} ${item.applyName || ''} ${item.location || ''}`.toLowerCase();
+          const matchTarget = `${item.eventName || ''} ${item.brand || ''} ${item.applyName || ''} ${item.location || ''}`.toLowerCase();
           if (!matchTarget.includes(state.searchKeyword)) {
             return false;
           }
@@ -1781,7 +1781,7 @@
           <div class="event-card-header">
             <div>
               ${ev.brand ? `<span class="brand-tag" data-brand="${escapeHtml(ev.brand)}">${escapeHtml(ev.brand)}</span>` : ''}
-              <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.name)}</h3>
+              <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.eventName)}</h3>
             </div>
             <div style="display: flex; align-items: center; gap: 0.4rem;">
               <span class="event-status-tag" data-status="${escapeHtml(ev.status)}">${escapeHtml(ev.status)}</span>
@@ -1802,10 +1802,10 @@
                 <span>${escapeHtml(ev.location)}</span>
               </div>
             ` : ''}
-            ${ev.summary ? `
+            ${ev.description ? `
               <div class="event-meta-item" style="color: var(--text-dim);">
                 <i data-lucide="align-left" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
-                <span>${escapeHtml(ev.summary)}</span>
+                <span>${escapeHtml(ev.description)}</span>
               </div>
             ` : ''}
           </div>
@@ -2040,31 +2040,31 @@
         {
           id: 'EV-001',
           brand: '学マス',
-          name: '初星学園 1st ライブ TOUR',
+          eventName: '初星学園 1st ライブ TOUR',
           startDate: '2026-10-10',
           endDate: '2026-10-11',
           location: '武蔵野の森総合スポーツプラザ',
-          summary: '学園アイドルマスターの記念すべきファーストライブ！',
+          description: '学園アイドルマスターの記念すべきファーストライブ！',
           status: '開催前'
         },
         {
           id: 'EV-002',
           brand: 'デレ',
-          name: 'THE IDOLM@STER CINDERELLA GIRLS 12thLIVE',
+          eventName: 'THE IDOLM@STER CINDERELLA GIRLS 12thLIVE',
           startDate: '2026-11-20',
           endDate: '2026-11-22',
           location: 'Kアリーナ横浜',
-          summary: 'シンデレラガールズ単独アリーナツアー',
+          description: 'シンデレラガールズ単独アリーナツアー',
           status: '開催前'
         },
         {
           id: 'EV-003',
           brand: 'シャニ',
-          name: 'シャイニーカラーズ 6.5th Anniversary LIVE',
+          eventName: 'シャイニーカラーズ 6.5th Anniversary LIVE',
           startDate: '2026-03-01',
           endDate: '2026-03-02',
           location: 'ぴあアリーナMM',
-          summary: '過去に開催されたライブイベント',
+          description: '過去に開催されたライブイベント',
           status: '開催終了'
         }
       ];

@@ -75,14 +75,11 @@ const SheetService = {
         id: id,
         brand: String(row[MASTER_COL.BRAND] || '').trim(),
         eventName: String(row[MASTER_COL.EVENT_NAME] || '').trim(),
-        name: String(row[MASTER_COL.EVENT_NAME] || '').trim(), // UI互換
         startDate: startDate,
         endDate: endDate,
         location: String(row[MASTER_COL.LOCATION] || '').trim(),
         description: String(row[MASTER_COL.SUMMARY] || '').trim(),
-        summary: String(row[MASTER_COL.SUMMARY] || '').trim(), // UI互換
         calendarEventId: String(row[MASTER_COL.CAL_ID] || '').trim(),
-        calId: String(row[MASTER_COL.CAL_ID] || '').trim(), // UI互換
         status: status,
         discordChannelId: String(row[MASTER_COL.DISCORD_CHANNEL_ID] || '').trim()
       });
@@ -494,8 +491,8 @@ const SheetService = {
 
     const startDate = data.startDate || '';
     const endDate = data.endDate || startDate;
-    const eventName = data.eventName || data.name || '';
-    const description = data.description || data.summary || '';
+    const eventName = data.eventName || '';
+    const description = data.description || '';
 
     sheet.appendRow([
       eventId,
@@ -539,8 +536,8 @@ const SheetService = {
 
     const startDate = data.startDate || '';
     const endDate = data.endDate || startDate;
-    const eventName = data.eventName || data.name || '';
-    const description = data.description || data.summary || '';
+    const eventName = data.eventName || '';
+    const description = data.description || '';
 
     masterSheet.getRange(targetRow, MASTER_COL.BRAND + 1).setValue(data.brand || '');
     masterSheet.getRange(targetRow, MASTER_COL.EVENT_NAME + 1).setValue(eventName);

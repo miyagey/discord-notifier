@@ -63,7 +63,7 @@ function getAppData() {
  */
 function createEvent(data) {
   try {
-    if (!data || (!data.eventName && !data.name) || !data.startDate) {
+    if (!data || !data.eventName || !data.startDate) {
       throw new Error('イベント名と開始日は必須項目です。');
     }
 
