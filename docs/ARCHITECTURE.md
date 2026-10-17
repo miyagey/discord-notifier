@@ -124,13 +124,35 @@ Discord Webhook の 1 メッセージあたりの上限文字数は 2,000 文字
 - 累積文字数がフッターを含めて 2,000 文字を超える直前で一度メッセージを送信（`Utilities.sleep(500)` でレートリミットを回避）。
 - 新しいメッセージとして次のアイテム群を連結し、最終メッセージの末尾に共通フッターを付与。
 
-### 3.3 プロキシ URL 変換
-GAS (Google Apps Script) の IP アドレス帯域が Discord 側でブロックされる問題への対策として、`PROXY_BASE_URL` が設定されている場合は送信先 URL を自動で Cloudflare 等のリバースプロキシ宛に置換します。
-```javascript
-if (PROXY_BASE_URL && webhookUrl.includes("https://discord.com")) {
-  webhookUrl = webhookUrl.replace("https://discord.com", PROXY_BASE_URL);
-}
-```
+### 3.3 Discord API 通信と Cloudflare WAF (40333 エラー) 対策
+GAS (Google Apps Script) の IP アドレス帯域や User-Agent が Discord 側（Cloudflare WAF）でブロックされる問題への恒久対策として、以下のアーキテクチャを採用しています：
+
+1. **プロキシ URL 自動置換**:
+   - `PROXY_BASE_URL` が設定されている場合、送信先 URL（Webhook および Bot API）を自動でリバースプロキシ（Cloudflare Workers 等）宛に置換します。
+   ```javascript
+   if (PROXY_BASE_URL && url.includes("https://discord.com")) {
+     url = url.replace("https://discord.com", PROXY_BASE_URL);
+   }
+   ```
+2. **Cloudflare WAF (HTTP 403 / code: 40333) 回避と User-Agent 上書き**:
+   - GAS の `UrlFetchApp` は `User-Agent` を独自設定できず、強制的に `Mozilla/5.0 (compatible; Google-Apps-Script; ...)` に固定されます。
+   - Discord の Bot API は Google の UA や共有 IP を検知すると `code: 40333: internal network error` で遮断するため、**中継する Cloudflare Workers 側で `User-Agent: DiscordBot (https://github.com/..., 1.0.0)` に上書きして Discord へ転送する構成** を必須としています。
+3. **汎用クライアント `fetchDiscordApi` の集約**:
+   - Bot REST API へのリクエストは `DiscordService.fetchDiscordApi` に一元化し、認証ヘッダー付与、URL 解決、JSON パース、例外ロギングをカプセル化しています。
 
 ### 3.4 統一ロギング
 例外発生時は `共通関数.js` の `logError(contextName, error)` を介して、コンテキスト名・エラーメッセージ・スタックトレースを GAS ログに出力します。
+
+### 3.5 Discord 連携の棲み分け（Webhook vs Bot REST API）
+システム内の Discord 連携は、以下の指針に基づいて明確に棲み分けます：
+
+| 種別 | 主な用途 | 採用理由 |
+| :--- | :--- | :--- |
+| **Discord Webhook** | 締切リマインド、予定リスト等の定期通知バッチ（全体周知） | 送信先が固定、レートリミットが独立、障害時の影響局所化、極めて軽量で安定 |
+| **Discord Bot REST API** | イベント個別チャンネル作成、トピック設定、個別アナウンス、アーカイブ | 動的な Discord サーバー構成変更、スプレッドシートレコードとの 1対1 ライフサイクル管理 |
+
+### 3.6 動的リソースのサニタイズおよび外部 ID の永続化
+1. **チャンネル名サニタイズ**:
+   - Discord チャンネル名生成時は、HTTP 400 エラーを防ぐため `DiscordService.sanitizeChannelName` を経由し、英小文字化・記号除去・ハイフン集約・99文字以内へのトリミングを徹底します。
+2. **外部リソース ID の即時永続化（書き戻し）**:
+   - カレンダーイベント (`calendarEventId`) や Discord チャンネル (`discordChannelId`) など、外部 API で生成したリソース ID は、作成成功直後に必ずスプレッドシートの該当レコード（専用列）へ書き戻します。これにより、後続の個別リマインドや将来的なチャンネル管理・アーカイブ処理が可能となります。

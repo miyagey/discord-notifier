@@ -70,6 +70,19 @@ AI エージェントがバッチ処理スクリプトを作成・編集する�
 ### 2.9 ドキュメント自動更新手順
 - コード変更・リファクタリングを実施した場合は、必ず対になる `docs/ARCHITECTURE.md` または `docs/SYSTEM_SPEC.md` の記述・Mermaid図を同時に更新すること。
 
+### 2.10 Discord 連携の棲み分け規約（Webhook vs Bot REST API）
+- **全体ブロードキャスト・定期通知バッチ**: 原則として **Discord Webhook** を使用する（レートリミット独立・障害影響局所化・軽量性の維持）。
+- **動的リソース作成・個別チャンネル管理・ライフサイクル操作**: 必ず **Bot REST API (`DiscordService.fetchDiscordApi`)** を使用する。
+
+### 2.11 GAS × Discord Bot REST API のプロキシ & User-Agent 規約（Cloudflare WAF 40333 対策）
+- **GAS の仕様制約と WAF ブロック**: GAS (`UrlFetchApp`) は `User-Agent` が `Google-Apps-Script` に強制固定されるため、Discord の Cloudflare WAF により Bot API リクエストが `40333: internal network error` で遮断される。
+- **プロキシ経由の必須化と UA 上書き**: Bot REST API 呼び出しは必ず `PROXY_BASE_URL`（Cloudflare Workers 等）を経由させ、プロキシ側で `User-Agent` を Discord Bot 仕様（`DiscordBot (...)`）に上書きして転送する構成を前提とすること。
+- **クライアントの統一**: Bot API 呼び出し時に直接 `UrlFetchApp` を叩かず、必ず認証・プロキシ置換・JSON パース・エラーハンドリングが集約された `DiscordService.fetchDiscordApi` を経由すること。
+
+### 2.12 動的リソース生成時のサニタイズおよび外部 ID 永続化ルール
+- **チャンネル名サニタイズ**: Discord チャンネル作成時は、HTTP 400（不正文字・文字数超過）を防止するため、必ず `DiscordService.sanitizeChannelName` によるサニタイズ（小文字化・記号除去・ハイフン区切り・99文字制限）を通すこと。
+- **外部 ID の即時永続化**: カレンダー予定（`calendarEventId`）や Discord チャンネル（`discordChannelId`）等の外部リソースを動的作成した場合は、生成成功直後に必ずスプレッドシートの該当レコード（専用列）へ書き戻し（永続化）を行うこと。
+
 ---
 
 ## 3. セキュリティ & クレデンシャル管理
