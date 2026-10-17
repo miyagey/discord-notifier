@@ -117,8 +117,8 @@ const DiscordService = {
   },
 
   /**
-   * 申込締切リマインドの各アイテム文字列をフォーマット (DTO対応)
-   * @param {Object} item - 申込アイテムDTO
+   * 申込締切リマインドの各アイテム文字列をフォーマット
+   * @param {ApplicationDto} item - 申込アイテムDTO
    * @returns {string}
    */
   formatApplyRemindItem(item) {
@@ -134,8 +134,8 @@ const DiscordService = {
   },
 
   /**
-   * 先着受付リマインドの各アイテム文字列をフォーマット (DTO対応)
-   * @param {Object} item - 先着アイテムDTO
+   * 先着受付リマインドの各アイテム文字列をフォーマット
+   * @param {ApplicationDto} item - 先着アイテムDTO
    * @returns {string}
    */
   formatFirstComeRemindItem(item) {
@@ -152,8 +152,8 @@ const DiscordService = {
   },
 
   /**
-   * リセールリマインドの各アイテム文字列をフォーマット (DTO対応)
-   * @param {Object} item - リセールアイテムDTO
+   * リセールリマインドの各アイテム文字列をフォーマット
+   * @param {ApplicationDto} item - リセールアイテムDTO
    * @returns {string}
    */
   formatResaleRemindItem(item) {
@@ -170,8 +170,8 @@ const DiscordService = {
   },
 
   /**
-   * 入金締切リマインドの各アイテム文字列をフォーマット (DTO対応)
-   * @param {Object} item - 入金アイテムDTO
+   * 入金締切リマインドの各アイテム文字列をフォーマット
+   * @param {ApplicationDto} item - 入金アイテムDTO
    * @returns {string}
    */
   formatPaymentRemindItem(item) {
@@ -188,7 +188,7 @@ const DiscordService = {
 
   /**
    * 本日締切の申込一覧リマインド通知を送信
-   * @param {Array<Object>} items - 申込アイテム配列
+   * @param {ApplicationDto[]} items - 申込アイテム配列
    */
   sendApplyRemindNotification(items) {
     if (items && items.length > 0) {
@@ -209,7 +209,7 @@ const DiscordService = {
 
   /**
    * 翌日開始の先着受付リマインド通知を送信
-   * @param {Array<Object>} items - 先着アイテム配列
+   * @param {ApplicationDto[]} items - 先着アイテム配列
    */
   sendFirstComeRemindNotification(items) {
     if (!items || items.length === 0) return;
@@ -224,7 +224,7 @@ const DiscordService = {
 
   /**
    * 受付期間中のリセールリマインド通知を送信
-   * @param {Array<Object>} items - リセールアイテム配列
+   * @param {ApplicationDto[]} items - リセールアイテム配列
    */
   sendResaleRemindNotification(items) {
     if (!items || items.length === 0) return;
@@ -239,7 +239,7 @@ const DiscordService = {
 
   /**
    * 本日入金締切リマインド通知を送信（フッターなし）
-   * @param {Array<Object>} items - 入金アイテム配列
+   * @param {ApplicationDto[]} items - 入金アイテム配列
    */
   sendPaymentRemindNotification(items) {
     if (!items || items.length === 0) {
@@ -291,19 +291,8 @@ const DiscordService = {
   },
 
   /**
-   * Googleカレンダー登録完了のDiscord通知を送信 (DTOパターン)
-   * @param {Object} event - イベントDTO
-   * @param {string} [event.title] - イベントタイトル（未指定時は brand と name/eventName から生成）
-   * @param {string} [event.brand] - ブランド名
-   * @param {string} [event.name] - イベント名
-   * @param {string} [event.eventName] - イベント名
-   * @param {Date|string} [event.startDate] - 開始日
-   * @param {Date|string} [event.endDate] - 終了日
-   * @param {string} [event.dateStr] - 期間文字列（未指定時は startDate と endDate から生成）
-   * @param {string} [event.location] - 会場
-   * @param {string} [event.venue] - 会場
-   * @param {string} [event.summary] - 概要
-   * @param {string} [event.description] - 概要
+   * Googleカレンダー登録完了のDiscord通知を送信
+   * @param {EventDto} event - イベントDTO
    */
   notifyNewCalendarEvent(event) {
     if (!WEBHOOK_CALENDAR || !event) return;
@@ -334,17 +323,8 @@ const DiscordService = {
   },
 
   /**
-   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知 (DTOパターン)
-   * @param {Object} application - 申込情報DTO
-   * @param {string} [application.brand] - ブランド名
-   * @param {string} [application.eventName] - イベント名
-   * @param {string} [application.name] - イベント名
-   * @param {string} [application.brandEventTitle] - 整形済みタイトル（省略時は自動生成）
-   * @param {string} [application.applyName] - 受付名
-   * @param {string} [application.endDatetime] - 締切日時
-   * @param {string} [application.payEndDatetime] - 入金締切日時
-   * @param {string} [application.method] - 申込方法
-   * @param {string} [application.applyMethod] - 申込方法
+   * Webアプリ経由で登録された新着チケット申込をDiscordへ通知
+   * @param {ApplicationDto} application - 申込情報DTO
    */
   notifyNewApplication(application) {
     if (!WEBHOOK_APPLY || !application) return;
@@ -369,22 +349,8 @@ const DiscordService = {
   },
 
   /**
-   * カレンダー未登録イベントの一括同期完了通知を送信 (DTO配列パターン)
-   * @param {Array<Object>} events - 登録成功したイベントオブジェクトの配列
-   * @param {string} [events[].title] - イベントタイトル（未指定時は brand と name/eventName から生成）
-   * @param {string} [events[].brand] - ブランド名
-   * @param {string} [events[].name] - イベント名
-   * @param {string} [events[].eventName] - イベント名
-   * @param {Date|string} [events[].startDate] - 開始日
-   * @param {Date|string} [events[].startDateRaw] - 開始日
-   * @param {Date|string} [events[].endDate] - 終了日
-   * @param {Date|string} [events[].endDateRaw] - 終了日
-   * @param {string} [events[].date] - 期間文字列
-   * @param {string} [events[].dateStr] - 期間文字列
-   * @param {string} [events[].location] - 会場
-   * @param {string} [events[].venue] - 会場
-   * @param {string} [events[].summary] - 概要
-   * @param {string} [events[].description] - 概要
+   * カレンダー未登録イベントの一括同期完了通知を送信
+   * @param {EventDto[]} events - 登録成功したイベントDTO配列
    */
   notifyBatchCalendarEvents(events) {
     if (!events || events.length === 0 || !WEBHOOK_CALENDAR) return;
@@ -418,9 +384,7 @@ const DiscordService = {
 
   /**
    * 明日の予定一覧通知を送信
-   * @param {Object} [tomorrowEvents] - 予定結果オブジェクト
-   * @param {string} [tomorrowEvents.dateTitle] - 日付タイトル ("MM/dd(E)")
-   * @param {Array<{title: string, timeStr: string, location?: string, description?: string}>} [tomorrowEvents.events] - イベント配列
+   * @param {TomorrowEventsDto} [tomorrowEvents] - 予定結果DTO
    */
   notifyTomorrowEvents(tomorrowEvents) {
     if (!WEBHOOK_CALENDAR) return;
@@ -528,7 +492,7 @@ const DiscordService = {
 
   /**
    * イベント用 Discord テキストチャンネルを作成し、概要設定および初回メッセージの投稿を行う
-   * @param {Object} event - イベントデータオブジェクト ({ eventId, brand, eventName, rawEventName, startDate, endDate, venue, location, description, summary })
+   * @param {EventDto} event - イベントDTO
    * @returns {string|null} 作成された Discord チャンネルID（失敗時は null）
    */
   createEventChannel(event) {
@@ -596,7 +560,7 @@ const DiscordService = {
   /**
    * 新規作成チャンネルへ初回イベント詳細メッセージ (Embed) を投稿する
    * @param {string} channelId - Discord チャンネルID
-   * @param {Object} event - 整形済みイベントデータ
+   * @param {EventDto} event - イベントDTO
    */
   sendFirstMessageToChannel(channelId, event) {
     if (!channelId || !DISCORD_BOT_TOKEN) return;

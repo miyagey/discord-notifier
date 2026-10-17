@@ -232,7 +232,7 @@ const SheetService = {
   /**
    * 本日締切の通常申込アイテム（先着・リセール以外）を抽出
    * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
-   * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
+   * @returns {ApplicationDto[]}
    */
   fetchDeadlineApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
@@ -285,7 +285,7 @@ const SheetService = {
   /**
    * 翌日開始の先着受付アイテムを抽出
    * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
-   * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
+   * @returns {ApplicationDto[]}
    */
   fetchFirstComeApplyItems(baseDate = new Date()) {
     const tomorrow = new Date(baseDate);
@@ -336,7 +336,7 @@ const SheetService = {
   /**
    * 現在受付期間中のリセールアイテムを抽出
    * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
-   * @returns {Array<{brandEvent: string, applyName: string, deadlineStr: string, method: string}>}
+   * @returns {ApplicationDto[]}
    */
   fetchResaleApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
@@ -389,7 +389,7 @@ const SheetService = {
   /**
    * 本日締切の入金アイテムを抽出
    * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
-   * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
+   * @returns {ApplicationDto[]}
    */
   fetchPaymentApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
@@ -440,7 +440,7 @@ const SheetService = {
 
   /**
    * カレンダー未登録のイベントマスター行を取得
-   * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
+   * @returns {EventDto[]}
    */
   fetchUnregisteredCalendarEvents() {
     const masterSheet = this.getMasterSheet();
@@ -504,7 +504,7 @@ const SheetService = {
 
   /**
    * イベントの新規追記（採番・数式設定含む）
-   * @param {Object} data - { brand, name, startDate, endDate, location, summary, discordChannelId }
+   * @param {EventDto} data - イベントDTO
    * @param {string} [calId] - 連携カレンダーID
    * @returns {string} 発行されたイベントID (EV-xxx)
    */
@@ -555,7 +555,7 @@ const SheetService = {
 
   /**
    * イベント行の更新
-   * @param {Object} data - { id, brand, name, startDate, endDate, location, summary }
+   * @param {EventDto} data - イベントDTO
    */
   updateEventRow(data) {
     const ss = this.getSpreadsheet();
@@ -602,7 +602,7 @@ const SheetService = {
 
   /**
    * 申し込み情報の新規追記
-   * @param {Object} data - { eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+   * @param {ApplicationDto} data - 申込DTO
    * @returns {string} 発行された申し込みID (AP-xxx)
    */
   insertApplication(data) {
@@ -672,7 +672,7 @@ const SheetService = {
 
   /**
    * 申し込み行の更新
-   * @param {Object} data - { id, eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+   * @param {ApplicationDto} data - 申込DTO
    */
   updateApplicationRow(data) {
     const ss = this.getSpreadsheet();

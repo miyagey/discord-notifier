@@ -58,7 +58,7 @@ function getAppData() {
 
 /**
  * イベントの新規登録（カレンダー同期 & Discord通知付き）
- * @param {Object} data - { brand, name, startDate, endDate, location, summary }
+ * @param {EventDto} data - イベント入力DTO
  * @returns {Object}
  */
 function createEvent(data) {
@@ -103,7 +103,7 @@ function createEvent(data) {
 
 /**
  * イベント情報の更新
- * @param {Object} data - { id, brand, name, startDate, endDate, location, summary }
+ * @param {EventDto} data - イベント更新DTO
  * @returns {Object}
  */
 function updateEvent(data) {
@@ -121,7 +121,7 @@ function updateEvent(data) {
 
 /**
  * 申し込み情報の新規登録（Discord通知付き）
- * @param {Object} data - { eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+ * @param {ApplicationDto} data - 申込入力DTO
  * @returns {Object}
  */
 function createApplication(data) {
@@ -148,7 +148,7 @@ function createApplication(data) {
 
 /**
  * 申し込み情報の更新
- * @param {Object} data - { id, eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }
+ * @param {ApplicationDto} data - 申込更新DTO
  * @returns {Object}
  */
 function updateApplication(data) {

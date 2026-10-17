@@ -45,8 +45,11 @@ AI エージェントがバッチ処理スクリプトを作成・編集する�
 - スプレッドシートの列インデックス（`MASTER_COL`, `APPLY_COL`）は `spreadsheet/スプレッドシート操作.js` 内に閉じた定数とする。外部ファイル（`設定値.js` やバッチファイル）へ露出・定義してはならない。
 - 呼び出し側では、配列の生インデックス（`row[0]` や `row[1]` 等）を直接参照せず、必ず `SheetService` から返却される名前付きプロパティを持つオブジェクト（DTO）を扱うこと。
 
-### 2.4 DTO (Data Transfer Object) / Parameter Object パターン
+### 2.4 DTO (Data Transfer Object) / Parameter Object パターンおよび型定義
 - 3つ以上の引数や省略可能オプションを持つ関数・メソッドは、単一のオブジェクト引数形式（例: `{ title, startDate, endDate, location, summary }`）で受け取るように設計し、詳細な JSDoc コメントを付与すること。
+- **型定義の一元管理（`spreadsheet/型定義.js`）**:
+  - イベント情報（`EventDto`）、申込情報（`ApplicationDto`）、通知用アイテム（`CalendarEventItemDto`, `TomorrowEventsDto`）などの主要なデータオブジェクトの構造は、`spreadsheet/型定義.js` に JSDoc の `@typedef` として集約・定義する。
+  - 各サービスやオーケストレーション層の関数シグネチャでは、インラインで長大なプロパティ定義を重複記述せず、`@param {EventDto} event` のように型名を直接参照してコードの可読性を保つこと。
 
 ### 2.5 マジックナンバー・直インデックスの禁止
 - シートの列番号や設定値は直接数値で記述せず、内部定数やオブジェクト定数を経由すること。
