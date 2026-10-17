@@ -121,11 +121,14 @@ GAS の Web エディタ上で本番稼働させる場合、**スクリプトの
 
 ## 🚀 GitHub Actions 自動デプロイ (CI/CD)
 
-`main` ブランチに Pull Request がマージされると、GitHub Actions（`.github/workflows/deploy.yml`）が自動実行され、GAS プロジェクトへ自動デプロイ（`clasp push --force`）されます。
+本リポジトリでは、GitHub Actions（`.github/workflows/deploy.yml`）により PR 作成時と main マージ時で処理を分離した安全な CI/CD パイプラインを運用しています。
 
-- **差分検知**: `spreadsheet/` 変更時はスプレッドシート側、`form/` 変更時はフォーム側を自動判別して push します。
-- **構文チェック & 単体テスト**: デプロイ直前に `npm run lint` (`node --check`) による構文検証および `npm test` (`vitest`) による単体テストを実行し、品質基準を満たした場合のみデプロイを実行します。
-- **Webアプリバージョン自動更新**: `WEBAPP_DEPLOYMENT_ID` が登録されている場合、マージされた PR 名またはコミット内容をバージョン説明欄に自動記録しながら `clasp deploy` を実行します。
+- **PR作成・コミット時 (CI)**:
+  - 構文検証（`npm run lint`）および自動単体テスト（`npm test` / Vitest）が走り、コードの整合性と品質を自動検証します。
+  - ※ PR 検証段階では GAS へのデプロイは一切行われません。
+- **`main` マージ時 (CD)**:
+  - テスト通過後、変更されたディレクトリ（`spreadsheet/` または `form/`）を検知して対象の GAS プロジェクトへ自動デプロイ（`clasp push --force`）されます。
+  - **Webアプリバージョン自動更新**: `WEBAPP_DEPLOYMENT_ID` が登録されている場合、マージされた PR 名またはコミット内容をバージョン説明欄に自動記録しながら `clasp deploy` を実行します。
 
 ### 必要な GitHub Secrets 設定
 リポジトリの **Settings > Secrets and variables > Actions** に以下を登録します：

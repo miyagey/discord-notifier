@@ -1,14 +1,47 @@
-name: Deploy to Google Apps Script
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
+  # ----------------------------------------------------
+  # 1. テスト & 構文検証ジョブ (PR時および main マージ時に実行)
+  # ----------------------------------------------------
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+  # ----------------------------------------------------
+  # 2. GAS デプロイジョブ (main マージ時および手動実行時のみ実行)
+  # ----------------------------------------------------
   deploy:
     name: Deploy to GAS
+    needs: test
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     permissions:
@@ -34,17 +67,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Syntax check
-        run: npm run lint
-
-      - name: Run unit tests
-        run: npm test
 
       - name: Setup clasp authentication
         env:

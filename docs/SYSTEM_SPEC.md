@@ -13,28 +13,32 @@
 
 ```mermaid
 flowchart TB
-    User["👤 ユーザー"]
-
-    subgraph AppLayer ["アプリケーション層"]
-        WebApp["🌐 Webアプリ (Webアプリ.js)<br>閲覧 / 新規登録 / 編集"]
-        Batch["⏰ 定期通知バッチ (定期通知バッチ.js)<br>締切通知 / カレンダー同期 / 予定通知"]
+    subgraph InputLayer ["1. 入力 / トリガー層"]
+        User["👤 ユーザー (ブラウザ)"]
+        Trigger["⏰ 時間主導型トリガー (GAS)"]
     end
 
-    subgraph ResourceLayer ["データ・リソース層"]
+    subgraph ProcessLayer ["2. アプリケーション処理層"]
+        WebApp["🌐 Web アプリケーション<br>閲覧 / 登録 / 更新"]
+        Batch["⚙️ 定期実行バッチ<br>締切抽出 / カレンダー同期 / 予定通知"]
+    end
+
+    subgraph ResourceLayer ["3. データストア・外部連携層"]
         GSheet["📊 Google スプレッドシート<br>イベントマスター / 申し込み管理"]
-        GCal["📅 Google カレンダー"]
-        Discord["💬 Discord<br>申込 / 入金 / 予定 通知チャンネル"]
+        GCal["📅 Google カレンダー<br>イベント予定の同期・取得"]
+        Discord["💬 Discord チャンネル<br>申込 / 入金 / 予定通知"]
     end
 
-    User -->|閲覧 / 登録 / 編集| WebApp
+    User -->|"イベント・申込の閲覧 / 登録 / 更新"| WebApp
+    Trigger -->|"定期スケジュール起動"| Batch
 
-    WebApp ---|"データ操作 (SheetService)"| GSheet
-    WebApp -->|"イベント同期 (CalendarService)"| GCal
-    WebApp -->|"登録通知 (DiscordService)"| Discord
+    WebApp <-->|"データの取得・更新"| GSheet
+    WebApp -->|"新規イベント作成"| GCal
+    WebApp -->|"即時通知"| Discord
 
-    Batch -->|"データ参照 (SheetService)"| GSheet
-    Batch ---|"同期・予定取得 (CalendarService)"| GCal
-    Batch -->|"リマインド通知 (DiscordService)"| Discord
+    Batch -->|"締切・未同期データの参照"| GSheet
+    Batch <-->|"イベント同期・明日の予定取得"| GCal
+    Batch -->|"リマインド通知"| Discord
 ```
 
 ---
@@ -131,12 +135,13 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 時間主導型トリガーによって定期実行されるバッチ処理群です。
 
 ### 4.1 バッチジョブ一覧
+メイン関数（オーケストレーション層）は一本道のフロー制御のみを行い、対象件数の判定や0件時のログ出力・送信スキップ処理はすべて各サービス層（`DiscordService`, `CalendarService`）内部で実行されます。
 
-| 関数名 | 実行タイミング (推奨) | 抽出条件 | 通知先 Webhook | 対象なし時の挙動 |
+| 関数名 | 実行タイミング (推奨) | 抽出条件 | 通知先 Webhook | 対象なし時の挙動（サービス層内部判定） |
 | :--- | :--- | :--- | :--- | :--- |
-| `remindEndDate` | 毎日 午前 (例: 08:00〜09:00) | ① 本日締切の通常申込（先着・リセール除く、締切時刻考慮）<br>② 翌日開始の先着受付<br>③ 現在受付期間中のリセール | `WEBHOOK_APPLY` | 通常申込なし時は「本日締切のチケット申込はありません」と送信。<br>先着・リセールは対象なし時送信スキップ |
+| `remindEndDate` | 毎日 午前 (例: 08:00〜09:00) | ① 本日締切の通常申込（先着・リセール除く、締切時刻考慮）<br>② 翌日開始の先着受付<br>③ 現在受付期間中のリセール | `WEBHOOK_APPLY` | 通常申込なし時は「本日締切のチケット申込はありません」と案内通知。<br>先着・リセールは対象なし時は通知をスキップ |
 | `remindPaymentEndDate` | 毎日 午前 (例: 08:00〜09:00) | 本日入金締切のチケット（締切時刻考慮） | `WEBHOOK_PAYMENT` | **対象なし時は通知を送信せず、ログ出力のみで終了** |
-| `registerEventsToCalendar` | 定期実行 (1時間毎推奨) | カレンダー未登録（`calId` が空）かつ開始日が入っているイベント | `WEBHOOK_CALENDAR` | 対象なし時はログ出力のみで終了。<br>登録成功時は一括で Discord 通知 |
+| `registerEventsToCalendar` | 定期実行 (1時間毎推奨) | カレンダー未登録（`calId` が空）かつ開始日が入っているイベント | `WEBHOOK_CALENDAR` | 対象なし時はログ出力のみで終了。<br>登録成功時はカレンダーIDを更新し一括で Discord 通知 |
 | `notifyTomorrowEvents` | 毎日 夕方〜夜 (例: 20:00〜21:00) | Google カレンダーの翌日終日・時間指定イベント | `WEBHOOK_CALENDAR` | 予定なし時は「明日の予定はありません」と通知 |
 
 ---

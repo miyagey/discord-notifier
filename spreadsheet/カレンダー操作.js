@@ -107,5 +107,55 @@ const CalendarService = {
       dateTitle,
       events: formattedEvents
     };
+  },
+
+  /**
+   * 未登録イベントを Google カレンダーへ登録し、スプレッドシートへIDを書き戻す（一括同期処理）
+   * @param {Array<Object>} unregisteredEvents - 未登録イベントの配列
+   * @returns {number} 登録成功件数
+   */
+  syncEventsToSheet(unregisteredEvents) {
+    if (!unregisteredEvents || unregisteredEvents.length === 0) {
+      Logger.log("新しく登録するカレンダーイベントはありませんでした。");
+      return 0;
+    }
+
+    const registeredEventsLog = [];
+    let registeredCount = 0;
+
+    for (const ev of unregisteredEvents) {
+      const title = DiscordService.formatBrandEventTitle(ev.brand, ev.eventName);
+      const calId = this.createAllDayEvent({
+        title: title,
+        startDate: ev.startDateRaw,
+        endDate: ev.endDateRaw,
+        location: ev.location,
+        summary: ev.summary
+      });
+
+      if (calId) {
+        SheetService.updateMasterCalendarId(ev.rowIndex, calId);
+        registeredCount++;
+
+        let dateStr = formatDateJST(new Date(ev.startDateRaw), "yyyy-MM-dd");
+        if (ev.endDateRaw && ev.endDateRaw !== ev.startDateRaw) {
+          dateStr += ` 〜 ${formatDateJST(new Date(ev.endDateRaw), "yyyy-MM-dd")}`;
+        }
+
+        registeredEventsLog.push({
+          title: title,
+          date: dateStr,
+          location: ev.location,
+          summary: ev.summary
+        });
+      }
+    }
+
+    if (registeredEventsLog.length > 0) {
+      DiscordService.notifyBatchCalendarEvents(registeredEventsLog);
+      Logger.log(`Discordへ ${registeredEventsLog.length} 件のカレンダー登録完了通知を送信しました。`);
+    }
+
+    return registeredCount;
   }
 };

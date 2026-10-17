@@ -228,11 +228,14 @@ const SheetService = {
 
   /**
    * 本日締切の通常申込アイテム（先着・リセール以外）を抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
-   * @param {Date} now - 現在時刻（時刻考慮用）
+   * @param {string} [targetDate] - 対象日付文字列 ("yyyy-MM-dd", 省略時は本日JST)
+   * @param {Date} [targetNow] - 基準時刻（時刻考慮用, 省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchDeadlineApplyItems(todayStr, now) {
+  fetchDeadlineApplyItems(targetDate, targetNow) {
+    const now = targetNow || new Date();
+    const todayStr = targetDate || formatDateJST(now, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -280,10 +283,17 @@ const SheetService = {
 
   /**
    * 明日開始の先着受付アイテムを抽出
-   * @param {string} tomorrowStr - 明日の日付文字列 ("yyyy-MM-dd")
+   * @param {string} [targetDate] - 対象日付文字列 ("yyyy-MM-dd", 省略時は明日JST)
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchFirstComeApplyItems(tomorrowStr) {
+  fetchFirstComeApplyItems(targetDate) {
+    let tomorrowStr = targetDate;
+    if (!tomorrowStr) {
+      const tom = new Date();
+      tom.setDate(tom.getDate() + 1);
+      tomorrowStr = formatDateJST(tom, "yyyy-MM-dd");
+    }
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -327,10 +337,12 @@ const SheetService = {
 
   /**
    * 現在受付期間中のリセールアイテムを抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
+   * @param {string} [targetDate] - 判定基準日 ("yyyy-MM-dd", 省略時は本日JST)
    * @returns {Array<{brandEvent: string, applyName: string, deadlineStr: string, method: string}>}
    */
-  fetchResaleApplyItems(todayStr) {
+  fetchResaleApplyItems(targetDate) {
+    const todayStr = targetDate || formatDateJST(new Date(), "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -378,11 +390,14 @@ const SheetService = {
 
   /**
    * 本日締切の入金アイテムを抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
-   * @param {Date} now - 現在時刻（時刻考慮用）
+   * @param {string} [targetDate] - 対象日付文字列 ("yyyy-MM-dd", 省略時は本日JST)
+   * @param {Date} [targetNow] - 基準時刻（時刻考慮用, 省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchPaymentApplyItems(todayStr, now) {
+  fetchPaymentApplyItems(targetDate, targetNow) {
+    const now = targetNow || new Date();
+    const todayStr = targetDate || formatDateJST(now, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -429,6 +444,14 @@ const SheetService = {
 
   /**
    * カレンダー未登録のイベントマスター行を取得
+   * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
+   */
+  fetchUnregisteredCalendarEvents() {
+    return this.getUnsyncedMasterEvents();
+  },
+
+  /**
+   * カレンダー未登録のイベントマスター行を取得 (旧名互換)
    * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
    */
   getUnsyncedMasterEvents() {
