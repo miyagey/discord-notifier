@@ -133,7 +133,7 @@ const CalendarService = {
       return 0;
     }
 
-    const registeredEventsLog = [];
+    const registeredEvents = [];
     let registeredCount = 0;
 
     for (const ev of unregisteredEvents) {
@@ -142,22 +142,13 @@ const CalendarService = {
       if (calId) {
         SheetService.updateMasterCalendarId(ev.rowIndex, calId);
         registeredCount++;
-
-        const title = formatBrandEventTitle(ev.brand, ev.eventName);
-        const dateStr = formatDateRange(ev.startDateRaw, ev.endDateRaw);
-
-        registeredEventsLog.push({
-          title: title,
-          date: dateStr,
-          location: ev.location,
-          summary: ev.summary
-        });
+        registeredEvents.push(ev);
       }
     }
 
-    if (registeredEventsLog.length > 0) {
-      DiscordService.notifyBatchCalendarEvents(registeredEventsLog);
-      Logger.log(`Discordへ ${registeredEventsLog.length} 件のカレンダー登録完了通知を送信しました。`);
+    if (registeredEvents.length > 0) {
+      DiscordService.notifyBatchCalendarEvents(registeredEvents);
+      Logger.log(`Discordへ ${registeredEvents.length} 件のカレンダー登録完了通知を送信しました。`);
     }
 
     return registeredCount;

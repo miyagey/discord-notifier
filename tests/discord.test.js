@@ -103,6 +103,81 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
+  describe('notifyBatchCalendarEvents', () => {
+    it('イベントDTO配列を受け取り、正しく一括整形してカレンダー通知を送信すること', () => {
+      let sentWebhook = '';
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentWebhook = webhook;
+        sentMessage = message;
+      };
+
+      const events = [
+        {
+          brand: '学マス',
+          eventName: '初星学園フェスティバル',
+          startDate: '2026-12-01',
+          endDate: '2026-12-02',
+          location: '幕張メッセ',
+          summary: 'イベント概要1'
+        },
+        {
+          brand: 'デレ',
+          eventName: 'CINDERELLA GIRLS LIVE',
+          startDate: '2026-12-10',
+          endDate: '2026-12-10',
+          location: 'Kアリーナ横浜',
+          summary: 'イベント概要2'
+        }
+      ];
+
+      DiscordService.notifyBatchCalendarEvents(events);
+
+      expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
+      expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
+      expect(sentMessage).toContain('📅 **【学マス】初星学園フェスティバル**');
+      expect(sentMessage).toContain('└ 期間: **2026-12-01 〜 2026-12-02 [終日]**');
+      expect(sentMessage).toContain('└ 会場: 幕張メッセ');
+      expect(sentMessage).toContain('└ 概要: イベント概要1');
+      expect(sentMessage).toContain('📅 **【デレ】CINDERELLA GIRLS LIVE**');
+      expect(sentMessage).toContain('└ 期間: **2026-12-10 [終日]**');
+      expect(sentMessage).toContain('└ 会場: Kアリーナ横浜');
+    });
+
+    it('events が null または空配列の場合は送信をスキップすること', () => {
+      let called = false;
+      DiscordService.sendNotification = () => {
+        called = true;
+      };
+
+      DiscordService.notifyBatchCalendarEvents(null);
+      expect(called).toBe(false);
+
+      DiscordService.notifyBatchCalendarEvents([]);
+      expect(called).toBe(false);
+    });
+
+    it('従来のフォーマット済みオブジェクト配列（後方互換）も正しく処理できること', () => {
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentMessage = message;
+      };
+
+      const legacyEvents = [
+        {
+          title: '【SideM】3rd LIVE',
+          date: '2026-12-20',
+          location: '幕張メッセ',
+          summary: 'ツアー'
+        }
+      ];
+
+      DiscordService.notifyBatchCalendarEvents(legacyEvents);
+      expect(sentMessage).toContain('📅 **【SideM】3rd LIVE**');
+      expect(sentMessage).toContain('└ 期間: **2026-12-20 [終日]**');
+    });
+  });
+
   describe('formatApplyMethodBlock', () => {
     it('1行テキスト（URL等）の場合はインラインで整形されること', () => {
       const result = DiscordService.formatApplyMethodBlock('https://example.com/apply');

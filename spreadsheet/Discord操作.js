@@ -335,19 +335,40 @@ const DiscordService = {
   },
 
   /**
-   * カレンダー未登録イベントの一括同期完了通知を送信
-   * @param {Array<{title: string, date: string, location: string, summary: string}>} registeredEventsLog 
+   * カレンダー未登録イベントの一括同期完了通知を送信 (DTO配列パターン)
+   * @param {Array<Object>} events - 登録成功したイベントオブジェクトの配列
+   * @param {string} [events[].title] - イベントタイトル（未指定時は brand と name/eventName から生成）
+   * @param {string} [events[].brand] - ブランド名
+   * @param {string} [events[].name] - イベント名
+   * @param {string} [events[].eventName] - イベント名
+   * @param {Date|string} [events[].startDate] - 開始日
+   * @param {Date|string} [events[].startDateRaw] - 開始日
+   * @param {Date|string} [events[].endDate] - 終了日
+   * @param {Date|string} [events[].endDateRaw] - 終了日
+   * @param {string} [events[].date] - 期間文字列
+   * @param {string} [events[].dateStr] - 期間文字列
+   * @param {string} [events[].location] - 会場
+   * @param {string} [events[].venue] - 会場
+   * @param {string} [events[].summary] - 概要
+   * @param {string} [events[].description] - 概要
    */
-  notifyBatchCalendarEvents(registeredEventsLog) {
-    if (!registeredEventsLog || registeredEventsLog.length === 0 || !WEBHOOK_CALENDAR) return;
+  notifyBatchCalendarEvents(events) {
+    if (!events || events.length === 0 || !WEBHOOK_CALENDAR) return;
 
     const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
-    registeredEventsLog.forEach(event => {
-      messageLines.push(`📅 **${event.title}**`);
-      messageLines.push(` └ 期間: **${event.date} [終日]**`);
-      if (event.location) messageLines.push(` └ 会場: ${event.location}`);
-      if (event.summary) {
-        const trimmed = String(event.summary).trim();
+    events.forEach(event => {
+      const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, event.name || event.eventName);
+      const startDate = event.startDate || event.startDateRaw;
+      const endDate = event.endDate || event.endDateRaw;
+      const dateStr = event.date || event.dateStr || formatDateRange(startDate, endDate);
+      const location = event.location || event.venue || "";
+      const summary = event.summary || event.description || "";
+
+      messageLines.push(`📅 **${brandEventTitle}**`);
+      messageLines.push(` └ 期間: **${dateStr} [終日]**`);
+      if (location) messageLines.push(` └ 会場: ${location}`);
+      if (summary) {
+        const trimmed = String(summary).trim();
         if (trimmed.includes("\n")) {
           const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
           messageLines.push(` └ 概要:\n${quoted}`);
