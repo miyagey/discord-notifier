@@ -224,6 +224,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(requestedUrl).toBe('https://discord.com/api/v10/users/@me');
       expect(requestedOptions.method).toBe('get');
       expect(requestedOptions.headers.Authorization).toBe('Bot mock-bot-token');
+      expect(requestedOptions.headers['User-Agent']).toBe('DiscordBot (https://github.com/miyagey/discord-notifier, 1.0.0)');
       expect(requestedOptions.contentType).toBe('application/json');
       expect(result).toEqual({ success: true, status: 200, data: { ok: true } });
     });
