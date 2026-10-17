@@ -364,21 +364,15 @@ const DiscordService = {
   },
 
   /**
-   * 明日の予定一覧通知を送信 (DTO対応)
-   * @param {Object|string} resultOrDateTitle - 予定結果オブジェクト { dateTitle, events } または日付タイトル文字列
-   * @param {Array<{title: string, timeStr: string, location?: string, description?: string}>} [legacyEvents] - イベント配列
+   * 明日の予定一覧通知を送信
+   * @param {Object} [tomorrowEvents] - 予定結果オブジェクト
+   * @param {string} [tomorrowEvents.dateTitle] - 日付タイトル ("MM/dd(E)")
+   * @param {Array<{title: string, timeStr: string, location?: string, description?: string}>} [tomorrowEvents.events] - イベント配列
    */
-  notifyTomorrowEvents(resultOrDateTitle, legacyEvents) {
+  notifyTomorrowEvents(tomorrowEvents) {
     if (!WEBHOOK_CALENDAR) return;
 
-    let dateTitle, events;
-    if (resultOrDateTitle && typeof resultOrDateTitle === 'object' && resultOrDateTitle.dateTitle) {
-      dateTitle = resultOrDateTitle.dateTitle;
-      events = resultOrDateTitle.events;
-    } else {
-      dateTitle = resultOrDateTitle;
-      events = legacyEvents;
-    }
+    const { dateTitle, events } = tomorrowEvents || {};
 
     if (!dateTitle) {
       Logger.log("明日のカレンダー予定の取得結果がありませんでした。");

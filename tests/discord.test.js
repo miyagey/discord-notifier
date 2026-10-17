@@ -104,4 +104,46 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(footer).toContain('https://ticket.example.com');
     });
   });
+
+  describe('notifyTomorrowEvents', () => {
+    it('予定オブジェクトDTOを受け取り、正しくメッセージ送信を呼び出すこと', () => {
+      let sentWebhook = '';
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentWebhook = webhook;
+        sentMessage = message;
+      };
+
+      const tomorrowData = {
+        dateTitle: '10/18(日)',
+        events: [
+          {
+            title: '【学マス】初星学園フェスティバル',
+            timeStr: '[終日]',
+            location: '幕張メッセ',
+            description: '開場 10:00'
+          }
+        ]
+      };
+
+      DiscordService.notifyTomorrowEvents(tomorrowData);
+
+      expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
+      expect(sentMessage).toContain('## 📅 明日 10/18(日) の予定リスト');
+      expect(sentMessage).toContain('### 📌 【学マス】初星学園フェスティバル');
+      expect(sentMessage).toContain('⏰ [終日]');
+      expect(sentMessage).toContain('📍 場所: 幕張メッセ');
+      expect(sentMessage).toContain('📝 説明:\n> 開場 10:00');
+    });
+
+    it('予定が0件の場合は「明日の予定はありません」と送信すること', () => {
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentMessage = message;
+      };
+
+      DiscordService.notifyTomorrowEvents({ dateTitle: '10/19(月)', events: [] });
+      expect(sentMessage).toContain('明日の予定はありません。');
+    });
+  });
 });

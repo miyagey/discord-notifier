@@ -447,14 +447,6 @@ const SheetService = {
    * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
    */
   fetchUnregisteredCalendarEvents() {
-    return this.getUnsyncedMasterEvents();
-  },
-
-  /**
-   * カレンダー未登録のイベントマスター行を取得 (旧名互換)
-   * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
-   */
-  getUnsyncedMasterEvents() {
     const masterSheet = this.getMasterSheet();
     if (!masterSheet) return [];
 
@@ -713,16 +705,3 @@ const SheetService = {
     applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
   }
 };
-
-// ==================================================
-// 後方互換用グローバル関数エイリアス
-// ==================================================
-function getSpreadsheet() { return SheetService.getSpreadsheet(); }
-function getMasterEventMap(masterData) { return SheetService.getMasterEventMap(masterData); }
-function findMasterEventByTitle(masterData, rawTitle) { return SheetService.findMasterEventByTitle(masterData, rawTitle); }
-function fetchEventsFromSheet(masterSheet) { return SheetService.fetchEvents(masterSheet); }
-function fetchApplicationsFromSheet(applySheet, events) { return SheetService.fetchApplications(applySheet, events); }
-function fetchNewSheetApplyItems(todayStr, now) { return SheetService.fetchDeadlineApplyItems(todayStr, now); }
-function fetchFirstComeApplyItemsTomorrow(tomorrowStr) { return SheetService.fetchFirstComeApplyItems(tomorrowStr); }
-function fetchResaleApplyItemsActive(todayStr) { return SheetService.fetchResaleApplyItems(todayStr); }
-function fetchPaymentApplyItems(todayStr, now) { return SheetService.fetchPaymentApplyItems(todayStr, now); }
