@@ -9,20 +9,35 @@
 const CalendarService = {
 
   /**
-   * カレンダーインスタンスを取得する
-   * @returns {GoogleAppsScript.Calendar.Calendar|null}
+   * 未登録イベントを Google カレンダーへ登録し、スプレッドシートへIDを書き戻す（一括同期処理）
+   * @param {EventDto[]} unregisteredEvents - 未登録イベントDTO配列
+   * @returns {number} 登録成功件数
    */
-  getCalendar() {
-    if (!CALENDAR_ID) {
-      Logger.log("CALENDAR_ID が設定されていません。");
-      return null;
+  syncEventsToSheet(unregisteredEvents) {
+    if (!unregisteredEvents || unregisteredEvents.length === 0) {
+      Logger.log("新しく登録するカレンダーイベントはありませんでした。");
+      return 0;
     }
-    const cal = CalendarApp.getCalendarById(CALENDAR_ID);
-    if (!cal) {
-      Logger.log(`カレンダーID「${CALENDAR_ID}」が見つかりません。`);
-      return null;
+
+    const registeredEvents = [];
+    let registeredCount = 0;
+
+    for (const ev of unregisteredEvents) {
+      const calId = this.createAllDayEvent(ev);
+
+      if (calId) {
+        SheetService.updateMasterCalendarId(ev.rowIndex, calId);
+        registeredCount++;
+        registeredEvents.push(ev);
+      }
     }
-    return cal;
+
+    if (registeredEvents.length > 0) {
+      DiscordService.notifyBatchCalendarEvents(registeredEvents);
+      Logger.log(`Discordへ ${registeredEvents.length} 件のカレンダー登録完了通知を送信しました。`);
+    }
+
+    return registeredCount;
   },
 
   /**
@@ -111,34 +126,19 @@ const CalendarService = {
   },
 
   /**
-   * 未登録イベントを Google カレンダーへ登録し、スプレッドシートへIDを書き戻す（一括同期処理）
-   * @param {EventDto[]} unregisteredEvents - 未登録イベントDTO配列
-   * @returns {number} 登録成功件数
+   * カレンダーインスタンスを取得する（内部ヘルパー）
+   * @returns {GoogleAppsScript.Calendar.Calendar|null}
    */
-  syncEventsToSheet(unregisteredEvents) {
-    if (!unregisteredEvents || unregisteredEvents.length === 0) {
-      Logger.log("新しく登録するカレンダーイベントはありませんでした。");
-      return 0;
+  getCalendar() {
+    if (!CALENDAR_ID) {
+      Logger.log("CALENDAR_ID が設定されていません。");
+      return null;
     }
-
-    const registeredEvents = [];
-    let registeredCount = 0;
-
-    for (const ev of unregisteredEvents) {
-      const calId = this.createAllDayEvent(ev);
-
-      if (calId) {
-        SheetService.updateMasterCalendarId(ev.rowIndex, calId);
-        registeredCount++;
-        registeredEvents.push(ev);
-      }
+    const cal = CalendarApp.getCalendarById(CALENDAR_ID);
+    if (!cal) {
+      Logger.log(`カレンダーID「${CALENDAR_ID}」が見つかりません。`);
+      return null;
     }
-
-    if (registeredEvents.length > 0) {
-      DiscordService.notifyBatchCalendarEvents(registeredEvents);
-      Logger.log(`Discordへ ${registeredEvents.length} 件のカレンダー登録完了通知を送信しました。`);
-    }
-
-    return registeredCount;
+    return cal;
   }
 };
