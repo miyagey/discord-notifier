@@ -74,12 +74,12 @@ const SheetService = {
       events.push({
         id: id,
         brand: String(row[MASTER_COL.BRAND] || '').trim(),
-        name: String(row[MASTER_COL.EVENT_NAME] || '').trim(),
+        eventName: String(row[MASTER_COL.EVENT_NAME] || '').trim(),
         startDate: startDate,
         endDate: endDate,
         location: String(row[MASTER_COL.LOCATION] || '').trim(),
-        summary: String(row[MASTER_COL.SUMMARY] || '').trim(),
-        calId: String(row[MASTER_COL.CAL_ID] || '').trim(),
+        description: String(row[MASTER_COL.SUMMARY] || '').trim(),
+        calendarEventId: String(row[MASTER_COL.CAL_ID] || '').trim(),
         status: status,
         discordChannelId: String(row[MASTER_COL.DISCORD_CHANNEL_ID] || '').trim()
       });
@@ -114,7 +114,7 @@ const SheetService = {
       const parentEvent = eventMap[eventId] || null;
 
       const brand = String(row[APPLY_COL.BRAND] || (parentEvent ? parentEvent.brand : '')).trim();
-      const eventName = String(row[APPLY_COL.EVENT_NAME_ALT] || (parentEvent ? parentEvent.name : '')).trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME_ALT] || (parentEvent ? parentEvent.eventName || parentEvent.name : '')).trim();
 
       const startRaw = row[APPLY_COL.START_DATE];
       const endRaw = row[APPLY_COL.APPLY_END_DATE];
@@ -187,15 +187,22 @@ const SheetService = {
       if (new Date(applyEndDateRaw) <= baseDate) continue;
 
       const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
+      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brandEventTitle = formatBrandEventTitle(brand, eventName);
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
       const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
+      const endDatetime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
 
       items.push({
-        brandEvent: brandEventTitle,
+        id: applyId,
+        eventId: eventId,
+        brand: brand,
+        eventName: eventName,
+        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
-        timeStr: `${formattedTime}まで`,
+        endDatetime: endDatetime,
+        timeStr: `${formattedTime}まで`, // 互換用
         method: applyMethod
       });
     }
@@ -238,15 +245,22 @@ const SheetService = {
       if (applyStartStr !== tomorrowStr) continue;
 
       const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
+      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brandEventTitle = formatBrandEventTitle(brand, eventName);
       const formattedTime = formatDateJST(applyStartDateRaw, "HH:mm");
+      const startDatetime = formatDateJST(applyStartDateRaw, "yyyy-MM-dd HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 
       items.push({
-        brandEvent: brandEventTitle,
+        id: applyId,
+        eventId: eventId,
+        brand: brand,
+        eventName: eventName,
+        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
-        timeStr: formattedTime,
+        startDatetime: startDatetime,
+        timeStr: formattedTime, // 互換用
         method: applyMethod
       });
     }
@@ -290,15 +304,21 @@ const SheetService = {
       // 受付期間中（開始日 <= 本日 <= 終了日）
       if (todayStr >= applyStartStr && todayStr <= applyEndStr) {
         const masterInfo = masterMap[eventId] || {};
-        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-        const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
+        const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+        const brandEventTitle = formatBrandEventTitle(brand, eventName);
         const formattedEndTime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
         const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 
         items.push({
-          brandEvent: brandEventTitle,
+          id: applyId,
+          eventId: eventId,
+          brand: brand,
+          eventName: eventName,
+          brandEvent: brandEventTitle, // 互換用
           applyName: applyName,
-          deadlineStr: formattedEndTime,
+          endDatetime: formattedEndTime,
+          deadlineStr: formattedEndTime, // 互換用
           method: applyMethod
         });
       }
@@ -343,15 +363,22 @@ const SheetService = {
       if (new Date(payEndDateRaw) <= baseDate) continue;
 
       const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
+      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
+      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brandEventTitle = formatBrandEventTitle(brand, eventName);
       const formattedTime = formatDateJST(payEndDateRaw, "HH:mm");
+      const payEndDatetime = formatDateJST(payEndDateRaw, "yyyy-MM-dd HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 
       items.push({
-        brandEvent: brandEventTitle,
+        id: applyId,
+        eventId: eventId,
+        brand: brand,
+        eventName: eventName,
+        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
-        timeStr: `${formattedTime}まで`,
+        payEndDatetime: payEndDatetime,
+        timeStr: `${formattedTime}まで`, // 互換用
         method: applyMethod
       });
     }
@@ -377,14 +404,17 @@ const SheetService = {
 
       if (calId || !startDateRaw) continue;
 
+      const startDateStr = formatDateJST(startDateRaw, 'yyyy-MM-dd');
+      const endDateStr = row[MASTER_COL.END_DATE] ? formatDateJST(row[MASTER_COL.END_DATE], 'yyyy-MM-dd') : startDateStr;
+
       results.push({
         rowIndex: i + 1, // 1始まりの行番号
-        brand: row[MASTER_COL.BRAND],
-        eventName: row[MASTER_COL.EVENT_NAME],
-        startDateRaw: startDateRaw,
-        endDateRaw: row[MASTER_COL.END_DATE],
-        location: row[MASTER_COL.LOCATION],
-        summary: row[MASTER_COL.SUMMARY]
+        brand: String(row[MASTER_COL.BRAND] || '').trim(),
+        eventName: String(row[MASTER_COL.EVENT_NAME] || '').trim(),
+        startDate: startDateStr,
+        endDate: endDateStr,
+        location: String(row[MASTER_COL.LOCATION] || '').trim(),
+        description: String(row[MASTER_COL.SUMMARY] || '').trim()
       });
     }
 
@@ -461,15 +491,17 @@ const SheetService = {
 
     const startDate = data.startDate || '';
     const endDate = data.endDate || startDate;
+    const eventName = data.eventName || '';
+    const description = data.description || '';
 
     sheet.appendRow([
       eventId,
       data.brand || '',
-      data.name,
+      eventName,
       startDate,
       endDate,
       data.location || '',
-      data.summary || '',
+      description,
       calId || '',
       masterIfsFormula,
       data.discordChannelId || ''
@@ -504,13 +536,15 @@ const SheetService = {
 
     const startDate = data.startDate || '';
     const endDate = data.endDate || startDate;
+    const eventName = data.eventName || '';
+    const description = data.description || '';
 
     masterSheet.getRange(targetRow, MASTER_COL.BRAND + 1).setValue(data.brand || '');
-    masterSheet.getRange(targetRow, MASTER_COL.EVENT_NAME + 1).setValue(data.name || '');
+    masterSheet.getRange(targetRow, MASTER_COL.EVENT_NAME + 1).setValue(eventName);
     masterSheet.getRange(targetRow, MASTER_COL.START_DATE + 1).setValue(startDate);
     masterSheet.getRange(targetRow, MASTER_COL.END_DATE + 1).setValue(endDate);
     masterSheet.getRange(targetRow, MASTER_COL.LOCATION + 1).setValue(data.location || '');
-    masterSheet.getRange(targetRow, MASTER_COL.SUMMARY + 1).setValue(data.summary || '');
+    masterSheet.getRange(targetRow, MASTER_COL.SUMMARY + 1).setValue(description);
 
     // 申し込み管理シート側のブランド・イベント名も同期更新
     const applySheet = ss.getSheetByName('申し込み管理');

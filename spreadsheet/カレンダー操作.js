@@ -49,11 +49,12 @@ const CalendarService = {
     const calendar = this.getCalendar();
     if (!calendar || !event) return null;
 
-    const title = event.title || formatBrandEventTitle(event.brand, event.name || event.eventName);
-    const startDate = event.startDate || event.startDateRaw;
-    const endDate = event.endDate || event.endDateRaw;
-    const location = event.location || event.venue || "";
-    const summary = event.summary || event.description || "";
+    const eventName = event.eventName || event.name || "";
+    const title = formatBrandEventTitle(event.brand, eventName);
+    const startDate = event.startDate;
+    const endDate = event.endDate || startDate;
+    const location = event.location || "";
+    const description = event.description || event.summary || "";
 
     const startD = (startDate instanceof Date) ? new Date(startDate) : new Date(startDate);
     const endRaw = endDate || startDate;
@@ -64,7 +65,7 @@ const CalendarService = {
 
     const options = {};
     if (location) options.location = location;
-    if (summary) options.description = summary;
+    if (description) options.description = description;
 
     const calEvent = calendar.createAllDayEvent(title, startD, endD, options);
     const eventId = calEvent.getId();

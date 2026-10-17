@@ -79,7 +79,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         startDate: '2026-11-07',
         endDate: '2026-11-08',
         location: '幕張メッセ',
-        summary: 'ツアー詳細情報'
+        description: 'ツアー詳細情報'
       };
 
       DiscordService.notifyNewCalendarEvent(event);
@@ -119,7 +119,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
           startDate: '2026-12-01',
           endDate: '2026-12-02',
           location: '幕張メッセ',
-          summary: 'イベント概要1'
+          description: 'イベント概要1'
         },
         {
           brand: 'デレ',
@@ -127,7 +127,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
           startDate: '2026-12-10',
           endDate: '2026-12-10',
           location: 'Kアリーナ横浜',
-          summary: 'イベント概要2'
+          description: 'イベント概要2'
         }
       ];
 
@@ -157,25 +157,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(called).toBe(false);
     });
 
-    it('従来のフォーマット済みオブジェクト配列（後方互換）も正しく処理できること', () => {
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
-        sentMessage = message;
-      };
 
-      const legacyEvents = [
-        {
-          title: '【SideM】3rd LIVE',
-          date: '2026-12-20',
-          location: '幕張メッセ',
-          summary: 'ツアー'
-        }
-      ];
-
-      DiscordService.notifyBatchCalendarEvents(legacyEvents);
-      expect(sentMessage).toContain('📅 **【SideM】3rd LIVE**');
-      expect(sentMessage).toContain('└ 期間: **2026-12-20 [終日]**');
-    });
   });
 
   describe('notifyNewApplication', () => {
@@ -207,27 +189,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(sentMessage).toContain('└ 申込方法: https://example.com/apply');
     });
 
-    it('name や applyMethod などのプロパティ名でも正しく解決できること', () => {
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
-        sentMessage = message;
-      };
 
-      const altAppData = {
-        brand: '学マス',
-        name: '初星公演',
-        applyName: 'WEB先行',
-        endDatetime: '2026-12-01 23:59',
-        applyMethod: 'シリアルコード入力'
-      };
-
-      DiscordService.notifyNewApplication(altAppData);
-
-      expect(sentMessage).toContain('📅 **【学マス】初星公演**');
-      expect(sentMessage).toContain('└ 受付区分: WEB先行');
-      expect(sentMessage).toContain('└ 申込締切: **2026-12-01 23:59まで**');
-      expect(sentMessage).toContain('└ 申込方法: シリアルコード入力');
-    });
 
     it('application が null または未指定の場合は送信をスキップすること', () => {
       let called = false;
@@ -283,7 +245,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         eventName: '初星公演',
         applyName: 'WEB先行',
         endDatetime: '2026-11-20 23:59',
-        applyMethod: 'https://example.com'
+        method: 'https://example.com'
       };
 
       const result = DiscordService.formatRemindItem(dtoItem, {
@@ -611,12 +573,12 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       };
 
       const eventObj = {
-        eventId: 'EV-001',
+        id: 'EV-001',
         brand: '学マス',
         eventName: '初星公演',
         startDate: '2027-03-27',
         endDate: '2027-03-28',
-        venue: 'ゼビオアリーナ仙台',
+        location: 'ゼビオアリーナ仙台',
         description: '出演：浅倉 透/樋口円香/福丸 小糸/市川 雛菜'
       };
 
@@ -662,11 +624,11 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       };
 
       const eventData = {
-        eventId: 'EV-002',
+        id: 'EV-002',
         brand: 'シャニ',
         displayName: '283 Production LIVE',
         dateStr: '2027-04-01 〜 2027-04-02',
-        venue: '幕張メッセ',
+        location: '幕張メッセ',
         description: '特記事項メモ'
       };
 

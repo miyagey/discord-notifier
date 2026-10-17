@@ -63,7 +63,7 @@ function getAppData() {
  */
 function createEvent(data) {
   try {
-    if (!data || !data.name || !data.startDate) {
+    if (!data || !data.eventName || !data.startDate) {
       throw new Error('イベント名と開始日は必須項目です。');
     }
 
@@ -84,7 +84,7 @@ function createEvent(data) {
     // Discord テキストチャンネルの自動作成（イベントDTOをそのまま渡す）
     let discordChannelId = null;
     try {
-      discordChannelId = DiscordService.createEventChannel({ ...data, eventId });
+      discordChannelId = DiscordService.createEventChannel({ ...data, id: eventId });
 
       // 作成成功時、チャンネルIDをスプレッドシートへ書き戻し
       if (discordChannelId) {
