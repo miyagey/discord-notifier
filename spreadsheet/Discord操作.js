@@ -53,10 +53,11 @@ const DiscordService = {
   notifyNewApplication(application) {
     if (!WEBHOOK_APPLY || !application) return;
 
-    const brandEventTitle = application.brandEventTitle || formatBrandEventTitle(application.brand, application.eventName || application.name);
+    const eventName = application.eventName || application.name || "";
+    const brandEventTitle = formatBrandEventTitle(application.brand, eventName);
     const applyName = application.applyName || "未指定";
-    const endDatetime = application.endDatetime || application.applyEndDate;
-    const payEndDatetime = application.payEndDatetime || application.payEndDate;
+    const endDatetime = application.endDatetime;
+    const payEndDatetime = application.payEndDatetime;
     const method = application.method || application.applyMethod || "";
 
     const lines = [
@@ -79,10 +80,11 @@ const DiscordService = {
   notifyNewCalendarEvent(event) {
     if (!WEBHOOK_CALENDAR || !event) return;
 
-    const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, event.name || event.eventName);
-    const dateStr = event.dateStr || formatDateRange(event.startDate, event.endDate);
+    const eventName = event.eventName || event.name || "";
+    const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, eventName);
+    const dateStr = event.date || event.dateStr || formatDateRange(event.startDate, event.endDate);
     const location = event.location || event.venue || "";
-    const summary = event.summary || event.description || "";
+    const description = event.description || event.summary || "";
 
     const lines = [
       "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
@@ -91,8 +93,8 @@ const DiscordService = {
     ];
 
     if (location) lines.push(` └ 会場: ${location}`);
-    if (summary) {
-      const trimmed = String(summary).trim();
+    if (description) {
+      const trimmed = String(description).trim();
       if (trimmed.includes("\n")) {
         const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
         lines.push(` └ 概要:\n${quoted}`);
@@ -113,18 +115,17 @@ const DiscordService = {
 
     const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
     events.forEach(event => {
-      const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, event.name || event.eventName);
-      const startDate = event.startDate || event.startDateRaw;
-      const endDate = event.endDate || event.endDateRaw;
-      const dateStr = event.date || event.dateStr || formatDateRange(startDate, endDate);
+      const eventName = event.eventName || event.name || "";
+      const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, eventName);
+      const dateStr = event.date || event.dateStr || formatDateRange(event.startDate, event.endDate);
       const location = event.location || event.venue || "";
-      const summary = event.summary || event.description || "";
+      const description = event.description || event.summary || "";
 
       messageLines.push(`📅 **${brandEventTitle}**`);
       messageLines.push(` └ 期間: **${dateStr} [終日]**`);
       if (location) messageLines.push(` └ 会場: ${location}`);
-      if (summary) {
-        const trimmed = String(summary).trim();
+      if (description) {
+        const trimmed = String(description).trim();
         if (trimmed.includes("\n")) {
           const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
           messageLines.push(` └ 概要:\n${quoted}`);
@@ -184,13 +185,13 @@ const DiscordService = {
 
     if (!event) return null;
 
-    // 1. ブランド名を抜いた公演名 (rawEventName, eventName, または name を使用)
-    const displayName = event.rawEventName || event.eventName || event.name || '';
+    // 1. 公演名 (eventName を第一優先)
+    const displayName = event.eventName || event.name || '';
 
     // 開催日時の表記フォーマット化（formatDateRange を活用）
     const dateStr = formatDateRange(event.startDate, event.endDate) || event.startDate || "未定";
 
-    const venue = event.venue || event.location || '未定';
+    const venue = event.location || event.venue || '未定';
     const description = event.description || event.summary || '特記事項なし';
 
     // 2. チャンネル名の生成とサニタイズ (例: 学マス-live-tour-標)
@@ -297,7 +298,8 @@ const DiscordService = {
    */
   formatRemindItem(item, { timeLabel, timeStr }) {
     if (!item) return "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
+    const eventName = item.eventName || item.name || "";
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, eventName);
     const applyName = item.applyName || "未指定";
     const method = item.method || item.applyMethod || "";
 
