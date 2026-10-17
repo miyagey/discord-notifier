@@ -27,7 +27,7 @@ function remindEndDate() {
     DiscordService.sendRemindNotification("RESALE", resaleItems);
 
   } catch (e) {
-    Logger.log("申込通知処理でエラーが発生しました: " + e.toString());
+    logError("remindEndDate (申込通知処理)", e);
   }
   Logger.log("=== 申込通知処理が正常終了しました ===");
 }
@@ -45,7 +45,7 @@ function remindPaymentEndDate() {
     DiscordService.sendRemindNotification("PAYMENT", items);
 
   } catch (e) {
-    Logger.log("入金締切処理でエラーが発生しました: " + e.toString());
+    logError("remindPaymentEndDate (入金締切通知処理)", e);
   }
   Logger.log("=== 入金締切通知処理が正常終了しました ===");
 }
@@ -63,7 +63,7 @@ function notifyTomorrowEvents() {
     DiscordService.notifyTomorrowEvents(events);
 
   } catch (e) {
-    Logger.log("明日のカレンダー予定通知処理でエラーが発生しました: " + e.toString());
+    logError("notifyTomorrowEvents (明日のカレンダー予定通知処理)", e);
   }
   Logger.log("=== 明日のカレンダー予定通知処理が正常終了しました ===");
 }
@@ -82,7 +82,7 @@ function registerEventsToCalendar() {
 
     Logger.log(`カレンダー同期処理が完了しました（登録件数: ${registeredCount}件）`);
   } catch (e) {
-    Logger.log("カレンダー自動登録処理でエラーが発生しました: " + e.toString());
+    logError("registerEventsToCalendar (カレンダー自動登録処理)", e);
   }
   Logger.log("=== カレンダー自動登録処理が正常終了しました ===");
 }

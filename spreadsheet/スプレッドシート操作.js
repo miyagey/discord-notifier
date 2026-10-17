@@ -41,88 +41,9 @@ const APPLY_COL = {
  */
 const SheetService = {
 
-  /**
-   * 共通スプレッドシートオブジェクトを取得
-   * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null}
-   */
-  getSpreadsheet() {
-    try {
-      if (COMMON_SHEET_URL) {
-        return SpreadsheetApp.openByUrl(COMMON_SHEET_URL);
-      }
-      return SpreadsheetApp.getActiveSpreadsheet();
-    } catch (e) {
-      logError("SheetService.getSpreadsheet", e);
-      return null;
-    }
-  },
-
-  /**
-   * 「イベントマスター」シートを取得
-   * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
-   */
-  getMasterSheet() {
-    const ss = this.getSpreadsheet();
-    return ss ? ss.getSheetByName("イベントマスター") : null;
-  },
-
-  /**
-   * 「申し込み管理」シートを取得
-   * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
-   */
-  getApplySheet() {
-    const ss = this.getSpreadsheet();
-    return ss ? ss.getSheetByName("申し込み管理") : null;
-  },
-
-  /**
-   * イベントマスターシートのデータ配列から eventId をキーとした情報マップを生成
-   * @param {Array<Array<any>>} masterData - イベントマスターの全行データ
-   * @returns {Object<string, {brand: string, eventName: string}>}
-   */
-  getMasterEventMap(masterData) {
-    const masterMap = {};
-    if (!masterData || masterData.length <= 1) return masterMap;
-
-    for (let i = 1; i < masterData.length; i++) {
-      const eventId = masterData[i][MASTER_COL.ID];
-      if (eventId) {
-        masterMap[eventId] = {
-          brand: masterData[i][MASTER_COL.BRAND],
-          eventName: masterData[i][MASTER_COL.EVENT_NAME]
-        };
-      }
-    }
-    return masterMap;
-  },
-
-  /**
-   * イベント名またはブランド名込みのタイトルからイベントマスター情報を逆引き検索する
-   * @param {Array<Array<any>>} masterData 
-   * @param {string} rawTitle 
-   * @returns {{eventId: string, brand: string, eventName: string}|null}
-   */
-  findMasterEventByTitle(masterData, rawTitle) {
-    if (!masterData || masterData.length <= 1 || !rawTitle) return null;
-    const cleanRaw = String(rawTitle).trim();
-
-    for (let i = 1; i < masterData.length; i++) {
-      const eventId = masterData[i][MASTER_COL.ID];
-      const brand = masterData[i][MASTER_COL.BRAND] || "";
-      const eventName = masterData[i][MASTER_COL.EVENT_NAME] || "";
-      const fullTitleWithBrand = brand ? `【${brand}】${eventName}` : eventName;
-
-      if (
-        cleanRaw === fullTitleWithBrand ||
-        cleanRaw === eventName ||
-        (eventName && cleanRaw.includes(eventName)) ||
-        (fullTitleWithBrand && cleanRaw.includes(fullTitleWithBrand))
-      ) {
-        return { eventId, brand, eventName };
-      }
-    }
-    return null;
-  },
+  // ==================================================
+  // 1. 公開データ取得 API（Webアプリ & 定期通知バッチ）
+  // ==================================================
 
   /**
    * イベントマスターシートからWebアプリ用のイベント一覧オブジェクト配列を生成
@@ -470,6 +391,10 @@ const SheetService = {
     return results;
   },
 
+  // ==================================================
+  // 2. 公開データ登録・更新 API（Webアプリ & 外部リソース書き戻し）
+  // ==================================================
+
   /**
    * イベントマスターの指定行にカレンダーIDを保存する
    * @param {number} rowIndex - 1始まりの行番号
@@ -720,5 +645,92 @@ const SheetService = {
     applySheet.getRange(targetRow, APPLY_COL.APPLY_METHOD + 1).setValue(data.method || '');
     applySheet.getRange(targetRow, APPLY_COL.RESULT_DATE + 1).setValue(data.resultDatetime || '');
     applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
+  },
+
+  // ==================================================
+  // 3. データアクセス内部ヘルパー・シート取得・マッピング
+  // ==================================================
+
+  /**
+   * 共通スプレッドシートオブジェクトを取得
+   * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null}
+   */
+  getSpreadsheet() {
+    try {
+      if (COMMON_SHEET_URL) {
+        return SpreadsheetApp.openByUrl(COMMON_SHEET_URL);
+      }
+      return SpreadsheetApp.getActiveSpreadsheet();
+    } catch (e) {
+      logError("SheetService.getSpreadsheet", e);
+      return null;
+    }
+  },
+
+  /**
+   * 「イベントマスター」シートを取得
+   * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
+   */
+  getMasterSheet() {
+    const ss = this.getSpreadsheet();
+    return ss ? ss.getSheetByName("イベントマスター") : null;
+  },
+
+  /**
+   * 「申し込み管理」シートを取得
+   * @returns {GoogleAppsScript.Spreadsheet.Sheet|null}
+   */
+  getApplySheet() {
+    const ss = this.getSpreadsheet();
+    return ss ? ss.getSheetByName("申し込み管理") : null;
+  },
+
+  /**
+   * イベントマスターシートのデータ配列から eventId をキーとした情報マップを生成
+   * @param {Array<Array<any>>} masterData - イベントマスターの全行データ
+   * @returns {Object<string, {brand: string, eventName: string}>}
+   */
+  getMasterEventMap(masterData) {
+    const masterMap = {};
+    if (!masterData || masterData.length <= 1) return masterMap;
+
+    for (let i = 1; i < masterData.length; i++) {
+      const eventId = masterData[i][MASTER_COL.ID];
+      if (eventId) {
+        masterMap[eventId] = {
+          brand: masterData[i][MASTER_COL.BRAND],
+          eventName: masterData[i][MASTER_COL.EVENT_NAME]
+        };
+      }
+    }
+    return masterMap;
+  },
+
+  /**
+   * イベント名またはブランド名込みのタイトルからイベントマスター情報を逆引き検索する
+   * @param {Array<Array<any>>} masterData 
+   * @param {string} rawTitle 
+   * @returns {{eventId: string, brand: string, eventName: string}|null}
+   */
+  findMasterEventByTitle(masterData, rawTitle) {
+    if (!masterData || masterData.length <= 1 || !rawTitle) return null;
+    const cleanRaw = String(rawTitle).trim();
+
+    for (let i = 1; i < masterData.length; i++) {
+      const eventId = masterData[i][MASTER_COL.ID];
+      const brand = masterData[i][MASTER_COL.BRAND] || "";
+      const eventName = masterData[i][MASTER_COL.EVENT_NAME] || "";
+      const fullTitleWithBrand = brand ? `【${brand}】${eventName}` : eventName;
+
+      if (
+        cleanRaw === fullTitleWithBrand ||
+        cleanRaw === eventName ||
+        (eventName && cleanRaw.includes(eventName)) ||
+        (fullTitleWithBrand && cleanRaw.includes(fullTitleWithBrand))
+      ) {
+        return { eventId, brand, eventName };
+      }
+    }
+    return null;
   }
 };
