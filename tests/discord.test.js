@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import vm from 'vm';
@@ -258,7 +258,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
-  describe('formatApplyRemindItem', () => {
+  describe('formatRemindItem', () => {
     it('申込締切アイテムが正しくフォーマットされること', () => {
       const dummyItem = {
         brandEvent: '【学マス】LIVE TOUR',
@@ -267,7 +267,10 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         method: 'https://asobistore.jp/ticket'
       };
 
-      const result = DiscordService.formatApplyRemindItem(dummyItem);
+      const result = DiscordService.formatRemindItem(dummyItem, {
+        timeLabel: '締切時刻',
+        timeStr: dummyItem.timeStr
+      });
       expect(result).toContain('📅 **【学マス】LIVE TOUR**');
       expect(result).toContain('└ 受付区分: アソビストア限定先行');
       expect(result).toContain('└ 締切時刻: **23:59まで**');
@@ -283,41 +286,107 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         applyMethod: 'https://example.com'
       };
 
-      const result = DiscordService.formatApplyRemindItem(dtoItem);
+      const result = DiscordService.formatRemindItem(dtoItem, {
+        timeLabel: '締切時刻',
+        timeStr: `${dtoItem.endDatetime}まで`
+      });
       expect(result).toContain('📅 **【学マス】初星公演**');
       expect(result).toContain('└ 受付区分: WEB先行');
       expect(result).toContain('└ 締切時刻: **2026-11-20 23:59まで**');
       expect(result).toContain('└ 申込方法: https://example.com');
     });
-  });
 
-  describe('formatPaymentRemindItem', () => {
     it('入金締切アイテムが正しくフォーマットされること', () => {
       const dummyItem = {
         brandEvent: '【デレ】7th LIVE',
         applyName: '一般先行',
-        timeStr: '21:00まで',
         method: ''
       };
 
-      const result = DiscordService.formatPaymentRemindItem(dummyItem);
+      const result = DiscordService.formatRemindItem(dummyItem, {
+        timeLabel: '入金締切',
+        timeStr: '21:00まで'
+      });
       expect(result).toContain('📅 **【デレ】7th LIVE**');
       expect(result).toContain('└ 受付区分: 一般先行');
       expect(result).toContain('└ 入金締切: **21:00まで**');
     });
+  });
 
-    it('共通DTO形式（brand, eventName, payEndDatetime）から正しく自動フォーマットされること', () => {
-      const dtoItem = {
-        brand: 'デレ',
-        eventName: '7th LIVE',
-        applyName: '一般先行',
-        payEndDatetime: '21:00まで'
-      };
+  describe('REMIND_CONFIGS', () => {
+    it('全リマインド種別の設定が正しく定義されていること', () => {
+      const configs = DiscordService.REMIND_CONFIGS;
+      expect(configs.APPLY).toBeDefined();
+      expect(configs.FIRST_COME).toBeDefined();
+      expect(configs.RESALE).toBeDefined();
+      expect(configs.PAYMENT).toBeDefined();
 
-      const result = DiscordService.formatPaymentRemindItem(dtoItem);
-      expect(result).toContain('📅 **【デレ】7th LIVE**');
-      expect(result).toContain('└ 受付区分: 一般先行');
-      expect(result).toContain('└ 入金締切: **21:00まで**');
+      expect(configs.APPLY.timeLabel).toBe('締切時刻');
+      expect(configs.FIRST_COME.timeLabel).toBe('開始日時');
+      expect(configs.RESALE.timeLabel).toBe('締切日時');
+      expect(configs.PAYMENT.timeLabel).toBe('入金締切');
+    });
+
+    it('FIRST_COME の getTimeStr で「から」が適切に補完されること', () => {
+      const getTimeStr = DiscordService.REMIND_CONFIGS.FIRST_COME.getTimeStr;
+      expect(getTimeStr({ startDatetime: '12:00' })).toBe('12:00から');
+      expect(getTimeStr({ timeStr: '12:00から' })).toBe('12:00から');
+    });
+
+    it('RESALE の getTimeStr で「まで」が適切に補完されること', () => {
+      const getTimeStr = DiscordService.REMIND_CONFIGS.RESALE.getTimeStr;
+      expect(getTimeStr({ endDatetime: '23:59' })).toBe('23:59まで');
+      expect(getTimeStr({ deadlineStr: '23:59まで' })).toBe('23:59まで');
+    });
+  });
+
+  describe('sendRemindNotification', () => {
+    it('未定義の種別が渡された場合に例外を投げること', () => {
+      expect(() => {
+        DiscordService.sendRemindNotification('UNKNOWN_TYPE', []);
+      }).toThrow('未定義のリマインド種別です');
+    });
+
+    it('0件の場合に空メッセージ通知またはログ出力が正しく実行されること', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+      const spyLog = vi.spyOn(testContext.Logger, 'log').mockImplementation(() => {});
+
+      // APPLY: emptyMessage あり
+      DiscordService.sendRemindNotification('APPLY', []);
+      expect(spySend).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('本日締切のチケット申込はありません！'));
+
+      // PAYMENT: emptyLog あり
+      DiscordService.sendRemindNotification('PAYMENT', []);
+      expect(spyLog).toHaveBeenCalledWith('本日入金締切のチケットはありませんでした。');
+
+      // FIRST_COME: 0件時は何もしない
+      spySend.mockClear();
+      spyLog.mockClear();
+      DiscordService.sendRemindNotification('FIRST_COME', []);
+      expect(spySend).not.toHaveBeenCalled();
+      expect(spyLog).not.toHaveBeenCalled();
+
+      spySend.mockRestore();
+      spyLog.mockRestore();
+    });
+
+    it('アイテムが存在する場合に sendItemListNotification が正しく呼び出されること', () => {
+      const spySendList = vi.spyOn(DiscordService, 'sendItemListNotification').mockImplementation(() => {});
+
+      const items = [{
+        brand: '学マス',
+        eventName: '初星公演',
+        applyName: '先行',
+        endDatetime: '2026-11-20 23:59'
+      }];
+
+      DiscordService.sendRemindNotification('APPLY', items);
+      expect(spySendList).toHaveBeenCalledWith(expect.objectContaining({
+        headerTitle: expect.stringContaining('本日締切のチケット申込があります！'),
+        items: items
+      }));
+
+      spySendList.mockRestore();
     });
   });
 

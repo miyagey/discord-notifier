@@ -117,142 +117,100 @@ const DiscordService = {
   },
 
   /**
-   * 申込締切リマインドの各アイテム文字列をフォーマット
+   * リマインド種別ごとの設定マップ
+   * @type {Object.<RemindType, RemindConfigDto>}
+   */
+  get REMIND_CONFIGS() {
+    return {
+      APPLY: {
+        webhookUrl: WEBHOOK_APPLY,
+        headerTitle: "🔔 **本日締切のチケット申込があります！**",
+        emptyMessage: "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n",
+        withFooter: true,
+        timeLabel: "締切時刻",
+        getTimeStr: (item) => item.timeStr || (item.endDatetime ? `${item.endDatetime}まで` : "")
+      },
+      FIRST_COME: {
+        webhookUrl: WEBHOOK_APPLY,
+        headerTitle: "🏃 **明日から先着受付が始まります！忘れずに！**",
+        withFooter: false,
+        timeLabel: "開始日時",
+        getTimeStr: (item) => {
+          const timeStr = item.timeStr || (item.startDatetime ? `${item.startDatetime}から` : "");
+          return timeStr.includes("から") ? timeStr : `${timeStr}から`;
+        }
+      },
+      RESALE: {
+        webhookUrl: WEBHOOK_APPLY,
+        headerTitle: "🔄 **受付中のリセールがあります！**",
+        withFooter: false,
+        timeLabel: "締切日時",
+        getTimeStr: (item) => {
+          const deadlineStr = item.deadlineStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
+          return deadlineStr.includes("まで") ? deadlineStr : `${deadlineStr}まで`;
+        }
+      },
+      PAYMENT: {
+        webhookUrl: WEBHOOK_PAYMENT,
+        headerTitle: "💸 **本日入金締切のチケットがあります！**",
+        emptyLog: "本日入金締切のチケットはありませんでした。",
+        withFooter: false,
+        timeLabel: "入金締切",
+        getTimeStr: (item) => item.timeStr || (item.payEndDatetime ? `${item.payEndDatetime}` : "")
+      }
+    };
+  },
+
+  /**
+   * リマインドアイテムの各文字列をフォーマット
    * @param {ApplicationDto} item - 申込アイテムDTO
+   * @param {Object} options - フォーマットオプション
+   * @param {string} options.timeLabel - 時間ラベル
+   * @param {string} options.timeStr - 時間文字列
    * @returns {string}
    */
-  formatApplyRemindItem(item) {
+  formatRemindItem(item, { timeLabel, timeStr }) {
     if (!item) return "";
     const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
     const applyName = item.applyName || "未指定";
-    const timeStr = item.timeStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
     const method = item.method || item.applyMethod || "";
 
-    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 締切時刻: **${timeStr}**\n`;
+    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ ${timeLabel}: **${timeStr}**\n`;
     if (method) str += this.formatApplyMethodBlock(method);
     return str;
   },
 
   /**
-   * 先着受付リマインドの各アイテム文字列をフォーマット
-   * @param {ApplicationDto} item - 先着アイテムDTO
-   * @returns {string}
-   */
-  formatFirstComeRemindItem(item) {
-    if (!item) return "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
-    const applyName = item.applyName || "未指定";
-    const timeStr = item.timeStr || (item.startDatetime ? `${item.startDatetime}から` : "");
-    const method = item.method || item.applyMethod || "";
-
-    const displayTime = timeStr.includes("から") ? timeStr : `${timeStr}から`;
-    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 開始日時: **${displayTime}**\n`;
-    if (method) str += this.formatApplyMethodBlock(method);
-    return str;
-  },
-
-  /**
-   * リセールリマインドの各アイテム文字列をフォーマット
-   * @param {ApplicationDto} item - リセールアイテムDTO
-   * @returns {string}
-   */
-  formatResaleRemindItem(item) {
-    if (!item) return "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
-    const applyName = item.applyName || "未指定";
-    const deadlineStr = item.deadlineStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
-    const method = item.method || item.applyMethod || "";
-
-    const displayDeadline = deadlineStr.includes("まで") ? deadlineStr : `${deadlineStr}まで`;
-    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 締切日時: **${displayDeadline}**\n`;
-    if (method) str += this.formatApplyMethodBlock(method);
-    return str;
-  },
-
-  /**
-   * 入金締切リマインドの各アイテム文字列をフォーマット
-   * @param {ApplicationDto} item - 入金アイテムDTO
-   * @returns {string}
-   */
-  formatPaymentRemindItem(item) {
-    if (!item) return "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
-    const applyName = item.applyName || "未指定";
-    const timeStr = item.timeStr || (item.payEndDatetime ? `${item.payEndDatetime}` : "");
-    const method = item.method || item.applyMethod || "";
-
-    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 入金締切: **${timeStr}**\n`;
-    if (method) str += this.formatApplyMethodBlock(method);
-    return str;
-  },
-
-  /**
-   * 本日締切の申込一覧リマインド通知を送信
+   * リマインド種別に応じた通知を送信 (完全集約型)
+   * @param {RemindType} type - リマインド種別 ('APPLY' | 'FIRST_COME' | 'RESALE' | 'PAYMENT')
    * @param {ApplicationDto[]} items - 申込アイテム配列
    */
-  sendApplyRemindNotification(items) {
-    if (items && items.length > 0) {
-      const headerTitle = "🔔 **本日締切のチケット申込があります！**";
-      const footer = "\n" + this.getRegistrationFooterMessage();
-      this.sendItemListNotification({
-        webhookUrl: WEBHOOK_APPLY,
-        headerTitle: headerTitle,
-        items: items,
-        formatItemFunc: (item) => this.formatApplyRemindItem(item),
-        footer: footer
-      });
-    } else {
-      const message = "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n" + this.getRegistrationFooterMessage();
-      this.sendNotification(WEBHOOK_APPLY, message);
+  sendRemindNotification(type, items) {
+    const config = this.REMIND_CONFIGS[type];
+    if (!config) {
+      throw new Error(`未定義のリマインド種別です: ${type}`);
     }
-  },
 
-  /**
-   * 翌日開始の先着受付リマインド通知を送信
-   * @param {ApplicationDto[]} items - 先着アイテム配列
-   */
-  sendFirstComeRemindNotification(items) {
-    if (!items || items.length === 0) return;
-    const headerTitle = "🏃 **明日から先着受付が始まります！忘れずに！**";
-    this.sendItemListNotification({
-      webhookUrl: WEBHOOK_APPLY,
-      headerTitle: headerTitle,
-      items: items,
-      formatItemFunc: (item) => this.formatFirstComeRemindItem(item)
-    });
-  },
-
-  /**
-   * 受付期間中のリセールリマインド通知を送信
-   * @param {ApplicationDto[]} items - リセールアイテム配列
-   */
-  sendResaleRemindNotification(items) {
-    if (!items || items.length === 0) return;
-    const headerTitle = "🔄 **受付中のリセールがあります！**";
-    this.sendItemListNotification({
-      webhookUrl: WEBHOOK_APPLY,
-      headerTitle: headerTitle,
-      items: items,
-      formatItemFunc: (item) => this.formatResaleRemindItem(item)
-    });
-  },
-
-  /**
-   * 本日入金締切リマインド通知を送信（フッターなし）
-   * @param {ApplicationDto[]} items - 入金アイテム配列
-   */
-  sendPaymentRemindNotification(items) {
     if (!items || items.length === 0) {
-      Logger.log("本日入金締切のチケットはありませんでした。");
+      if (config.emptyMessage) {
+        const message = config.emptyMessage + (config.withFooter ? this.getRegistrationFooterMessage() : "");
+        this.sendNotification(config.webhookUrl, message);
+      } else if (config.emptyLog) {
+        Logger.log(config.emptyLog);
+      }
       return;
     }
-    const headerTitle = "💸 **本日入金締切のチケットがあります！**";
-    // 入金締切通知はフッター不要のため footer は指定しない
+
+    const footer = config.withFooter ? "\n" + this.getRegistrationFooterMessage() : undefined;
     this.sendItemListNotification({
-      webhookUrl: WEBHOOK_PAYMENT,
-      headerTitle: headerTitle,
+      webhookUrl: config.webhookUrl,
+      headerTitle: config.headerTitle,
       items: items,
-      formatItemFunc: (item) => this.formatPaymentRemindItem(item)
+      formatItemFunc: (item) => this.formatRemindItem(item, {
+        timeLabel: config.timeLabel,
+        timeStr: config.getTimeStr(item)
+      }),
+      footer: footer
     });
   },
 
