@@ -17,6 +17,40 @@ function formatDateJST(date, formatStr) {
 }
 
 /**
+ * 開始日と終了日を受け取り、期間文字列を生成する
+ * 同日なら単一日付、異なれば YYYY-MM-DD 〜 YYYY-MM-DD
+ * @param {Date|string} startDate - 開始日
+ * @param {Date|string} [endDate] - 終了日
+ * @returns {string} フォーマットされた日付範囲文字列
+ */
+function formatDateRange(startDate, endDate) {
+  if (!startDate) return "";
+  const startStr = formatDateJST(startDate, "yyyy-MM-dd");
+  if (!startStr) return "";
+
+  const endStr = endDate ? formatDateJST(endDate, "yyyy-MM-dd") : "";
+  if (!endStr || startStr === endStr) {
+    return startStr;
+  }
+  return `${startStr} 〜 ${endStr}`;
+}
+
+/**
+ * ブランド名とイベント名からタイトル文字列を生成する（二重付与防止）
+ * @param {string} brand - ブランド名 (例: "デレ", "シャニ")
+ * @param {string} eventName - イベント名 (例: "LIVE TOUR", "【デレ】THE IDOLM@STER...")
+ * @returns {string} 整形されたタイトル文字列
+ */
+function formatBrandEventTitle(brand, eventName) {
+  const name = eventName ? String(eventName).trim() : "";
+  if (!name) return brand ? `【${brand}】` : "";
+  if (name.startsWith("【")) return name;
+  const brandStr = brand ? `【${brand}】` : "";
+  return `${brandStr}${name}`;
+}
+
+
+/**
  * エラーログを統一形式で出力する
  * @param {string} context - エラーが発生した処理・関数名
  * @param {Error|any} error - キャッチされたエラーオブジェクト

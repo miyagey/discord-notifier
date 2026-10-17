@@ -67,29 +67,13 @@ function createEvent(data) {
       throw new Error('イベント名と開始日は必須項目です。');
     }
 
-    // Google カレンダー同期 & Discord通知
+    // Google カレンダー同期 & Discord通知（イベントDTOをそのまま渡す）
     let calId = '';
     try {
-      const title = DiscordService.formatBrandEventTitle(data.brand, data.name);
-      calId = CalendarService.createAllDayEvent({
-        title: title,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        location: data.location,
-        summary: data.summary
-      }) || '';
+      calId = CalendarService.createAllDayEvent(data) || '';
 
       if (calId) {
-        let dateStr = formatDateJST(new Date(data.startDate), "MM/dd");
-        if (data.endDate && data.endDate !== data.startDate) {
-          dateStr += ` 〜 ${formatDateJST(new Date(data.endDate), "MM/dd")}`;
-        }
-        DiscordService.notifyNewCalendarEvent({
-          brandEventTitle: title,
-          dateStr: dateStr,
-          location: data.location,
-          summary: data.summary
-        });
+        DiscordService.notifyNewCalendarEvent(data);
       }
     } catch (calErr) {
       logError('createEvent.calendarSync', calErr);
