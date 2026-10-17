@@ -81,22 +81,10 @@ function createEvent(data) {
 
     const eventId = SheetService.insertEvent(data, calId);
 
-    // Discord テキストチャンネルの自動作成
+    // Discord テキストチャンネルの自動作成（イベントDTOをそのまま渡す）
     let discordChannelId = null;
     try {
-      discordChannelId = DiscordService.createEventChannel({
-        eventId: eventId,
-        brand: data.brand,
-        name: data.name,
-        eventName: data.name,
-        rawEventName: data.name,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        venue: data.location,
-        location: data.location,
-        description: data.summary,
-        summary: data.summary
-      });
+      discordChannelId = DiscordService.createEventChannel({ ...data, eventId });
 
       // 作成成功時、チャンネルIDをスプレッドシートへ書き戻し
       if (discordChannelId) {
@@ -144,16 +132,9 @@ function createApplication(data) {
 
     const applyId = SheetService.insertApplication(data);
 
-    // Discord通知
+    // Discord通知（申込DTOをそのまま渡す）
     try {
-      DiscordService.notifyNewApplication({
-        brand: data.brand,
-        eventName: data.eventName,
-        applyName: data.applyName,
-        endDatetime: data.endDatetime,
-        payEndDatetime: data.payEndDatetime,
-        method: data.method
-      });
+      DiscordService.notifyNewApplication(data);
     } catch (notifyErr) {
       logError('createApplication.notifyDiscord', notifyErr);
     }
