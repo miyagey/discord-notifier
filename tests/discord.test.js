@@ -205,6 +205,100 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
+  describe('fetchDiscordApi (Discord Bot API 共通クライアント)', () => {
+    it('相対パスのエンドポイントにベースURLを付与し、Botトークン認証ヘッダー付きでリクエストすること', () => {
+      let requestedUrl = '';
+      let requestedOptions = null;
+
+      testContext.UrlFetchApp.fetch = (url, options) => {
+        requestedUrl = url;
+        requestedOptions = options;
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify({ ok: true })
+        };
+      };
+
+      const result = DiscordService.fetchDiscordApi('/users/@me', { method: 'get' });
+
+      expect(requestedUrl).toBe('https://discord.com/api/v10/users/@me');
+      expect(requestedOptions.method).toBe('get');
+      expect(requestedOptions.headers.Authorization).toBe('Bot mock-bot-token');
+      expect(requestedOptions.contentType).toBe('application/json');
+      expect(result).toEqual({ success: true, status: 200, data: { ok: true } });
+    });
+
+    it('PROXY_BASE_URL が設定されている場合、URLをプロキシベースURLに置換すること', () => {
+      let requestedUrl = '';
+      const originalProxy = testContext.PROXY_BASE_URL;
+      testContext.PROXY_BASE_URL = 'https://my-proxy.example.com';
+
+      testContext.UrlFetchApp.fetch = (url) => {
+        requestedUrl = url;
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => '{}'
+        };
+      };
+
+      DiscordService.fetchDiscordApi('/guilds/123');
+      expect(requestedUrl).toBe('https://my-proxy.example.com/api/v10/guilds/123');
+
+      testContext.PROXY_BASE_URL = originalProxy;
+    });
+
+    it('payload が渡された場合、JSON文字列化されて送信されること', () => {
+      let requestedOptions = null;
+
+      testContext.UrlFetchApp.fetch = (url, options) => {
+        requestedOptions = options;
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => '{"created":true}'
+        };
+      };
+
+      const res = DiscordService.fetchDiscordApi('/channels', {
+        method: 'post',
+        payload: { name: 'test-channel' }
+      });
+
+      expect(requestedOptions.method).toBe('post');
+      expect(JSON.parse(requestedOptions.payload)).toEqual({ name: 'test-channel' });
+      expect(res.success).toBe(true);
+      expect(res.data).toEqual({ created: true });
+    });
+
+    it('HTTPエラーステータス（例: 400）の場合、success: false を返すこと', () => {
+      testContext.UrlFetchApp.fetch = () => ({
+        getResponseCode: () => 400,
+        getContentText: () => JSON.stringify({ message: 'Invalid Form Body', code: 50035 })
+      });
+
+      const res = DiscordService.fetchDiscordApi('/guilds/123/channels', { method: 'post' });
+
+      expect(res.success).toBe(false);
+      expect(res.status).toBe(400);
+      expect(res.data.code).toBe(50035);
+    });
+
+    it('DISCORD_BOT_TOKEN が未設定の場合はリクエストを行わず null を返すこと', () => {
+      const originalToken = testContext.DISCORD_BOT_TOKEN;
+      testContext.DISCORD_BOT_TOKEN = '';
+
+      let called = false;
+      testContext.UrlFetchApp.fetch = () => {
+        called = true;
+      };
+
+      const res = DiscordService.fetchDiscordApi('/users/@me');
+      expect(res).toBeNull();
+      expect(called).toBe(false);
+
+      testContext.DISCORD_BOT_TOKEN = originalToken;
+    });
+  });
+
   describe('createEventChannel (トピック設定 & チャンネル作成)', () => {
     it('正しいペイロード（サニタイズされたname, topic）でDiscord APIを呼び出し、チャンネルIDを返すこと', () => {
       let requestedUrl = '';

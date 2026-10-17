@@ -46,7 +46,7 @@ flowchart TD
 | :--- | :--- | :--- |
 | **オーケストレーション層** | `spreadsheet/定期通知バッチ.js`<br>`spreadsheet/Webアプリ.js` | 処理全体のフロー制御に専念する。<br>・定期バッチ: データの抽出指示 ➔ フォーマット指示 ➔ 送信指示<br>・Webアプリ: リクエスト受付 ➔ 各層の呼び出し（カレンダー・チャンネル作成等） ➔ レスポンス返却 |
 | **データアクセス層** | `spreadsheet/スプレッドシート操作.js`<br>(`SheetService`) | スプレッドシートのシート構造・列インデックス（`MASTER_COL`, `APPLY_COL`）を隠蔽し、データの取得・保存を行う。<br>外部層に対しては名前付きプロパティのモデルオブジェクト（DTO）を返す。 |
-| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。 |
+| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
 | **共通設定・定数** | `spreadsheet/設定値.js`<br>`spreadsheet/共通関数.js` | 環境変数・Webhook URL・Bot トークン・日付ユーティリティ・エラーロガーなどの横断的機能を集中管理する。 |
 

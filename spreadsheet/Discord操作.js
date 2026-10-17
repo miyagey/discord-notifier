@@ -412,6 +412,65 @@ const DiscordService = {
   },
 
   /**
+   * Discord REST API (Bot Token認証) を呼び出す汎用クライアントメソッド
+   * @param {string} endpoint - APIエンドポイント (例: `/guilds/${guildId}/channels`) または完全なURL
+   * @param {Object} [options] - リクエストオプション
+   * @param {'get'|'post'|'patch'|'put'|'delete'} [options.method='get'] - HTTPメソッド (小文字/大文字不問)
+   * @param {Object} [options.payload=null] - 送信するJSONペイロードオブジェクト
+   * @returns {{ success: boolean, status: number, data: any }|null} レスポンスオブジェクト（Token未設定時は null）
+   */
+  fetchDiscordApi(endpoint, { method = 'get', payload = null } = {}) {
+    if (!DISCORD_BOT_TOKEN) {
+      Logger.log("DISCORD_BOT_TOKEN が設定されていないため、Discord API 呼び出しをスキップします。");
+      return null;
+    }
+
+    let url = endpoint.startsWith('http')
+      ? endpoint
+      : `https://discord.com/api/v10${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+    if (PROXY_BASE_URL && url.includes("https://discord.com")) {
+      url = url.replace("https://discord.com", PROXY_BASE_URL);
+    }
+
+    const requestOptions = {
+      method: method.toLowerCase(),
+      contentType: "application/json",
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      muteHttpExceptions: true
+    };
+
+    if (payload !== null && payload !== undefined) {
+      requestOptions.payload = JSON.stringify(payload);
+    }
+
+    try {
+      const response = UrlFetchApp.fetch(url, requestOptions);
+      const status = response.getResponseCode();
+      const contentText = response.getContentText();
+
+      let data = null;
+      if (contentText) {
+        try {
+          data = JSON.parse(contentText);
+        } catch (_) {
+          data = contentText;
+        }
+      }
+
+      const success = status >= 200 && status < 300;
+      if (!success) {
+        Logger.log(`Discord API エラー (${status}) [${method.toUpperCase()} ${endpoint}]: ${contentText}`);
+      }
+
+      return { success, status, data };
+    } catch (e) {
+      Logger.log(`Discord API 呼び出し中に例外が発生しました [${method.toUpperCase()} ${endpoint}]: ${e.toString()}`);
+      return { success: false, status: 0, error: e };
+    }
+  },
+
+  /**
    * イベント用 Discord テキストチャンネルを作成し、概要設定および初回メッセージの投稿を行う
    * @param {Object} event - イベントデータオブジェクト ({ eventId, brand, eventName, rawEventName, startDate, endDate, venue, location, description, summary })
    * @returns {string|null} 作成された Discord チャンネルID（失敗時は null）
@@ -449,12 +508,6 @@ const DiscordService = {
       `概要: ${description}`
     ].join('\n').substring(0, 1024);
 
-    // 4. API エンドポイントの設定
-    let apiUrl = `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/channels`;
-    if (PROXY_BASE_URL && apiUrl.includes("https://discord.com")) {
-      apiUrl = apiUrl.replace("https://discord.com", PROXY_BASE_URL);
-    }
-
     const payload = {
       name: sanitizedName,
       type: 0, // ギルドテキストチャンネル
@@ -462,40 +515,29 @@ const DiscordService = {
       topic: topicText
     };
 
-    const options = {
-      method: "post",
-      contentType: "application/json",
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
+    const res = this.fetchDiscordApi(`/guilds/${DISCORD_GUILD_ID}/channels`, {
+      method: 'post',
+      payload: payload
+    });
 
-    try {
-      const response = UrlFetchApp.fetch(apiUrl, options);
-      const resCode = response.getResponseCode();
-      if (resCode !== 200 && resCode !== 201) {
-        Logger.log(`Discord チャンネル作成失敗 (Status: ${resCode}): ${response.getContentText()}`);
-        return null;
-      }
-
-      const data = JSON.parse(response.getContentText());
-      const channelId = data.id;
-      Logger.log(`Discord チャンネルを作成しました: ${data.name} (ID: ${channelId})`);
-
-      // 5. 作成されたチャンネルへ初回イベント詳細メッセージを投稿
-      this.sendFirstMessageToChannel(channelId, {
-        ...event,
-        displayName: displayName,
-        dateStr: dateStr,
-        venue: venue,
-        description: description
-      });
-
-      return channelId;
-    } catch (e) {
-      Logger.log(`Discord チャンネル作成処理で例外が発生しました: ${e.toString()}`);
+    if (!res || !res.success || !res.data) {
+      Logger.log("Discord チャンネル作成に失敗しました。");
       return null;
     }
+
+    const channelId = res.data.id;
+    Logger.log(`Discord チャンネルを作成しました: ${res.data.name} (ID: ${channelId})`);
+
+    // 4. 作成されたチャンネルへ初回イベント詳細メッセージを投稿
+    this.sendFirstMessageToChannel(channelId, {
+      ...event,
+      displayName: displayName,
+      dateStr: dateStr,
+      venue: venue,
+      description: description
+    });
+
+    return channelId;
   },
 
   /**
@@ -505,11 +547,6 @@ const DiscordService = {
    */
   sendFirstMessageToChannel(channelId, event) {
     if (!channelId || !DISCORD_BOT_TOKEN) return;
-
-    let messageUrl = `https://discord.com/api/v10/channels/${channelId}/messages`;
-    if (PROXY_BASE_URL && messageUrl.includes("https://discord.com")) {
-      messageUrl = messageUrl.replace("https://discord.com", PROXY_BASE_URL);
-    }
 
     // ブランドに応じた枠線カラーの判定
     const embedColor = typeof getBrandColor === 'function' ? getBrandColor(event.brand) : 0x3498db;
@@ -526,19 +563,13 @@ const DiscordService = {
       footer: { text: `Event ID: ${event.eventId || 'NEW'}` }
     };
 
-    const options = {
-      method: "post",
-      contentType: "application/json",
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      payload: JSON.stringify({ embeds: [embed] }),
-      muteHttpExceptions: true
-    };
+    const res = this.fetchDiscordApi(`/channels/${channelId}/messages`, {
+      method: 'post',
+      payload: { embeds: [embed] }
+    });
 
-    try {
-      UrlFetchApp.fetch(messageUrl, options);
+    if (res && res.success) {
       Logger.log(`チャンネル (${channelId}) へ初回メッセージを投稿しました。`);
-    } catch (e) {
-      Logger.log(`初回メッセージ投稿エラー: ${e.toString()}`);
     }
   }
 };
