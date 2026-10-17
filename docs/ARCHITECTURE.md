@@ -48,7 +48,8 @@ flowchart TD
 | **データアクセス層** | `spreadsheet/スプレッドシート操作.js`<br>(`SheetService`) | スプレッドシートのシート構造・列インデックス（`MASTER_COL`, `APPLY_COL`）を隠蔽し、データの取得・保存を行う。<br>外部層に対しては名前付きプロパティのモデルオブジェクト（DTO）を返す。 |
 | **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
-| **共通設定・定数** | `spreadsheet/設定値.js`<br>`spreadsheet/共通関数.js` | 環境変数・Webhook URL・Bot トークン・日付ユーティリティ・エラーロガーなどの横断的機能を集中管理する。 |
+| **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
+| **共通設定・定数** | `spreadsheet/設定値.js` | 環境変数・Webhook URL・Bot トークンなどの設定値やプロパティ取得を集中管理する。 |
 
 ---
 
@@ -79,21 +80,17 @@ flowchart TD
   ```javascript
   /**
    * 終日イベントを Google カレンダーに登録する
-   * @param {Object} params
-   * @param {string} params.title - イベントタイトル
-   * @param {Date|string} params.startDate - 開始日
-   * @param {Date|string} [params.endDate] - 終了日
-   * @param {string} [params.location] - 会場
-   * @param {string} [params.summary] - 概要
+   * @param {Object} event - イベントDTO
+   * @param {string} [event.title] - イベントタイトル（未指定時は内部生成）
+   * @param {string} [event.brand] - ブランド名
+   * @param {string} [event.name] - イベント名
+   * @param {Date|string} event.startDate - 開始日
+   * @param {Date|string} [event.endDate] - 終了日
+   * @param {string} [event.location] - 会場
+   * @param {string} [event.summary] - 概要
    * @returns {string|null}
    */
-  CalendarService.createAllDayEvent({
-    title,
-    startDate,
-    endDate,
-    location,
-    summary
-  });
+  CalendarService.createAllDayEvent(event);
   ```
 
 ### 2.4 オーケストレーション層の一本道フロー規約
@@ -106,6 +103,14 @@ flowchart TD
   - 日付計算やデフォルト値生成は `SheetService` や `CalendarService` 内部で自動算出する。
 - **DTO バケツリレーの徹底**:
   - サービス層から取得したオブジェクト・配列は、オーケストレーション層で分解・加工せず、そのまま次のサービス層へ受け渡す。
+
+### 2.5 サービス層および共通関数の設計規約
+- **共通関数の配置基準**:
+  - 特定の外部API（Discord, Calendar, Spreadsheet）に依存しない、純粋なデータ変換・フォーマット処理（日付のフォーマット `formatDateRange`、タイトルの文字列結合 `formatBrandEventTitle` など）は必ず `共通関数.js` に配置する。
+  - `DiscordService` や `CalendarService` などの外部サービス用モジュール内に、汎用的な文字列整形関数を持たせてはならない。
+- **イベントDTO受け渡しの原則**:
+  - オーケストレーション層（`Webアプリ.js`, `定期通知バッチ.js`）でタイトル文字列や日付範囲文字列（`dateStr`）などの表示用データを事前生成してはならない。
+  - サービス層（`CalendarService`, `DiscordService`）は、基本情報を持つイベントオブジェクト（DTO: `{ eventId, brand, eventName, startDate, endDate, venue, description }`）を引数として直接受け取り、必要な加工は各サービス内部で共通関数を用いて行う。
 
 ---
 

@@ -27,17 +27,30 @@ const CalendarService = {
 
   /**
    * 終日イベントを Google カレンダーに登録する (DTOパターン)
-   * @param {Object} params - パラメータオブジェクト
-   * @param {string} params.title - イベントタイトル
-   * @param {Date|string} params.startDate - 開始日
-   * @param {Date|string} [params.endDate] - 終了日 (省略時は開始日当日)
-   * @param {string} [params.location] - 会場
-   * @param {string} [params.summary] - 概要
+   * @param {Object} event - イベントDTO
+   * @param {string} [event.title] - イベントタイトル（未指定時は brand と name/eventName から生成）
+   * @param {string} [event.brand] - ブランド名
+   * @param {string} [event.name] - イベント名
+   * @param {string} [event.eventName] - イベント名
+   * @param {Date|string} [event.startDate] - 開始日
+   * @param {Date|string} [event.startDateRaw] - 開始日（未登録イベント用）
+   * @param {Date|string} [event.endDate] - 終了日
+   * @param {Date|string} [event.endDateRaw] - 終了日（未登録イベント用）
+   * @param {string} [event.location] - 会場
+   * @param {string} [event.venue] - 会場
+   * @param {string} [event.summary] - 概要
+   * @param {string} [event.description] - 概要
    * @returns {string|null} 登録されたイベントID、失敗時は null
    */
-  createAllDayEvent({ title, startDate, endDate, location, summary }) {
+  createAllDayEvent(event) {
     const calendar = this.getCalendar();
-    if (!calendar) return null;
+    if (!calendar || !event) return null;
+
+    const title = event.title || formatBrandEventTitle(event.brand, event.name || event.eventName);
+    const startDate = event.startDate || event.startDateRaw;
+    const endDate = event.endDate || event.endDateRaw;
+    const location = event.location || event.venue || "";
+    const summary = event.summary || event.description || "";
 
     const startD = (startDate instanceof Date) ? new Date(startDate) : new Date(startDate);
     const endRaw = endDate || startDate;
@@ -50,8 +63,8 @@ const CalendarService = {
     if (location) options.location = location;
     if (summary) options.description = summary;
 
-    const event = calendar.createAllDayEvent(title, startD, endD, options);
-    const eventId = event.getId();
+    const calEvent = calendar.createAllDayEvent(title, startD, endD, options);
+    const eventId = calEvent.getId();
     Logger.log(`カレンダー登録成功: ${title} (ID: ${eventId})`);
     return eventId;
   },
@@ -124,23 +137,14 @@ const CalendarService = {
     let registeredCount = 0;
 
     for (const ev of unregisteredEvents) {
-      const title = DiscordService.formatBrandEventTitle(ev.brand, ev.eventName);
-      const calId = this.createAllDayEvent({
-        title: title,
-        startDate: ev.startDateRaw,
-        endDate: ev.endDateRaw,
-        location: ev.location,
-        summary: ev.summary
-      });
+      const calId = this.createAllDayEvent(ev);
 
       if (calId) {
         SheetService.updateMasterCalendarId(ev.rowIndex, calId);
         registeredCount++;
 
-        let dateStr = formatDateJST(new Date(ev.startDateRaw), "yyyy-MM-dd");
-        if (ev.endDateRaw && ev.endDateRaw !== ev.startDateRaw) {
-          dateStr += ` 〜 ${formatDateJST(new Date(ev.endDateRaw), "yyyy-MM-dd")}`;
-        }
+        const title = formatBrandEventTitle(ev.brand, ev.eventName);
+        const dateStr = formatDateRange(ev.startDateRaw, ev.endDateRaw);
 
         registeredEventsLog.push({
           title: title,

@@ -267,7 +267,7 @@ const SheetService = {
 
       const masterInfo = masterMap[eventId] || {};
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = DiscordService.formatBrandEventTitle(masterInfo.brand, eventName);
+      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
       const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
 
@@ -318,7 +318,7 @@ const SheetService = {
 
       const masterInfo = masterMap[eventId] || {};
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = DiscordService.formatBrandEventTitle(masterInfo.brand, eventName);
+      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
       const formattedTime = formatDateJST(applyStartDateRaw, "HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 
@@ -370,7 +370,7 @@ const SheetService = {
       if (todayStr >= applyStartStr && todayStr <= applyEndStr) {
         const masterInfo = masterMap[eventId] || {};
         const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-        const brandEventTitle = DiscordService.formatBrandEventTitle(masterInfo.brand, eventName);
+        const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
         const formattedEndTime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
         const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 
@@ -423,7 +423,7 @@ const SheetService = {
 
       const masterInfo = masterMap[eventId] || {};
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
-      const brandEventTitle = DiscordService.formatBrandEventTitle(masterInfo.brand, eventName);
+      const brandEventTitle = formatBrandEventTitle(masterInfo.brand, eventName);
       const formattedTime = formatDateJST(payEndDateRaw, "HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
 

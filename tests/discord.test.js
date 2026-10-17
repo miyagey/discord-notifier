@@ -24,32 +24,82 @@ beforeAll(() => {
       log: () => {}
     },
     console: console,
+    Date: Date,
     String: String,
-    JSON: JSON
+    JSON: JSON,
+    isNaN: isNaN,
+    Utilities: {
+      formatDate(date, timeZone, formatStr) {
+        if (!date || isNaN(new Date(date).getTime())) return '';
+        const d = new Date(date);
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        const jstOffset = 9 * 60 * 60000;
+        const jstDate = new Date(utc + jstOffset);
+
+        const year = jstDate.getFullYear();
+        const month = String(jstDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jstDate.getDate()).padStart(2, '0');
+        const hours = String(jstDate.getHours()).padStart(2, '0');
+        const minutes = String(jstDate.getMinutes()).padStart(2, '0');
+
+        return formatStr
+          .replace(/yyyy/g, String(year))
+          .replace(/MM/g, month)
+          .replace(/dd/g, day)
+          .replace(/HH/g, hours)
+          .replace(/mm/g, minutes);
+      }
+    }
   };
+
+  const commonJsPath = path.resolve(__dirname, '../spreadsheet/共通関数.js');
+  const commonJsContent = fs.readFileSync(commonJsPath, 'utf8');
 
   const discordJsPath = path.resolve(__dirname, '../spreadsheet/Discord操作.js');
   const discordJsContent = fs.readFileSync(discordJsPath, 'utf8');
 
   vm.createContext(testContext);
+  vm.runInContext(commonJsContent, testContext);
   DiscordService = vm.runInContext(`${discordJsContent};\nDiscordService;`, testContext);
 });
 
 describe('Discord操作.js (フォーマッター・メッセージ生成) の単体テスト', () => {
-  describe('formatBrandEventTitle', () => {
-    it('ブランド名とイベント名から正しくタイトルを生成すること', () => {
-      const result = DiscordService.formatBrandEventTitle('学マス', '学園アイドルマスター 初星公演');
-      expect(result).toBe('【学マス】学園アイドルマスター 初星公演');
+  describe('notifyNewCalendarEvent', () => {
+    it('イベントDTOを受け取り、正しく整形してカレンダー通知を送信すること', () => {
+      let sentWebhook = '';
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentWebhook = webhook;
+        sentMessage = message;
+      };
+
+      const event = {
+        brand: 'シャニ',
+        eventName: 'LIVE TOUR',
+        startDate: '2026-11-07',
+        endDate: '2026-11-08',
+        location: '幕張メッセ',
+        summary: 'ツアー詳細情報'
+      };
+
+      DiscordService.notifyNewCalendarEvent(event);
+
+      expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
+      expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
+      expect(sentMessage).toContain('📅 **【シャニ】LIVE TOUR**');
+      expect(sentMessage).toContain('└ 期間: **2026-11-07 〜 2026-11-08 [終日]**');
+      expect(sentMessage).toContain('└ 会場: 幕張メッセ');
+      expect(sentMessage).toContain('└ 概要: ツアー詳細情報');
     });
 
-    it('イベント名に既に【】が含まれる場合、二重付与しないこと', () => {
-      const result = DiscordService.formatBrandEventTitle('デレ', '【デレ】THE IDOLM@STER CINDERELLA GIRLS');
-      expect(result).toBe('【デレ】THE IDOLM@STER CINDERELLA GIRLS');
-    });
+    it('event が null または未指定の場合は送信をスキップすること', () => {
+      let called = false;
+      DiscordService.sendNotification = () => {
+        called = true;
+      };
 
-    it('ブランド名が空の場合はイベント名のみ返却すること', () => {
-      const result = DiscordService.formatBrandEventTitle('', '単独イベント名');
-      expect(result).toBe('単独イベント名');
+      DiscordService.notifyNewCalendarEvent(null);
+      expect(called).toBe(false);
     });
   });
 

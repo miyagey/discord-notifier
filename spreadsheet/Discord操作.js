@@ -9,20 +9,6 @@
 const DiscordService = {
 
   /**
-   * ブランド名とイベント名からタイトル文字列を生成する（二重付与防止）
-   * @param {string} brand - ブランド名 (例: "デレ")
-   * @param {string} eventName - イベント名 (例: "THE IDOLM@STER...", "【デレ】THE IDOLM@STER...")
-   * @returns {string} 整形されたタイトル文字列
-   */
-  formatBrandEventTitle(brand, eventName) {
-    const name = eventName ? String(eventName).trim() : "";
-    if (!name) return brand ? `【${brand}】` : "";
-    if (name.startsWith("【")) return name;
-    const brandStr = brand ? `【${brand}】` : "";
-    return `${brandStr}${name}`;
-  },
-
-  /**
    * 申込方法（URLまたは複数行テキスト）をDiscord用に整形する
    * @param {string} methodText - 申込方法の文字列
    * @returns {string} 整形された申込方法行
@@ -280,14 +266,26 @@ const DiscordService = {
 
   /**
    * Googleカレンダー登録完了のDiscord通知を送信 (DTOパターン)
-   * @param {Object} params - パラメータオブジェクト
-   * @param {string} params.brandEventTitle - イベントタイトル
-   * @param {string} params.dateStr - 期間文字列
-   * @param {string} [params.location] - 会場
-   * @param {string} [params.summary] - 概要
+   * @param {Object} event - イベントDTO
+   * @param {string} [event.title] - イベントタイトル（未指定時は brand と name/eventName から生成）
+   * @param {string} [event.brand] - ブランド名
+   * @param {string} [event.name] - イベント名
+   * @param {string} [event.eventName] - イベント名
+   * @param {Date|string} [event.startDate] - 開始日
+   * @param {Date|string} [event.endDate] - 終了日
+   * @param {string} [event.dateStr] - 期間文字列（未指定時は startDate と endDate から生成）
+   * @param {string} [event.location] - 会場
+   * @param {string} [event.venue] - 会場
+   * @param {string} [event.summary] - 概要
+   * @param {string} [event.description] - 概要
    */
-  notifyNewCalendarEvent({ brandEventTitle, dateStr, location, summary }) {
-    if (!WEBHOOK_CALENDAR) return;
+  notifyNewCalendarEvent(event) {
+    if (!WEBHOOK_CALENDAR || !event) return;
+
+    const brandEventTitle = event.title || event.brandEventTitle || formatBrandEventTitle(event.brand, event.name || event.eventName);
+    const dateStr = event.dateStr || formatDateRange(event.startDate, event.endDate);
+    const location = event.location || event.venue || "";
+    const summary = event.summary || event.description || "";
 
     const lines = [
       "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
@@ -322,7 +320,7 @@ const DiscordService = {
   notifyNewApplication({ brand, eventName, applyName, endDatetime, payEndDatetime, method }) {
     if (!WEBHOOK_APPLY) return;
 
-    const brandEventTitle = this.formatBrandEventTitle(brand, eventName);
+    const brandEventTitle = formatBrandEventTitle(brand, eventName);
     const lines = [
       "🆕 **新しいチケット申込が登録されたよ！**\n",
       `📅 **${brandEventTitle}**`,
