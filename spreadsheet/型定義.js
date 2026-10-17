@@ -69,3 +69,21 @@
  * @property {string} dateTitle - 日付タイトル (例: "11/07(土)")
  * @property {CalendarEventItemDto[]} events - 予定イベント配列
  */
+
+/**
+ * リマインド通知種別の列挙型
+ * @typedef {'APPLY' | 'FIRST_COME' | 'RESALE' | 'PAYMENT'} RemindType
+ */
+
+/**
+ * リマインド設定 DTO
+ * @typedef {Object} RemindConfigDto
+ * @property {string} webhookUrl - 送信先 Webhook URL
+ * @property {string} headerTitle - メッセージ見出しタイトル
+ * @property {string} [emptyMessage] - 0件時の通知メッセージ（指定時は送信）
+ * @property {string} [emptyLog] - 0件時のログメッセージ（指定時はログ出力）
+ * @property {boolean} [withFooter] - 登録フッターを含めるかどうか
+ * @property {string} timeLabel - 時間表示ラベル（例: "締切時刻", "開始日時"）
+ * @property {function(ApplicationDto): string} getTimeStr - アイテムから時間文字列を抽出する関数
+ */
+

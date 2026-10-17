@@ -12,19 +12,19 @@ function remindEndDate() {
   try {
     // 1. 通常申込（先着・リセール以外）の本日締切通知
     const regularItems = SheetService.fetchDeadlineApplyItems();
-    DiscordService.sendApplyRemindNotification(regularItems);
+    DiscordService.sendRemindNotification("APPLY", regularItems);
 
     Utilities.sleep(500);
 
     // 2. 翌日開始の先着受付通知
     const firstComeItems = SheetService.fetchFirstComeApplyItems();
-    DiscordService.sendFirstComeRemindNotification(firstComeItems);
+    DiscordService.sendRemindNotification("FIRST_COME", firstComeItems);
 
     Utilities.sleep(500);
     
     // 3. 受付期間中のリセール通知
     const resaleItems = SheetService.fetchResaleApplyItems();
-    DiscordService.sendResaleRemindNotification(resaleItems);
+    DiscordService.sendRemindNotification("RESALE", resaleItems);
 
   } catch (e) {
     Logger.log("申込通知処理でエラーが発生しました: " + e.toString());
@@ -42,7 +42,7 @@ function remindPaymentEndDate() {
     const items = SheetService.fetchPaymentApplyItems();
 
     // 2. Discordへ通知（0件時のログ判定・Embed構築はDiscordService側に委譲）
-    DiscordService.sendPaymentRemindNotification(items);
+    DiscordService.sendRemindNotification("PAYMENT", items);
 
   } catch (e) {
     Logger.log("入金締切処理でエラーが発生しました: " + e.toString());
