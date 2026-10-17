@@ -49,6 +49,7 @@ flowchart TD
 | **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
 | **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
+| **型定義層 (Type Definitions)** | `spreadsheet/型定義.js` | JSDoc の `@typedef` を用いて、システム全体で受け渡される DTO（`EventDto`, `ApplicationDto`, `TomorrowEventsDto` 等）のスキーマを一元管理する。 |
 | **共通設定・定数** | `spreadsheet/設定値.js` | 環境変数・Webhook URL・Bot トークンなどの設定値やプロパティ取得を集中管理する。 |
 
 ---
@@ -76,18 +77,13 @@ flowchart TD
 
 ### 2.3 DTO (Data Transfer Object) / Parameter Object パターン
 - 3つ以上の引数やオプション項目を持つ関数・メソッドは、単一のオブジェクト引数形式とし、JSDoc で構造を明示する。
-- 引数の順番間違いによるバグを防止し、引数の追加・省略に柔軟に対応する。
+- **共通型定義ファイル (`spreadsheet/型定義.js`) の活用**:
+  - DTO の詳細プロパティ（キー名・型・説明）は `型定義.js` 内の `@typedef` で集中定義する。
+  - 各サービスの関数側では `@param {EventDto} event` や `@param {ApplicationDto} application` のように簡潔に型参照を行い、重複した長大 JSDoc によるコード可読性の低下を防ぐ。
   ```javascript
   /**
    * 終日イベントを Google カレンダーに登録する
-   * @param {Object} event - イベントDTO
-   * @param {string} [event.title] - イベントタイトル（未指定時は内部生成）
-   * @param {string} [event.brand] - ブランド名
-   * @param {string} [event.name] - イベント名
-   * @param {Date|string} event.startDate - 開始日
-   * @param {Date|string} [event.endDate] - 終了日
-   * @param {string} [event.location] - 会場
-   * @param {string} [event.summary] - 概要
+   * @param {EventDto} event - イベントDTO
    * @returns {string|null}
    */
   CalendarService.createAllDayEvent(event);

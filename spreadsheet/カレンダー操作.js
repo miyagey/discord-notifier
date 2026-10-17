@@ -26,20 +26,8 @@ const CalendarService = {
   },
 
   /**
-   * 終日イベントを Google カレンダーに登録する (DTOパターン)
-   * @param {Object} event - イベントDTO
-   * @param {string} [event.title] - イベントタイトル（未指定時は brand と name/eventName から生成）
-   * @param {string} [event.brand] - ブランド名
-   * @param {string} [event.name] - イベント名
-   * @param {string} [event.eventName] - イベント名
-   * @param {Date|string} [event.startDate] - 開始日
-   * @param {Date|string} [event.startDateRaw] - 開始日（未登録イベント用）
-   * @param {Date|string} [event.endDate] - 終了日
-   * @param {Date|string} [event.endDateRaw] - 終了日（未登録イベント用）
-   * @param {string} [event.location] - 会場
-   * @param {string} [event.venue] - 会場
-   * @param {string} [event.summary] - 概要
-   * @param {string} [event.description] - 概要
+   * 終日イベントを Google カレンダーに登録する
+   * @param {EventDto} event - イベントDTO
    * @returns {string|null} 登録されたイベントID、失敗時は null
    */
   createAllDayEvent(event) {
@@ -72,7 +60,7 @@ const CalendarService = {
   /**
    * 明日の予定イベントを取得して整形する
    * @param {Date} [baseDate] - 基準日 (省略時は現在日時)
-   * @returns {{dateTitle: string, events: Array<{title: string, timeStr: string, location: string, description: string}>}|null}
+   * @returns {TomorrowEventsDto|null}
    */
   getTomorrowEvents(baseDate) {
     const calendar = this.getCalendar();
@@ -124,7 +112,7 @@ const CalendarService = {
 
   /**
    * 未登録イベントを Google カレンダーへ登録し、スプレッドシートへIDを書き戻す（一括同期処理）
-   * @param {Array<Object>} unregisteredEvents - 未登録イベントの配列
+   * @param {EventDto[]} unregisteredEvents - 未登録イベントDTO配列
    * @returns {number} 登録成功件数
    */
   syncEventsToSheet(unregisteredEvents) {
