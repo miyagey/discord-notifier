@@ -436,7 +436,10 @@ const DiscordService = {
     const requestOptions = {
       method: method.toLowerCase(),
       contentType: "application/json",
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+        "User-Agent": "DiscordBot (https://github.com/miyagey/discord-notifier, 1.0.0)"
+      },
       muteHttpExceptions: true
     };
 
