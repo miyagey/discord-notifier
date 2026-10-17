@@ -145,5 +145,18 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       DiscordService.notifyTomorrowEvents({ dateTitle: '10/19(月)', events: [] });
       expect(sentMessage).toContain('明日の予定はありません。');
     });
+
+    it('tomorrowEvents が null または未指定の場合は送信をスキップすること', () => {
+      let called = false;
+      DiscordService.sendNotification = () => {
+        called = true;
+      };
+
+      DiscordService.notifyTomorrowEvents(null);
+      expect(called).toBe(false);
+
+      DiscordService.notifyTomorrowEvents();
+      expect(called).toBe(false);
+    });
   });
 });

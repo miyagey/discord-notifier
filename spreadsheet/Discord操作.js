@@ -372,13 +372,12 @@ const DiscordService = {
   notifyTomorrowEvents(tomorrowEvents) {
     if (!WEBHOOK_CALENDAR) return;
 
-    const { dateTitle, events } = tomorrowEvents || {};
-
-    if (!dateTitle) {
+    if (!tomorrowEvents) {
       Logger.log("明日のカレンダー予定の取得結果がありませんでした。");
       return;
     }
 
+    const { dateTitle, events } = tomorrowEvents;
     const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
 
     if (!events || events.length === 0) {
