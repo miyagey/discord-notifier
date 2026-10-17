@@ -228,11 +228,12 @@ const SheetService = {
 
   /**
    * 本日締切の通常申込アイテム（先着・リセール以外）を抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
-   * @param {Date} now - 現在時刻（時刻考慮用）
+   * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchDeadlineApplyItems(todayStr, now) {
+  fetchDeadlineApplyItems(baseDate = new Date()) {
+    const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -258,8 +259,8 @@ const SheetService = {
       const applyEndStr = formatDateJST(applyEndDateRaw, "yyyy-MM-dd");
       if (applyEndStr !== todayStr) continue;
 
-      // 締切時刻が現在時刻より過去の場合はスキップ（時刻考慮）
-      if (new Date(applyEndDateRaw) <= now) continue;
+      // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
+      if (new Date(applyEndDateRaw) <= baseDate) continue;
 
       const masterInfo = masterMap[eventId] || {};
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
@@ -279,11 +280,15 @@ const SheetService = {
   },
 
   /**
-   * 明日開始の先着受付アイテムを抽出
-   * @param {string} tomorrowStr - 明日の日付文字列 ("yyyy-MM-dd")
+   * 翌日開始の先着受付アイテムを抽出
+   * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchFirstComeApplyItems(tomorrowStr) {
+  fetchFirstComeApplyItems(baseDate = new Date()) {
+    const tomorrow = new Date(baseDate);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = formatDateJST(tomorrow, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -327,10 +332,12 @@ const SheetService = {
 
   /**
    * 現在受付期間中のリセールアイテムを抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
+   * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, deadlineStr: string, method: string}>}
    */
-  fetchResaleApplyItems(todayStr) {
+  fetchResaleApplyItems(baseDate = new Date()) {
+    const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -378,11 +385,12 @@ const SheetService = {
 
   /**
    * 本日締切の入金アイテムを抽出
-   * @param {string} todayStr - 本日の日付文字列 ("yyyy-MM-dd")
-   * @param {Date} now - 現在時刻（時刻考慮用）
+   * @param {Date} [baseDate=new Date()] - 基準日時（省略時は現在日時）
    * @returns {Array<{brandEvent: string, applyName: string, timeStr: string, method: string}>}
    */
-  fetchPaymentApplyItems(todayStr, now) {
+  fetchPaymentApplyItems(baseDate = new Date()) {
+    const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
+
     const items = [];
     const ss = this.getSpreadsheet();
     if (!ss) return items;
@@ -407,8 +415,8 @@ const SheetService = {
       const payEndStr = formatDateJST(payEndDateRaw, "yyyy-MM-dd");
       if (payEndStr !== todayStr) continue;
 
-      // 締切時刻が現在時刻より過去の場合はスキップ（時刻考慮）
-      if (new Date(payEndDateRaw) <= now) continue;
+      // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
+      if (new Date(payEndDateRaw) <= baseDate) continue;
 
       const masterInfo = masterMap[eventId] || {};
       const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT];
@@ -431,7 +439,7 @@ const SheetService = {
    * カレンダー未登録のイベントマスター行を取得
    * @returns {Array<{rowIndex: number, brand: string, eventName: string, startDateRaw: any, endDateRaw: any, location: string, summary: string}>}
    */
-  getUnsyncedMasterEvents() {
+  fetchUnregisteredCalendarEvents() {
     const masterSheet = this.getMasterSheet();
     if (!masterSheet) return [];
 
@@ -690,16 +698,3 @@ const SheetService = {
     applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
   }
 };
-
-// ==================================================
-// 後方互換用グローバル関数エイリアス
-// ==================================================
-function getSpreadsheet() { return SheetService.getSpreadsheet(); }
-function getMasterEventMap(masterData) { return SheetService.getMasterEventMap(masterData); }
-function findMasterEventByTitle(masterData, rawTitle) { return SheetService.findMasterEventByTitle(masterData, rawTitle); }
-function fetchEventsFromSheet(masterSheet) { return SheetService.fetchEvents(masterSheet); }
-function fetchApplicationsFromSheet(applySheet, events) { return SheetService.fetchApplications(applySheet, events); }
-function fetchNewSheetApplyItems(todayStr, now) { return SheetService.fetchDeadlineApplyItems(todayStr, now); }
-function fetchFirstComeApplyItemsTomorrow(tomorrowStr) { return SheetService.fetchFirstComeApplyItems(tomorrowStr); }
-function fetchResaleApplyItemsActive(todayStr) { return SheetService.fetchResaleApplyItems(todayStr); }
-function fetchPaymentApplyItems(todayStr, now) { return SheetService.fetchPaymentApplyItems(todayStr, now); }

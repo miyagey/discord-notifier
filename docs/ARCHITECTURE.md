@@ -10,33 +10,34 @@
 
 ```mermaid
 flowchart TD
-    subgraph Orchestration ["1. オーケストレーション層"]
-        Batch["定期通知バッチ.js"]
-        WebApp["Webアプリ.js (doGet / API)"]
+    subgraph OrchestrationLayer ["1. オーケストレーション層 (制御フロー)"]
+        Batch["定期通知バッチ.js<br>（一本道のフロー制御・DTO受渡）"]
+        WebApp["Webアプリ.js<br>（doGet / API ハンドラー）"]
     end
 
-    subgraph DataAccess ["2. データアクセス層"]
-        SheetService["SheetService (スプレッドシート操作.js)"]
+    subgraph ServiceLayer ["2. ドメイン・サービス層 (ビジネスロジック)"]
+        SheetService["SheetService (スプレッドシート操作.js)<br>データ抽出・列隠蔽・DTO生成"]
+        CalendarService["CalendarService (カレンダー操作.js)<br>カレンダー同期・予定取得"]
+        DiscordService["DiscordService (Discord操作.js)<br>メッセージ整形・0件判定・分割送信"]
     end
 
-    subgraph Presentation ["3. プレゼンテーション / メッセージ層"]
-        DiscordService["DiscordService (Discord操作.js)"]
+    subgraph ExternalLayer ["3. 外部連携・データストア層"]
+        GSheet["Google スプレッドシート<br>(イベントマスター / 申し込み管理)"]
+        GCal["Google カレンダー API"]
+        Discord["Discord Webhook (UrlFetchApp)"]
     end
 
-    subgraph External ["4. 外部リソース連携層"]
-        CalendarService["CalendarService (カレンダー操作.js)"]
-        UrlFetch["UrlFetchApp (Discord Webhook)"]
-    end
+    Batch -->|"データ取得・更新要求"| SheetService
+    Batch -->|"予定同期・取得要求"| CalendarService
+    Batch -->|"DTO通知要求"| DiscordService
 
-    Batch -->|"データ取得・更新"| SheetService
-    Batch -->|"フォーマット・送信"| DiscordService
-    Batch -->|"カレンダー同期"| CalendarService
+    WebApp -->|"CRUD操作"| SheetService
+    WebApp -->|"イベント登録"| CalendarService
+    WebApp -->|"即時通知要求"| DiscordService
 
-    WebApp -->|"データ操作"| SheetService
-    WebApp -->|"新着通知"| DiscordService
-    WebApp -->|"カレンダー追加"| CalendarService
-
-    DiscordService -->|"Webhook送信"| UrlFetch
+    SheetService <-->|"SpreadsheetApp API"| GSheet
+    CalendarService <-->|"CalendarApp API"| GCal
+    DiscordService -->|"HTTP POST リクエスト"| Discord
 ```
 
 ### 1.1 各層の役割とファイル対応
@@ -94,6 +95,17 @@ flowchart TD
     summary
   });
   ```
+
+### 2.4 オーケストレーション層の一本道フロー規約
+- **早期リターン (ガード節) の禁止**:
+  - `定期通知バッチ.js` などのオーケストレーション層では、取得件数による `if (items.length === 0) return;` などの条件分岐を記述しない。
+  - 0件時のログ出力や送信スキップ処理は、呼び出されるサービス層（`DiscordService` や `CalendarService`）の内部で完結させる。
+  - メイン関数は必ず末尾の完了ログ（`Logger.log("=== ...が正常終了しました ===")`) まで到達する「一本道フロー」を保つ。
+- **日付生成・フォーマットのカプセル化**:
+  - 実行時の「現在日付」に依存する処理において、メイン関数側で `new Date()` やフォーマット変換を行ってサービス層へ渡さない。
+  - 日付計算やデフォルト値生成は `SheetService` や `CalendarService` 内部で自動算出する。
+- **DTO バケツリレーの徹底**:
+  - サービス層から取得したオブジェクト・配列は、オーケストレーション層で分解・加工せず、そのまま次のサービス層へ受け渡す。
 
 ---
 

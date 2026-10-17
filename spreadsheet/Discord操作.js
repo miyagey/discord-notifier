@@ -230,7 +230,10 @@ const DiscordService = {
    * @param {Array<Object>} items - 入金アイテム配列
    */
   sendPaymentRemindNotification(items) {
-    if (!items || items.length === 0) return;
+    if (!items || items.length === 0) {
+      Logger.log("本日入金締切のチケットはありませんでした。");
+      return;
+    }
     const headerTitle = "💸 **本日入金締切のチケットがあります！**";
     // 入金締切通知はフッター不要のため footer は指定しない
     this.sendItemListNotification({
@@ -362,12 +365,19 @@ const DiscordService = {
 
   /**
    * 明日の予定一覧通知を送信
-   * @param {string} dateTitle - 日付タイトル (例: "10/02(金)")
-   * @param {Array<{title: string, timeStr: string, location?: string, description?: string}>} events 
+   * @param {Object} [tomorrowEvents] - 予定結果オブジェクト
+   * @param {string} [tomorrowEvents.dateTitle] - 日付タイトル ("MM/dd(E)")
+   * @param {Array<{title: string, timeStr: string, location?: string, description?: string}>} [tomorrowEvents.events] - イベント配列
    */
-  notifyTomorrowEvents(dateTitle, events) {
+  notifyTomorrowEvents(tomorrowEvents) {
     if (!WEBHOOK_CALENDAR) return;
 
+    if (!tomorrowEvents) {
+      Logger.log("明日のカレンダー予定の取得結果がありませんでした。");
+      return;
+    }
+
+    const { dateTitle, events } = tomorrowEvents;
     const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
 
     if (!events || events.length === 0) {
