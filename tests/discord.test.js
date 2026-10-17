@@ -178,6 +178,68 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
+  describe('notifyNewApplication', () => {
+    it('申込DTOを受け取り、正しく整形してDiscordへ通知すること', () => {
+      let sentWebhook = '';
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentWebhook = webhook;
+        sentMessage = message;
+      };
+
+      const appData = {
+        brand: 'シャニ',
+        eventName: 'LIVE TOUR 2026',
+        applyName: 'CD先行抽選',
+        endDatetime: '2026-11-20 23:59',
+        payEndDatetime: '2026-11-25 21:00',
+        method: 'https://example.com/apply'
+      };
+
+      DiscordService.notifyNewApplication(appData);
+
+      expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-apply');
+      expect(sentMessage).toContain('🆕 **新しいチケット申込が登録されたよ！**');
+      expect(sentMessage).toContain('📅 **【シャニ】LIVE TOUR 2026**');
+      expect(sentMessage).toContain('└ 受付区分: CD先行抽選');
+      expect(sentMessage).toContain('└ 申込締切: **2026-11-20 23:59まで**');
+      expect(sentMessage).toContain('└ 入金締切: **2026-11-25 21:00まで**');
+      expect(sentMessage).toContain('└ 申込方法: https://example.com/apply');
+    });
+
+    it('name や applyMethod などのプロパティ名でも正しく解決できること', () => {
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentMessage = message;
+      };
+
+      const altAppData = {
+        brand: '学マス',
+        name: '初星公演',
+        applyName: 'WEB先行',
+        endDatetime: '2026-12-01 23:59',
+        applyMethod: 'シリアルコード入力'
+      };
+
+      DiscordService.notifyNewApplication(altAppData);
+
+      expect(sentMessage).toContain('📅 **【学マス】初星公演**');
+      expect(sentMessage).toContain('└ 受付区分: WEB先行');
+      expect(sentMessage).toContain('└ 申込締切: **2026-12-01 23:59まで**');
+      expect(sentMessage).toContain('└ 申込方法: シリアルコード入力');
+    });
+
+    it('application が null または未指定の場合は送信をスキップすること', () => {
+      let called = false;
+      DiscordService.sendNotification = () => {
+        called = true;
+      };
+
+      DiscordService.notifyNewApplication(null);
+      expect(called).toBe(false);
+    });
+  });
+
   describe('formatApplyMethodBlock', () => {
     it('1行テキスト（URL等）の場合はインラインで整形されること', () => {
       const result = DiscordService.formatApplyMethodBlock('https://example.com/apply');
@@ -211,6 +273,22 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(result).toContain('└ 締切時刻: **23:59まで**');
       expect(result).toContain('└ 申込方法: https://asobistore.jp/ticket');
     });
+
+    it('共通DTO形式（brand, eventName, endDatetime）から正しく自動フォーマットされること', () => {
+      const dtoItem = {
+        brand: '学マス',
+        eventName: '初星公演',
+        applyName: 'WEB先行',
+        endDatetime: '2026-11-20 23:59',
+        applyMethod: 'https://example.com'
+      };
+
+      const result = DiscordService.formatApplyRemindItem(dtoItem);
+      expect(result).toContain('📅 **【学マス】初星公演**');
+      expect(result).toContain('└ 受付区分: WEB先行');
+      expect(result).toContain('└ 締切時刻: **2026-11-20 23:59まで**');
+      expect(result).toContain('└ 申込方法: https://example.com');
+    });
   });
 
   describe('formatPaymentRemindItem', () => {
@@ -223,6 +301,20 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       };
 
       const result = DiscordService.formatPaymentRemindItem(dummyItem);
+      expect(result).toContain('📅 **【デレ】7th LIVE**');
+      expect(result).toContain('└ 受付区分: 一般先行');
+      expect(result).toContain('└ 入金締切: **21:00まで**');
+    });
+
+    it('共通DTO形式（brand, eventName, payEndDatetime）から正しく自動フォーマットされること', () => {
+      const dtoItem = {
+        brand: 'デレ',
+        eventName: '7th LIVE',
+        applyName: '一般先行',
+        payEndDatetime: '21:00まで'
+      };
+
+      const result = DiscordService.formatPaymentRemindItem(dtoItem);
       expect(result).toContain('📅 **【デレ】7th LIVE**');
       expect(result).toContain('└ 受付区分: 一般先行');
       expect(result).toContain('└ 入金締切: **21:00まで**');

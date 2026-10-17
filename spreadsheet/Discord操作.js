@@ -117,46 +117,72 @@ const DiscordService = {
   },
 
   /**
-   * 申込締切リマインドの各アイテム文字列をフォーマット
-   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * 申込締切リマインドの各アイテム文字列をフォーマット (DTO対応)
+   * @param {Object} item - 申込アイテムDTO
    * @returns {string}
    */
   formatApplyRemindItem(item) {
-    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切時刻: **${item.timeStr}**\n`;
-    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    if (!item) return "";
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
+    const applyName = item.applyName || "未指定";
+    const timeStr = item.timeStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
+    const method = item.method || item.applyMethod || "";
+
+    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 締切時刻: **${timeStr}**\n`;
+    if (method) str += this.formatApplyMethodBlock(method);
     return str;
   },
 
   /**
-   * 先着受付リマインドの各アイテム文字列をフォーマット
-   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * 先着受付リマインドの各アイテム文字列をフォーマット (DTO対応)
+   * @param {Object} item - 先着アイテムDTO
    * @returns {string}
    */
   formatFirstComeRemindItem(item) {
-    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 開始日時: **${item.timeStr}から**\n`;
-    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    if (!item) return "";
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
+    const applyName = item.applyName || "未指定";
+    const timeStr = item.timeStr || (item.startDatetime ? `${item.startDatetime}から` : "");
+    const method = item.method || item.applyMethod || "";
+
+    const displayTime = timeStr.includes("から") ? timeStr : `${timeStr}から`;
+    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 開始日時: **${displayTime}**\n`;
+    if (method) str += this.formatApplyMethodBlock(method);
     return str;
   },
 
   /**
-   * リセールリマインドの各アイテム文字列をフォーマット
-   * @param {{brandEvent: string, applyName: string, deadlineStr: string, method?: string}} item
+   * リセールリマインドの各アイテム文字列をフォーマット (DTO対応)
+   * @param {Object} item - リセールアイテムDTO
    * @returns {string}
    */
   formatResaleRemindItem(item) {
-    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 締切日時: **${item.deadlineStr}まで**\n`;
-    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    if (!item) return "";
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
+    const applyName = item.applyName || "未指定";
+    const deadlineStr = item.deadlineStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
+    const method = item.method || item.applyMethod || "";
+
+    const displayDeadline = deadlineStr.includes("まで") ? deadlineStr : `${deadlineStr}まで`;
+    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 締切日時: **${displayDeadline}**\n`;
+    if (method) str += this.formatApplyMethodBlock(method);
     return str;
   },
 
   /**
-   * 入金締切リマインドの各アイテム文字列をフォーマット
-   * @param {{brandEvent: string, applyName: string, timeStr: string, method?: string}} item
+   * 入金締切リマインドの各アイテム文字列をフォーマット (DTO対応)
+   * @param {Object} item - 入金アイテムDTO
    * @returns {string}
    */
   formatPaymentRemindItem(item) {
-    let str = `\n📅 **${item.brandEvent}**\n └ 受付区分: ${item.applyName}\n └ 入金締切: **${item.timeStr}**\n`;
-    if (item.method) str += this.formatApplyMethodBlock(item.method);
+    if (!item) return "";
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name);
+    const applyName = item.applyName || "未指定";
+    const timeStr = item.timeStr || (item.payEndDatetime ? `${item.payEndDatetime}` : "");
+    const method = item.method || item.applyMethod || "";
+
+    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ 入金締切: **${timeStr}**\n`;
+    if (method) str += this.formatApplyMethodBlock(method);
     return str;
   },
 
@@ -309,22 +335,30 @@ const DiscordService = {
 
   /**
    * Webアプリ経由で登録された新着チケット申込をDiscordへ通知 (DTOパターン)
-   * @param {Object} params - パラメータオブジェクト
-   * @param {string} params.brand - ブランド名
-   * @param {string} params.eventName - イベント名
-   * @param {string} [params.applyName] - 受付名
-   * @param {string} [params.endDatetime] - 締切日時
-   * @param {string} [params.payEndDatetime] - 入金締切日時
-   * @param {string} [params.method] - 申込方法
+   * @param {Object} application - 申込情報DTO
+   * @param {string} [application.brand] - ブランド名
+   * @param {string} [application.eventName] - イベント名
+   * @param {string} [application.name] - イベント名
+   * @param {string} [application.brandEventTitle] - 整形済みタイトル（省略時は自動生成）
+   * @param {string} [application.applyName] - 受付名
+   * @param {string} [application.endDatetime] - 締切日時
+   * @param {string} [application.payEndDatetime] - 入金締切日時
+   * @param {string} [application.method] - 申込方法
+   * @param {string} [application.applyMethod] - 申込方法
    */
-  notifyNewApplication({ brand, eventName, applyName, endDatetime, payEndDatetime, method }) {
-    if (!WEBHOOK_APPLY) return;
+  notifyNewApplication(application) {
+    if (!WEBHOOK_APPLY || !application) return;
 
-    const brandEventTitle = formatBrandEventTitle(brand, eventName);
+    const brandEventTitle = application.brandEventTitle || formatBrandEventTitle(application.brand, application.eventName || application.name);
+    const applyName = application.applyName || "未指定";
+    const endDatetime = application.endDatetime || application.applyEndDate;
+    const payEndDatetime = application.payEndDatetime || application.payEndDate;
+    const method = application.method || application.applyMethod || "";
+
     const lines = [
       "🆕 **新しいチケット申込が登録されたよ！**\n",
       `📅 **${brandEventTitle}**`,
-      ` └ 受付区分: ${applyName || "未指定"}`
+      ` └ 受付区分: ${applyName}`
     ];
 
     if (endDatetime) lines.push(` └ 申込締切: **${endDatetime}まで**`);
@@ -508,11 +542,8 @@ const DiscordService = {
     // 1. ブランド名を抜いた公演名 (rawEventName, eventName, または name を使用)
     const displayName = event.rawEventName || event.eventName || event.name || '';
 
-    // 開催日時の表記フォーマット化
-    let dateStr = event.startDate || "未定";
-    if (event.endDate && event.endDate !== event.startDate) {
-      dateStr += ` 〜 ${event.endDate}`;
-    }
+    // 開催日時の表記フォーマット化（formatDateRange を活用）
+    const dateStr = formatDateRange(event.startDate, event.endDate) || event.startDate || "未定";
 
     const venue = event.venue || event.location || '未定';
     const description = event.description || event.summary || '特記事項なし';
