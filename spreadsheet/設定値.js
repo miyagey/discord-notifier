@@ -42,5 +42,20 @@ const WEBAPP_URL = (typeof CONFIG !== 'undefined' && CONFIG.WEBAPP_URL)
   ? CONFIG.WEBAPP_URL
   : (_props.getProperty("WEBAPP_URL") || "");
 
+/** Discord Bot Token（イベント用チャンネル自動作成等） */
+const DISCORD_BOT_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.DISCORD_BOT_TOKEN)
+  ? CONFIG.DISCORD_BOT_TOKEN
+  : (_props.getProperty("DISCORD_BOT_TOKEN") || "");
+
+/** Discord サーバーID (Guild ID) */
+const DISCORD_GUILD_ID = (typeof CONFIG !== 'undefined' && CONFIG.DISCORD_GUILD_ID)
+  ? CONFIG.DISCORD_GUILD_ID
+  : (_props.getProperty("DISCORD_GUILD_ID") || "");
+
+/** Discord チャンネル作成先カテゴリID (任意) */
+const DISCORD_CATEGORY_ID = (typeof CONFIG !== 'undefined' && CONFIG.DISCORD_CATEGORY_ID)
+  ? CONFIG.DISCORD_CATEGORY_ID
+  : (_props.getProperty("DISCORD_CATEGORY_ID") || "");
+
 
 

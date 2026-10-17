@@ -34,7 +34,7 @@ flowchart TB
 
     WebApp <-->|"データの取得・更新"| GSheet
     WebApp -->|"新規イベント作成"| GCal
-    WebApp -->|"即時通知"| Discord
+    WebApp -->|"チャンネル自動作成 & 即時通知"| Discord
 
     Batch -->|"締切・未同期データの参照"| GSheet
     Batch <-->|"イベント同期・明日の予定取得"| GCal
@@ -61,6 +61,7 @@ flowchart TB
 | `summary` | イベント概要 | 文字列 | 補足説明・メモ |
 | `calId` | カレンダー登録ID | 文字列 | Google カレンダー同期時の Event ID |
 | `status` | ステータス | 文字列 | 自動計算ステータス (`開催前` / `開催期間` / `開催終了`) |
+| `discordChannelId` | Discord チャンネルID | 文字列 | Discord Bot API で自動作成されたイベント専用チャンネルID |
 
 #### ステータス自動計算ルール (数式)
 ```excel
@@ -123,7 +124,7 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 | :--- | :--- | :--- | :--- |
 | `doGet(e)` | `e` (イベント) | `HtmlOutput` | Webアプリ画面を返却。初期データ（`events`, `applications`, `brands`）をHTMLに直接注入して高速表示 |
 | `getAppData()` | なし | `{ events, applications, brands }` | 最新のイベント・申込一覧を取得 |
-| `createEvent(data)` | `{ brand, name, startDate, endDate, location, summary }` | `{ success, eventId }` | イベント新規登録。Googleカレンダー追加および Discord 通知（`WEBHOOK_CALENDAR`）を実行 |
+| `createEvent(data)` | `{ brand, name, startDate, endDate, location, summary }` | `{ success, eventId, discordChannelId }` | イベント新規登録。Googleカレンダー追加、Discordテキストチャンネル自動作成（トピック設定・初回Embed投稿・ID書き戻し）、および通知を実行 |
 | `updateEvent(data)` | `{ id, brand, name, startDate, endDate, location, summary }` | `{ success }` | イベント情報更新。申し込み管理シートのブランド名・イベント名も同期更新 |
 | `createApplication(data)` | `{ eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success, applyId }` | 申込新規登録。Discord 通知（`WEBHOOK_APPLY`）を実行 |
 | `updateApplication(data)` | `{ id, eventId, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success }` | 申込情報更新（数式列は維持） |
