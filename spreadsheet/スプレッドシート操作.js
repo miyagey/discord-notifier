@@ -8,14 +8,16 @@
 
 /** 「イベントマスター」シートの列インデックス（0始まり） */
 const MASTER_COL = {
-  ID: 0,         // A列: イベントID
-  BRAND: 1,      // B列: ブランド名
-  EVENT_NAME: 2, // C列: イベント名
-  START_DATE: 3, // D列: 開始日
-  END_DATE: 4,   // E列: 終了日
-  LOCATION: 5,   // F列: 会場
-  SUMMARY: 6,    // G列: イベント概要
-  CAL_ID: 7      // H列: カレンダー登録ID
+  ID: 0,                 // A列: イベントID
+  BRAND: 1,              // B列: ブランド名
+  EVENT_NAME: 2,         // C列: イベント名
+  START_DATE: 3,         // D列: 開始日
+  END_DATE: 4,           // E列: 終了日
+  LOCATION: 5,           // F列: 会場
+  SUMMARY: 6,            // G列: イベント概要
+  CAL_ID: 7,             // H列: カレンダー登録ID
+  STATUS: 8,             // I列: ステータス (数式)
+  DISCORD_CHANNEL_ID: 9  // J列: Discord チャンネルID
 };
 
 /** 「申し込み管理」シートの列インデックス（0始まり） */
@@ -142,7 +144,7 @@ const SheetService = {
 
       const startDateRaw = row[MASTER_COL.START_DATE];
       const endDateRaw = row[MASTER_COL.END_DATE];
-      const sheetStatus = String(row[8] || '').trim();
+      const sheetStatus = String(row[MASTER_COL.STATUS] || '').trim();
 
       const startDate = startDateRaw ? formatDateJST(startDateRaw, 'yyyy-MM-dd') : '';
       const endDate = endDateRaw ? formatDateJST(endDateRaw, 'yyyy-MM-dd') : startDate;
@@ -157,7 +159,8 @@ const SheetService = {
         location: String(row[MASTER_COL.LOCATION] || '').trim(),
         summary: String(row[MASTER_COL.SUMMARY] || '').trim(),
         calId: String(row[MASTER_COL.CAL_ID] || '').trim(),
-        status: status
+        status: status,
+        discordChannelId: String(row[MASTER_COL.DISCORD_CHANNEL_ID] || '').trim()
       });
     }
 
@@ -480,8 +483,28 @@ const SheetService = {
   },
 
   /**
+   * イベントマスターの Discord チャンネルIDを書き戻し更新する
+   * @param {string} eventId - イベントID (EV-xxx)
+   * @param {string} discordChannelId - Discord チャンネルID
+   */
+  updateDiscordChannelId(eventId, discordChannelId) {
+    if (!eventId || !discordChannelId) return;
+    const sheet = this.getMasterSheet();
+    if (!sheet) return;
+
+    const values = sheet.getDataRange().getValues();
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][MASTER_COL.ID]).trim() === String(eventId).trim()) {
+        sheet.getRange(i + 1, MASTER_COL.DISCORD_CHANNEL_ID + 1).setValue(discordChannelId);
+        Logger.log(`イベント ${eventId} に Discord チャンネルID (${discordChannelId}) を書き戻しました。`);
+        return;
+      }
+    }
+  },
+
+  /**
    * イベントの新規追記（採番・数式設定含む）
-   * @param {Object} data - { brand, name, startDate, endDate, location, summary }
+   * @param {Object} data - { brand, name, startDate, endDate, location, summary, discordChannelId }
    * @param {string} [calId] - 連携カレンダーID
    * @returns {string} 発行されたイベントID (EV-xxx)
    */
@@ -523,7 +546,8 @@ const SheetService = {
       data.location || '',
       data.summary || '',
       calId || '',
-      masterIfsFormula
+      masterIfsFormula,
+      data.discordChannelId || ''
     ]);
 
     return eventId;

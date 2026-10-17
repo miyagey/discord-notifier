@@ -392,5 +392,153 @@ const DiscordService = {
     }
 
     this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
+  },
+
+  /**
+   * Discord チャンネル名用の文字列をサニタイズする
+   * @param {string} rawName - サニタイズ前の文字列
+   * @returns {string} サニタイズ後のチャンネル名
+   */
+  sanitizeChannelName(rawName) {
+    if (!rawName) return "event-channel";
+    const sanitized = String(rawName)
+      .toLowerCase()
+      .replace(/[\s\/\_]+/g, '-')
+      .replace(/[【】\[\]\(\)\!\?「」『』]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 99);
+    return sanitized || "event-channel";
+  },
+
+  /**
+   * イベント用 Discord テキストチャンネルを作成し、概要設定および初回メッセージの投稿を行う
+   * @param {Object} event - イベントデータオブジェクト ({ eventId, brand, eventName, rawEventName, startDate, endDate, venue, location, description, summary })
+   * @returns {string|null} 作成された Discord チャンネルID（失敗時は null）
+   */
+  createEventChannel(event) {
+    if (!DISCORD_BOT_TOKEN || !DISCORD_GUILD_ID) {
+      Logger.log("Discord Bot Token または Guild ID が設定されていないため、スキップします。");
+      return null;
+    }
+
+    if (!event) return null;
+
+    // 1. ブランド名を抜いた公演名 (rawEventName, eventName, または name を使用)
+    const displayName = event.rawEventName || event.eventName || event.name || '';
+
+    // 開催日時の表記フォーマット化
+    let dateStr = event.startDate || "未定";
+    if (event.endDate && event.endDate !== event.startDate) {
+      dateStr += ` 〜 ${event.endDate}`;
+    }
+
+    const venue = event.venue || event.location || '未定';
+    const description = event.description || event.summary || '特記事項なし';
+
+    // 2. チャンネル名の生成とサニタイズ (例: 学マス-live-tour-標)
+    const brand = event.brand || '';
+    const rawName = brand ? `${brand}-${displayName}` : displayName;
+    const sanitizedName = this.sanitizeChannelName(rawName);
+
+    // 3. トピック (チャンネル説明) テキストの構築
+    const topicText = [
+      `公演名: ${displayName}`,
+      `開催日時: ${dateStr}`,
+      `会場: ${venue}`,
+      `概要: ${description}`
+    ].join('\n').substring(0, 1024);
+
+    // 4. API エンドポイントの設定
+    let apiUrl = `https://discord.com/api/v10/guilds/${DISCORD_GUILD_ID}/channels`;
+    if (PROXY_BASE_URL && apiUrl.includes("https://discord.com")) {
+      apiUrl = apiUrl.replace("https://discord.com", PROXY_BASE_URL);
+    }
+
+    const payload = {
+      name: sanitizedName,
+      type: 0, // ギルドテキストチャンネル
+      parent_id: DISCORD_CATEGORY_ID || undefined,
+      topic: topicText
+    };
+
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(apiUrl, options);
+      const resCode = response.getResponseCode();
+      if (resCode !== 200 && resCode !== 201) {
+        Logger.log(`Discord チャンネル作成失敗 (Status: ${resCode}): ${response.getContentText()}`);
+        return null;
+      }
+
+      const data = JSON.parse(response.getContentText());
+      const channelId = data.id;
+      Logger.log(`Discord チャンネルを作成しました: ${data.name} (ID: ${channelId})`);
+
+      // 5. 作成されたチャンネルへ初回イベント詳細メッセージを投稿
+      this.sendFirstMessageToChannel(channelId, {
+        ...event,
+        displayName: displayName,
+        dateStr: dateStr,
+        venue: venue,
+        description: description
+      });
+
+      return channelId;
+    } catch (e) {
+      Logger.log(`Discord チャンネル作成処理で例外が発生しました: ${e.toString()}`);
+      return null;
+    }
+  },
+
+  /**
+   * 新規作成チャンネルへ初回イベント詳細メッセージ (Embed) を投稿する
+   * @param {string} channelId - Discord チャンネルID
+   * @param {Object} event - 整形済みイベントデータ
+   */
+  sendFirstMessageToChannel(channelId, event) {
+    if (!channelId || !DISCORD_BOT_TOKEN) return;
+
+    let messageUrl = `https://discord.com/api/v10/channels/${channelId}/messages`;
+    if (PROXY_BASE_URL && messageUrl.includes("https://discord.com")) {
+      messageUrl = messageUrl.replace("https://discord.com", PROXY_BASE_URL);
+    }
+
+    // ブランドに応じた枠線カラーの判定
+    const embedColor = typeof getBrandColor === 'function' ? getBrandColor(event.brand) : 0x3498db;
+
+    const embed = {
+      title: `🎉 ${event.displayName}`,
+      color: embedColor,
+      fields: [
+        { name: "公演名", value: event.displayName || "未定", inline: false },
+        { name: "開催日時", value: event.dateStr || "未定", inline: true },
+        { name: "会場", value: event.venue || "未定", inline: true },
+        { name: "概要", value: event.description || "特記事項なし", inline: false }
+      ],
+      footer: { text: `Event ID: ${event.eventId || 'NEW'}` }
+    };
+
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      payload: JSON.stringify({ embeds: [embed] }),
+      muteHttpExceptions: true
+    };
+
+    try {
+      UrlFetchApp.fetch(messageUrl, options);
+      Logger.log(`チャンネル (${channelId}) へ初回メッセージを投稿しました。`);
+    } catch (e) {
+      Logger.log(`初回メッセージ投稿エラー: ${e.toString()}`);
+    }
   }
 };

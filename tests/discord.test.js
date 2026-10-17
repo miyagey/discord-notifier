@@ -4,27 +4,35 @@ import path from 'path';
 import vm from 'vm';
 
 let DiscordService;
+let testContext;
 
 beforeAll(() => {
-  const context = {
+  testContext = {
     REGISTRATION_FORM_URL: 'https://forms.gle/VcErZhtVcUHtL6ET8',
     WEBAPP_URL: 'https://ticket.example.com',
     WEBHOOK_APPLY: 'https://discord.com/api/webhooks/test-apply',
     WEBHOOK_PAYMENT: 'https://discord.com/api/webhooks/test-payment',
     WEBHOOK_CALENDAR: 'https://discord.com/api/webhooks/test-calendar',
     PROXY_BASE_URL: '',
+    DISCORD_BOT_TOKEN: 'mock-bot-token',
+    DISCORD_GUILD_ID: 'mock-guild-id',
+    DISCORD_CATEGORY_ID: 'mock-category-id',
+    UrlFetchApp: {
+      fetch: () => {}
+    },
     Logger: {
       log: () => {}
     },
     console: console,
-    String: String
+    String: String,
+    JSON: JSON
   };
 
   const discordJsPath = path.resolve(__dirname, '../spreadsheet/Discord操作.js');
   const discordJsContent = fs.readFileSync(discordJsPath, 'utf8');
 
-  vm.createContext(context);
-  DiscordService = vm.runInContext(`${discordJsContent};\nDiscordService;`, context);
+  vm.createContext(testContext);
+  DiscordService = vm.runInContext(`${discordJsContent};\nDiscordService;`, testContext);
 });
 
 describe('Discord操作.js (フォーマッター・メッセージ生成) の単体テスト', () => {
@@ -157,6 +165,144 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
 
       DiscordService.notifyTomorrowEvents();
       expect(called).toBe(false);
+    });
+  });
+
+  describe('sanitizeChannelName', () => {
+    it('ブランド名とイベント名から安全な小文字ハイフン区切りのチャンネル名を生成すること', () => {
+      const raw = '【学マス】LIVE TOUR -標-';
+      const result = DiscordService.sanitizeChannelName(raw);
+      expect(result).toBe('学マス-live-tour-標');
+    });
+
+    it('スペース、スラッシュ、アンダースコアがハイフンに置換されること', () => {
+      const raw = 'ミリオン 10th / Act_4';
+      const result = DiscordService.sanitizeChannelName(raw);
+      expect(result).toBe('ミリオン-10th-act-4');
+    });
+
+    it('記号（! ? 「」『』等）が除去・ハイフン区切りされること', () => {
+      const raw = '【シャニ】春爛漫!?「夢見草」ツアー!!';
+      const result = DiscordService.sanitizeChannelName(raw);
+      expect(result).toBe('シャニ-春爛漫-夢見草-ツアー');
+    });
+
+    it('先頭・末尾のハイフンおよび連続ハイフンが集約・除去されること', () => {
+      const raw = '---【SideM】--3rd--LIVE---';
+      const result = DiscordService.sanitizeChannelName(raw);
+      expect(result).toBe('sidem-3rd-live');
+    });
+
+    it('100文字を超える場合は99文字以内にトリミングされること', () => {
+      const longName = 'a'.repeat(120);
+      const result = DiscordService.sanitizeChannelName(longName);
+      expect(result.length).toBeLessThanOrEqual(99);
+    });
+
+    it('空文字列やnullが渡された場合はデフォルトチャンネル名を返すこと', () => {
+      expect(DiscordService.sanitizeChannelName('')).toBe('event-channel');
+      expect(DiscordService.sanitizeChannelName(null)).toBe('event-channel');
+    });
+  });
+
+  describe('createEventChannel (トピック設定 & チャンネル作成)', () => {
+    it('正しいペイロード（サニタイズされたname, topic）でDiscord APIを呼び出し、チャンネルIDを返すこと', () => {
+      let requestedUrl = '';
+      let requestedOptions = null;
+      let firstMessagePayload = null;
+
+      testContext.UrlFetchApp.fetch = (url, options) => {
+        if (url.includes('/channels') && !url.includes('/messages')) {
+          requestedUrl = url;
+          requestedOptions = options;
+          return {
+            getResponseCode: () => 201,
+            getContentText: () => JSON.stringify({ id: '987654321012345678', name: '学マス-初星公演' })
+          };
+        } else if (url.includes('/messages')) {
+          firstMessagePayload = JSON.parse(options.payload);
+          return {
+            getResponseCode: () => 200,
+            getContentText: () => '{}'
+          };
+        }
+        return { getResponseCode: () => 200, getContentText: () => '{}' };
+      };
+
+      const eventObj = {
+        eventId: 'EV-001',
+        brand: '学マス',
+        eventName: '初星公演',
+        startDate: '2027-03-27',
+        endDate: '2027-03-28',
+        venue: 'ゼビオアリーナ仙台',
+        description: '出演：浅倉 透/樋口円香/福丸 小糸/市川 雛菜'
+      };
+
+      const channelId = DiscordService.createEventChannel(eventObj);
+
+      expect(channelId).toBe('987654321012345678');
+      expect(requestedUrl).toContain('/guilds/mock-guild-id/channels');
+
+      const payload = JSON.parse(requestedOptions.payload);
+      expect(payload.name).toBe('学マス-初星公演');
+      expect(payload.type).toBe(0);
+      expect(payload.parent_id).toBe('mock-category-id');
+      expect(payload.topic).toContain('公演名: 初星公演');
+      expect(payload.topic).toContain('開催日時: 2027-03-27 〜 2027-03-28');
+      expect(payload.topic).toContain('会場: ゼビオアリーナ仙台');
+      expect(payload.topic).toContain('概要: 出演：浅倉 透/樋口円香/福丸 小糸/市川 雛菜');
+
+      // 初回メッセージも送信されたこと
+      expect(firstMessagePayload).not.toBeNull();
+      expect(firstMessagePayload.embeds[0].title).toBe('🎉 初星公演');
+    });
+
+    it('Bot Token または Guild ID が未設定の場合はチャンネル作成をスキップして null を返すこと', () => {
+      const originalToken = testContext.DISCORD_BOT_TOKEN;
+      testContext.DISCORD_BOT_TOKEN = '';
+
+      const result = DiscordService.createEventChannel({ brand: '学マス', eventName: '初星公演' });
+      expect(result).toBeNull();
+
+      testContext.DISCORD_BOT_TOKEN = originalToken;
+    });
+  });
+
+  describe('sendFirstMessageToChannel (初回Embed投稿)', () => {
+    it('正しいEmbedフォーマットで初回メッセージを投稿すること', () => {
+      let sentUrl = '';
+      let sentPayload = null;
+
+      testContext.UrlFetchApp.fetch = (url, options) => {
+        sentUrl = url;
+        sentPayload = JSON.parse(options.payload);
+        return { getResponseCode: () => 200, getContentText: () => '{}' };
+      };
+
+      const eventData = {
+        eventId: 'EV-002',
+        brand: 'シャニ',
+        displayName: '283 Production LIVE',
+        dateStr: '2027-04-01 〜 2027-04-02',
+        venue: '幕張メッセ',
+        description: '特記事項メモ'
+      };
+
+      DiscordService.sendFirstMessageToChannel('112233445566778899', eventData);
+
+      expect(sentUrl).toContain('/channels/112233445566778899/messages');
+      expect(sentPayload).not.toBeNull();
+      const embed = sentPayload.embeds[0];
+      expect(embed.title).toBe('🎉 283 Production LIVE');
+      expect(embed.footer.text).toBe('Event ID: EV-002');
+
+      const fieldMap = {};
+      embed.fields.forEach(f => { fieldMap[f.name] = f.value; });
+      expect(fieldMap['公演名']).toBe('283 Production LIVE');
+      expect(fieldMap['開催日時']).toBe('2027-04-01 〜 2027-04-02');
+      expect(fieldMap['会場']).toBe('幕張メッセ');
+      expect(fieldMap['概要']).toBe('特記事項メモ');
     });
   });
 });

@@ -96,7 +96,33 @@ function createEvent(data) {
     }
 
     const eventId = SheetService.insertEvent(data, calId);
-    return { success: true, eventId: eventId };
+
+    // Discord テキストチャンネルの自動作成
+    let discordChannelId = null;
+    try {
+      discordChannelId = DiscordService.createEventChannel({
+        eventId: eventId,
+        brand: data.brand,
+        name: data.name,
+        eventName: data.name,
+        rawEventName: data.name,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        venue: data.location,
+        location: data.location,
+        description: data.summary,
+        summary: data.summary
+      });
+
+      // 作成成功時、チャンネルIDをスプレッドシートへ書き戻し
+      if (discordChannelId) {
+        SheetService.updateDiscordChannelId(eventId, discordChannelId);
+      }
+    } catch (chErr) {
+      logError('createEvent.createEventChannel', chErr);
+    }
+
+    return { success: true, eventId: eventId, discordChannelId: discordChannelId };
   } catch (error) {
     logError('createEvent', error);
     return { success: false, error: error.message };
