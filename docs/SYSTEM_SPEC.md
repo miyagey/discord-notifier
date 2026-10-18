@@ -3,13 +3,13 @@
 本ドキュメントは `discord-notifier` システムにおけるデータエンティティ定義、定期通知バッチ仕様、Webアプリ API 仕様、Discord 通知仕様および自動化トリガーに関する仕様書です。
 
 > 📖 **設計原則・レイヤー構造**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)  
-> 📖 **Google フォーム連携仕様**: [docs/FORM_SPEC.md](FORM_SPEC.md)
+> 💡 **旧 Google フォーム連携**: 廃止済み（過去仕様・コードは [Release: legacy-form-final](https://github.com/miyagey/discord-notifier/releases/tag/legacy-form-final) を参照）
 
 ---
 
 ## 1. システム全体データフロー
 
-本システムは **Webアプリ**（および Google フォーム）からのイベント・申込登録と、**定期通知バッチ** による Discord リマインド通知を主軸としています。
+本システムは **Webアプリ** からのイベント・申込登録と、**定期通知バッチ** による Discord リマインド通知を主軸としています。
 
 ```mermaid
 flowchart TB
@@ -155,7 +155,7 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 | :--- | :--- | :--- | :--- |
 | `WEBHOOK_APPLY` | 申込締切リマインド（通常） | **あり** (登録フォーム + WebアプリURL) | 対象0件時も案内通知 |
 | `WEBHOOK_APPLY` | 翌日先着リマインド / リセールリマインド | **なし** | 該当がある場合のみ送信 |
-| `WEBHOOK_APPLY` | Webアプリ / フォームからの新規申込登録 | **なし** | 即時通知 |
+| `WEBHOOK_APPLY` | Webアプリからの新規申込登録 | **なし** | 即時通知 |
 | `WEBHOOK_PAYMENT` | 本日入金締切リマインド | **なし** | **対象0件時は送信せずスキップ** |
 | `WEBHOOK_CALENDAR` | Google カレンダー同期完了通知 | **なし** | バッチ / Webアプリ共通 |
 | `WEBHOOK_CALENDAR` | 明日の予定一覧通知 | **なし** | 予定サマリー |

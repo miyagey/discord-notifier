@@ -60,9 +60,6 @@ jobs:
             spreadsheet:
               - 'spreadsheet/**'
               - 'package*.json'
-            form:
-              - 'form/**'
-              - 'package*.json'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -117,9 +114,6 @@ jobs:
             echo "WEBAPP_DEPLOYMENT_ID is not configured. Skipping Web App version redeploy."
           fi
 
-      - name: Deploy Form GAS (clasp push)
-        if: steps.filter.outputs.form == 'true' || github.event_name == 'workflow_dispatch'
-        run: npm run push:form:force
 
       - name: Cleanup clasp credentials
         if: always()

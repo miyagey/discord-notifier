@@ -13,7 +13,6 @@
 | **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** | **【最重要】アーキテクチャ・レイヤー構造・設計原則（関心の分離・カプセル化・DTOパターン）** |
 | **[`docs/SYSTEM_SPEC.md`](docs/SYSTEM_SPEC.md)** | スプレッドシート側のデータ構造、定期通知バッチのトリガー仕様、Webアプリ API |
 | **[`docs/DOCUMENTATION_GUIDE.md`](docs/DOCUMENTATION_GUIDE.md)** | ドキュメント構造定義、Mermaid 図の描き分け基準、AI への指示手順 |
-| **[`docs/FORM_SPEC.md`](docs/FORM_SPEC.md)** | Google フォーム側の連携フロー、設問項目、フォーム送信時トリガー仕様（非推奨・廃止予定） |
 | **[`README.md`](README.md)** | プロジェクト概要、開発環境セットアップ、clasp 操作、CI/CD 運用手順 |
 
 ---
