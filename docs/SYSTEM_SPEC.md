@@ -129,6 +129,17 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 | `createApplication(data)` | `{ eventId, brand, eventName, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success, applyId }` | 申込新規登録。Discord 通知（`WEBHOOK_APPLY`）を実行 |
 | `updateApplication(data)` | `{ id, eventId, applyName, startDatetime, endDatetime, resultDatetime, payEndDatetime, method }` | `{ success }` | 申込情報更新（数式列は維持） |
 
+### 3.3 フロントエンド表示・アーカイブ仕様 (`spreadsheet/index.html`)
+
+- **ファーストビューとアーカイブの分離**:
+  - イベント終了（または申込締切）から 90 日以上経過した過去データは、ファーストビュー（通常タブ）の一覧から自動除外して一覧性を維持。
+  - 「📦 アーカイブ」タブを選択することで、開催年（YYYY）ごとにグループ化されたアコーディオン形式で過去イベント・申込を閲覧可能（最新年は初期展開）。
+- **カードの視認性向上と URL 短縮**:
+  - 長大な URL（トラッキングパラメータ付き等）は 35 文字程度に短縮し、「`https://...`」の外部リンクタグとして表示。
+  - 概要（`description`）は 3 行までの省略表示とし、クリックで全文展開可能。カードの枠突き破りやレイアウト崩れを防止。
+- **新規登録フォームの選択肢最適化**:
+  - チケット新規登録モーダル（`openTicketFormModal`）では、アーカイブ済みおよび終了済みのイベントを候補から除外し、選択肢の肥大化を防止。
+
 ---
 
 ## 4. 定期通知バッチ仕様 (`spreadsheet/定期通知バッチ.js`)
