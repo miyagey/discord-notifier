@@ -577,12 +577,47 @@
       gap: 0.35rem;
       font-size: 0.78rem;
       color: var(--text-muted);
+      min-width: 0;
     }
     .event-meta-item {
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      align-items: flex-start;
+      gap: 0.45rem;
+      min-width: 0;
     }
+    .event-meta-item i {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .event-meta-item span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+    .event-meta-desc {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      cursor: pointer;
+      transition: color 0.15s ease;
+    }
+    .event-meta-desc.expanded {
+      display: block;
+      overflow: visible;
+    }
+    .meta-link {
+      color: #38bdf8;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-all;
+      transition: color 0.15s ease;
+    }
+    .meta-link:hover {
+      color: #7dd3fc;
+    }
+
     .event-applies-box {
       margin-top: 0.4rem;
       background: rgba(0, 0, 0, 0.25);
@@ -591,6 +626,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
+      min-width: 0;
     }
     .event-applies-title {
       font-size: 0.72rem;
@@ -603,12 +639,89 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 0.5rem;
       font-size: 0.75rem;
       padding: 0.25rem 0;
       border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+      min-width: 0;
     }
     .event-apply-row:last-child {
       border-bottom: none;
+    }
+    .event-apply-name {
+      flex: 1;
+      min-width: 0;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Archive Year Accordion */
+    .archive-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      grid-column: 1 / -1;
+      width: 100%;
+    }
+    .archive-year-section {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+    .archive-year-section:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .archive-year-header {
+      padding: 0.85rem 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(255, 255, 255, 0.03);
+      transition: background 0.2s ease;
+    }
+    .archive-year-header:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .archive-year-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .archive-year-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+    }
+    .archive-chevron {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      transition: transform 0.25s ease;
+    }
+    .archive-year-section.collapsed .archive-chevron {
+      transform: rotate(-90deg);
+    }
+    .archive-year-section.collapsed .archive-year-grid {
+      display: none;
+    }
+    .archive-year-grid {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     /* Timeline View */
@@ -910,6 +1023,10 @@
         <span>すべて</span>
         <span class="count-bubble" id="countAllTab">0</span>
       </button>
+      <button class="col-tab-btn" data-status="ARCHIVED">
+        <span>📦 アーカイブ</span>
+        <span class="count-bubble" id="countArchivedTab">0</span>
+      </button>
     </div>
 
     <!-- Event Status Tabs (Displayed when viewing Event List) -->
@@ -929,6 +1046,10 @@
       <button class="col-tab-btn" data-event-status="開催終了">
         <span>開催終了</span>
         <span class="count-bubble" id="eventCountFinishedTab">0</span>
+      </button>
+      <button class="col-tab-btn" data-event-status="ARCHIVED">
+        <span>📦 アーカイブ</span>
+        <span class="count-bubble" id="eventCountArchivedTab">0</span>
       </button>
     </div>
 
@@ -1204,8 +1325,9 @@
       searchKeyword: '',
       activeNav: 'tickets', // 'tickets' | 'events'
       viewMode: 'kanban', // 'kanban' | 'timeline'
-      selectedApplyStatus: '受付期間', // 'ALL' | '受付期間' | '開始前' | '当落待ち' | '入金期間' | '期間終了'
-      selectedEventStatus: 'ALL', // 'ALL' | '開催前' | '開催期間' | '開催終了'
+      selectedApplyStatus: '受付期間', // 'ALL' | '受付期間' | '開始前' | '当落待ち' | '入金期間' | '期間終了' | 'ARCHIVED'
+      selectedEventStatus: 'ALL', // 'ALL' | '開催前' | '開催期間' | '開催終了' | 'ARCHIVED'
+      expandedArchiveYears: {},
       currentDetailApp: null
     };
 
@@ -1269,6 +1391,15 @@
           document.querySelectorAll('#ticketStatusTabs .col-tab-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           state.selectedApplyStatus = btn.dataset.status;
+          if (state.selectedApplyStatus === 'ARCHIVED' && state.viewMode === 'kanban') {
+            state.viewMode = 'timeline';
+            document.querySelectorAll('#viewModeControl .segment-btn').forEach(b => {
+              b.classList.toggle('active', b.dataset.mode === 'timeline');
+            });
+            updateTabVisibility();
+            renderApp();
+            return;
+          }
           updateMobileColumnVisibility();
           if (state.viewMode === 'timeline') {
             renderTimeline();
@@ -1394,12 +1525,12 @@
       document.getElementById('ticketFormTitle').textContent = isEdit ? 'チケット申込の編集' : 'チケット申込の新規登録';
       document.getElementById('tfApplyId').value = isEdit ? app.id : '';
 
-      // イベント選択肢の再構築（新規時は「開催終了」を除外、編集時は現在選択中のイベントは保持）
+      // イベント選択肢の再構築（新規時は「開催終了」およびアーカイブ済みを除外、編集時は現在選択中のイベントは保持）
       const availableEvents = state.events.filter(ev => {
         if (!isEdit) {
-          return ev.status !== '開催終了';
+          return ev.status !== '開催終了' && !isEventArchived(ev);
         } else {
-          return ev.status !== '開催終了' || ev.id === app.eventId;
+          return (ev.status !== '開催終了' && !isEventArchived(ev)) || ev.id === app.eventId;
         }
       });
 
@@ -1645,7 +1776,10 @@
 
     function renderKanban() {
       const filtered = filterItems(state.applications);
-      document.getElementById('statsBadge').textContent = `申込数: ${filtered.length} 件`;
+      const archivedApps = filtered.filter(isApplicationArchived);
+      const activeApps = filtered.filter(app => !isApplicationArchived(app));
+
+      document.getElementById('statsBadge').textContent = `申込数: ${activeApps.length} 件`;
 
       const columns = {
         '開始前': document.getElementById('listBefore'),
@@ -1659,7 +1793,7 @@
 
       Object.values(columns).forEach(col => col.innerHTML = '');
 
-      filtered.forEach(app => {
+      activeApps.forEach(app => {
         const colKey = app.status in columns ? app.status : '期間終了';
         counts[colKey]++;
         columns[colKey].appendChild(createTicketCard(app));
@@ -1676,13 +1810,40 @@
       document.getElementById('countWaitingTab').textContent = counts['当落待ち'];
       document.getElementById('countPaymentTab').textContent = counts['入金期間'];
       document.getElementById('countFinishedTab').textContent = counts['期間終了'];
-      document.getElementById('countAllTab').textContent = filtered.length;
+      document.getElementById('countAllTab').textContent = activeApps.length;
+      document.getElementById('countArchivedTab').textContent = archivedApps.length;
 
       Object.keys(columns).forEach(key => {
         if (counts[key] === 0) {
           columns[key].innerHTML = '<div class="empty-state">該当なし</div>';
         }
       });
+
+      // 期間終了列にアーカイブへの誘導リンクを追加（アーカイブが存在する場合）
+      if (archivedApps.length > 0) {
+        const archiveCallout = document.createElement('div');
+        archiveCallout.style.marginTop = '0.75rem';
+        archiveCallout.style.padding = '0.65rem';
+        archiveCallout.style.textAlign = 'center';
+        archiveCallout.style.background = 'rgba(255, 255, 255, 0.03)';
+        archiveCallout.style.border = '1px dashed rgba(255, 255, 255, 0.12)';
+        archiveCallout.style.borderRadius = '10px';
+        archiveCallout.style.fontSize = '0.75rem';
+        archiveCallout.style.color = 'var(--text-muted)';
+        archiveCallout.style.cursor = 'pointer';
+        archiveCallout.style.transition = 'all 0.15s ease';
+        archiveCallout.innerHTML = `📦 3ヶ月以上前の過去申込 (<strong>${archivedApps.length}</strong>件) を表示`;
+        archiveCallout.addEventListener('mouseenter', () => {
+          archiveCallout.style.background = 'rgba(255, 255, 255, 0.07)';
+          archiveCallout.style.color = '#fff';
+        });
+        archiveCallout.addEventListener('mouseleave', () => {
+          archiveCallout.style.background = 'rgba(255, 255, 255, 0.03)';
+          archiveCallout.style.color = 'var(--text-muted)';
+        });
+        archiveCallout.addEventListener('click', switchToArchivedTimeline);
+        columns['期間終了'].appendChild(archiveCallout);
+      }
 
       updateMobileColumnVisibility();
     }
@@ -1697,11 +1858,26 @@
       });
     }
 
+    function switchToArchivedTimeline() {
+      state.viewMode = 'timeline';
+      state.selectedApplyStatus = 'ARCHIVED';
+      document.querySelectorAll('#viewModeControl .segment-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === 'timeline');
+      });
+      document.querySelectorAll('#ticketStatusTabs .col-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.status === 'ARCHIVED');
+      });
+      updateTabVisibility();
+      renderApp();
+    }
+
     function renderTimeline() {
       const filtered = filterItems(state.applications);
+      const archivedApps = filtered.filter(isApplicationArchived);
+      const activeApps = filtered.filter(app => !isApplicationArchived(app));
 
       const counts = { '開始前': 0, '受付期間': 0, '当落待ち': 0, '入金期間': 0, '期間終了': 0 };
-      filtered.forEach(app => {
+      activeApps.forEach(app => {
         const s = app.status in counts ? app.status : '期間終了';
         counts[s]++;
       });
@@ -1710,16 +1886,25 @@
       document.getElementById('countWaitingTab').textContent = counts['当落待ち'];
       document.getElementById('countPaymentTab').textContent = counts['入金期間'];
       document.getElementById('countFinishedTab').textContent = counts['期間終了'];
-      document.getElementById('countAllTab').textContent = filtered.length;
+      document.getElementById('countAllTab').textContent = activeApps.length;
+      document.getElementById('countArchivedTab').textContent = archivedApps.length;
 
-      const statusFiltered = filtered.filter(app => {
+      const container = document.getElementById('timelineContainer');
+      container.innerHTML = '';
+
+      if (state.selectedApplyStatus === 'ARCHIVED') {
+        document.getElementById('statsBadge').textContent = `アーカイブ: ${archivedApps.length} 件`;
+        renderArchivedTimeline(archivedApps, container);
+        lucide.createIcons();
+        return;
+      }
+
+      const statusFiltered = activeApps.filter(app => {
         if (state.selectedApplyStatus === 'ALL') return true;
         return app.status === state.selectedApplyStatus;
       });
 
-      const container = document.getElementById('timelineContainer');
-      container.innerHTML = '';
-      document.getElementById('statsBadge').textContent = `表示: ${statusFiltered.length} / ${filtered.length} 件`;
+      document.getElementById('statsBadge').textContent = `表示: ${statusFiltered.length} / ${activeApps.length} 件`;
 
       if (statusFiltered.length === 0) {
         container.innerHTML = '<div class="empty-state">該当する申込はありません</div>';
@@ -1729,33 +1914,101 @@
       statusFiltered.forEach(app => {
         container.appendChild(createTicketCard(app));
       });
+
+      lucide.createIcons();
+    }
+
+    function renderArchivedTimeline(archivedApps, container) {
+      if (archivedApps.length === 0) {
+        container.innerHTML = '<div class="empty-state">アーカイブされた申込はありません</div>';
+        return;
+      }
+
+      const yearMap = {};
+      archivedApps.forEach(app => {
+        let year = 'その他';
+        if (app.eventId) {
+          const ev = state.events.find(e => e.id === app.eventId);
+          if (ev && ev.startDate && ev.startDate.length >= 4) {
+            year = ev.startDate.substring(0, 4);
+          }
+        }
+        if (year === 'その他') {
+          const dt = app.startDatetime || app.endDatetime;
+          if (dt && dt.length >= 4) {
+            year = dt.substring(0, 4);
+          }
+        }
+        if (!yearMap[year]) yearMap[year] = [];
+        yearMap[year].push(app);
+      });
+
+      const sortedYears = Object.keys(yearMap).sort((a, b) => {
+        if (a === 'その他') return 1;
+        if (b === 'その他') return -1;
+        return b.localeCompare(a);
+      });
+
+      const archiveWrap = document.createElement('div');
+      archiveWrap.className = 'archive-container';
+
+      sortedYears.forEach((year, index) => {
+        const appsInYear = yearMap[year];
+        const isLatest = (index === 0);
+        const key = `ticket_${year}`;
+        const isExpanded = state.expandedArchiveYears[key] !== undefined 
+          ? state.expandedArchiveYears[key] 
+          : isLatest;
+
+        const section = document.createElement('div');
+        section.className = `archive-year-section ${isExpanded ? '' : 'collapsed'}`;
+
+        section.innerHTML = `
+          <div class="archive-year-header">
+            <div class="archive-year-title">
+              <i data-lucide="archive" style="width: 18px; height: 18px; color: var(--brand-accent);"></i>
+              <span>${escapeHtml(year)}${year !== 'その他' ? '年' : ''}</span>
+              <span class="archive-year-badge">${appsInYear.length}件</span>
+            </div>
+            <i data-lucide="chevron-down" class="archive-chevron"></i>
+          </div>
+          <div class="archive-year-grid"></div>
+        `;
+
+        const header = section.querySelector('.archive-year-header');
+        header.addEventListener('click', () => {
+          const isCollapsed = section.classList.toggle('collapsed');
+          state.expandedArchiveYears[key] = !isCollapsed;
+        });
+
+        const grid = section.querySelector('.archive-year-grid');
+        appsInYear.forEach(app => {
+          grid.appendChild(createTicketCard(app));
+        });
+
+        archiveWrap.appendChild(section);
+      });
+
+      container.appendChild(archiveWrap);
     }
 
     function renderEvents() {
       const filtered = filterItems(state.events);
+      const archivedEvents = filtered.filter(isEventArchived);
+      const activeEvents = filtered.filter(ev => !isEventArchived(ev));
 
       const counts = { '開催前': 0, '開催期間': 0, '開催終了': 0 };
-      filtered.forEach(ev => {
+      activeEvents.forEach(ev => {
         if (ev.status in counts) counts[ev.status]++;
       });
-      document.getElementById('eventCountAllTab').textContent = filtered.length;
+      document.getElementById('eventCountAllTab').textContent = activeEvents.length;
       document.getElementById('eventCountBeforeTab').textContent = counts['開催前'];
       document.getElementById('eventCountOngoingTab').textContent = counts['開催期間'];
       document.getElementById('eventCountFinishedTab').textContent = counts['開催終了'];
-
-      const statusFiltered = filtered.filter(ev => {
-        if (state.selectedEventStatus === 'ALL') return true;
-        return ev.status === state.selectedEventStatus;
-      });
+      document.getElementById('eventCountArchivedTab').textContent = archivedEvents.length;
 
       const container = document.getElementById('eventsContainer');
       container.innerHTML = '';
-      document.getElementById('statsBadge').textContent = `イベント数: ${statusFiltered.length} / ${filtered.length} 件`;
-
-      if (statusFiltered.length === 0) {
-        container.innerHTML = '<div class="empty-state">該当するイベントはありません</div>';
-        return;
-      }
 
       const appMap = {};
       state.applications.forEach(app => {
@@ -1763,66 +2016,153 @@
         appMap[app.eventId].push(app);
       });
 
+      if (state.selectedEventStatus === 'ARCHIVED') {
+        document.getElementById('statsBadge').textContent = `アーカイブ: ${archivedEvents.length} 件`;
+        renderArchivedEvents(archivedEvents, appMap, container);
+        lucide.createIcons();
+        return;
+      }
+
+      const statusFiltered = activeEvents.filter(ev => {
+        if (state.selectedEventStatus === 'ALL') return true;
+        return ev.status === state.selectedEventStatus;
+      });
+
+      document.getElementById('statsBadge').textContent = `イベント数: ${statusFiltered.length} / ${activeEvents.length} 件`;
+
+      if (statusFiltered.length === 0) {
+        container.innerHTML = '<div class="empty-state">該当するイベントはありません</div>';
+        return;
+      }
+
       statusFiltered.forEach(ev => {
-        const card = document.createElement('div');
-        card.className = 'event-card';
+        container.appendChild(createEventCardElement(ev, appMap));
+      });
 
-        const applies = appMap[ev.id] || [];
-        const appliesHtml = applies.length > 0
-          ? applies.map(a => `
-            <div class="event-apply-row">
-              <span style="font-weight: 500;">${escapeHtml(a.applyName)}</span>
-              <span class="deadline-countdown ${getDeadlineStyle(a.endDatetime)}">${escapeHtml(a.endDatetime || '締切未設定')}</span>
-            </div>
-          `).join('')
-          : '<div style="font-size:0.75rem; color: var(--text-dim);">登録済みの申込情報なし</div>';
+      lucide.createIcons();
+    }
 
-        card.innerHTML = `
-          <div class="event-card-header">
-            <div>
-              ${ev.brand ? `<span class="brand-tag" data-brand="${escapeHtml(ev.brand)}">${escapeHtml(ev.brand)}</span>` : ''}
-              <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.eventName)}</h3>
+    function renderArchivedEvents(archivedEvents, appMap, container) {
+      if (archivedEvents.length === 0) {
+        container.innerHTML = '<div class="empty-state">アーカイブされたイベントはありません</div>';
+        return;
+      }
+
+      const yearMap = {};
+      archivedEvents.forEach(ev => {
+        const year = (ev.startDate && ev.startDate.length >= 4) ? ev.startDate.substring(0, 4) : 'その他';
+        if (!yearMap[year]) yearMap[year] = [];
+        yearMap[year].push(ev);
+      });
+
+      const sortedYears = Object.keys(yearMap).sort((a, b) => {
+        if (a === 'その他') return 1;
+        if (b === 'その他') return -1;
+        return b.localeCompare(a);
+      });
+
+      const archiveWrap = document.createElement('div');
+      archiveWrap.className = 'archive-container';
+
+      sortedYears.forEach((year, index) => {
+        const eventsInYear = yearMap[year];
+        const isLatest = (index === 0);
+        const key = `event_${year}`;
+        const isExpanded = state.expandedArchiveYears[key] !== undefined 
+          ? state.expandedArchiveYears[key] 
+          : isLatest;
+
+        const section = document.createElement('div');
+        section.className = `archive-year-section ${isExpanded ? '' : 'collapsed'}`;
+
+        section.innerHTML = `
+          <div class="archive-year-header">
+            <div class="archive-year-title">
+              <i data-lucide="calendar-days" style="width: 18px; height: 18px; color: var(--brand-accent);"></i>
+              <span>${escapeHtml(year)}${year !== 'その他' ? '年' : ''}</span>
+              <span class="archive-year-badge">${eventsInYear.length}件</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-              <span class="event-status-tag" data-status="${escapeHtml(ev.status)}">${escapeHtml(ev.status)}</span>
-              <button class="icon-btn edit-event-btn" style="width: 28px; height: 28px; border-radius: 6px;" title="イベントを編集">
-                <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
-              </button>
-            </div>
+            <i data-lucide="chevron-down" class="archive-chevron"></i>
           </div>
-
-          <div class="event-meta">
-            <div class="event-meta-item">
-              <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
-              <span>${escapeHtml(ev.startDate)}${ev.endDate && ev.endDate !== ev.startDate ? ' 〜 ' + escapeHtml(ev.endDate) : ''}</span>
-            </div>
-            ${ev.location ? `
-              <div class="event-meta-item">
-                <i data-lucide="map-pin" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
-                <span>${escapeHtml(ev.location)}</span>
-              </div>
-            ` : ''}
-            ${ev.description ? `
-              <div class="event-meta-item" style="color: var(--text-dim);">
-                <i data-lucide="align-left" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
-                <span>${escapeHtml(ev.description)}</span>
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="event-applies-box">
-            <div class="event-applies-title">関連チケット申込 (${applies.length})</div>
-            ${appliesHtml}
-          </div>
+          <div class="archive-year-grid"></div>
         `;
 
-        card.querySelector('.edit-event-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          openEventFormModal(ev);
+        const header = section.querySelector('.archive-year-header');
+        header.addEventListener('click', () => {
+          const isCollapsed = section.classList.toggle('collapsed');
+          state.expandedArchiveYears[key] = !isCollapsed;
         });
 
-        container.appendChild(card);
+        const grid = section.querySelector('.archive-year-grid');
+        eventsInYear.forEach(ev => {
+          grid.appendChild(createEventCardElement(ev, appMap));
+        });
+
+        archiveWrap.appendChild(section);
       });
+
+      container.appendChild(archiveWrap);
+    }
+
+    function createEventCardElement(ev, appMap) {
+      const card = document.createElement('div');
+      card.className = 'event-card';
+
+      const applies = appMap[ev.id] || [];
+      const appliesHtml = applies.length > 0
+        ? applies.map(a => `
+          <div class="event-apply-row">
+            <span class="event-apply-name" title="${escapeHtml(a.applyName)}">${escapeHtml(a.applyName)}</span>
+            <span class="deadline-countdown ${getDeadlineStyle(a.endDatetime)}">${escapeHtml(a.endDatetime || '締切未設定')}</span>
+          </div>
+        `).join('')
+        : '<div style="font-size:0.75rem; color: var(--text-dim);">登録済みの申込情報なし</div>';
+
+      card.innerHTML = `
+        <div class="event-card-header">
+          <div>
+            ${ev.brand ? `<span class="brand-tag" data-brand="${escapeHtml(ev.brand)}">${escapeHtml(ev.brand)}</span>` : ''}
+            <h3 class="event-card-title" style="margin-top: 0.35rem;">${escapeHtml(ev.eventName)}</h3>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span class="event-status-tag" data-status="${escapeHtml(ev.status)}">${escapeHtml(ev.status)}</span>
+            <button class="icon-btn edit-event-btn" style="width: 28px; height: 28px; border-radius: 6px;" title="イベントを編集">
+              <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="event-meta">
+          <div class="event-meta-item">
+            <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+            <span>${escapeHtml(ev.startDate)}${ev.endDate && ev.endDate !== ev.startDate ? ' 〜 ' + escapeHtml(ev.endDate) : ''}</span>
+          </div>
+          ${ev.location ? `
+            <div class="event-meta-item">
+              <i data-lucide="map-pin" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+              <span>${formatTextWithUrls(ev.location, 35)}</span>
+            </div>
+          ` : ''}
+          ${ev.description ? `
+            <div class="event-meta-item" style="color: var(--text-dim);">
+              <i data-lucide="align-left" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
+              <span class="event-meta-desc" onclick="this.classList.toggle('expanded'); event.stopPropagation();" title="クリックで全文を表示/折りたたみ">${formatTextWithUrls(ev.description, 35)}</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="event-applies-box">
+          <div class="event-applies-title">関連チケット申込 (${applies.length})</div>
+          ${appliesHtml}
+        </div>
+      `;
+
+      card.querySelector('.edit-event-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEventFormModal(ev);
+      });
+
+      return card;
     }
 
     function createTicketCard(app) {
@@ -2016,12 +2356,64 @@
       return match ? match[0] : null;
     }
 
-    function formatMethodText(text) {
+    /**
+     * テキスト内のURLを検出し、短縮表示（35文字程度）＋外部リンクタグ化して返す
+     * @param {string} text - 対象文字列
+     * @param {number} maxUrlLen - URL表示文字数の上限（デフォルト35）
+     * @returns {string} HTML文字列
+     */
+    function formatTextWithUrls(text, maxUrlLen = 35) {
       if (!text) return '';
       const urlRegex = /(https?:\/\/[^\s]+)/g;
-      return escapeHtml(text).replace(urlRegex, (url) => {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline;">${url}</a>`;
+      return escapeHtml(text).replace(urlRegex, (matchedUrl) => {
+        const cleanUrl = matchedUrl.replace(/[)\]」』＞>]+$/, '');
+        const trailing = matchedUrl.slice(cleanUrl.length);
+        const display = cleanUrl.length > maxUrlLen 
+          ? cleanUrl.substring(0, maxUrlLen) + '...' 
+          : cleanUrl;
+        return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="meta-link" onclick="event.stopPropagation();" title="${cleanUrl}">${display}</a>${trailing}`;
       });
+    }
+
+    function formatMethodText(text) {
+      return formatTextWithUrls(text, 45);
+    }
+
+    /**
+     * イベントが開催終了から3ヶ月（90日）以上経過したアーカイブ対象かどうか判定
+     * @param {Object} ev - イベントオブジェクト
+     * @returns {boolean}
+     */
+    function isEventArchived(ev) {
+      if (!ev || !ev.startDate) return false;
+      const targetDateStr = ev.endDate || ev.startDate;
+      const targetDate = new Date(targetDateStr.replace(/-/g, '/') + ' 23:59:59');
+      if (isNaN(targetDate.getTime())) return false;
+
+      const now = new Date();
+      const threeMonthsAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      return targetDate < threeMonthsAgo;
+    }
+
+    /**
+     * 申込がアーカイブ対象かどうか判定（紐づくイベントがアーカイブ、または全締切が90日以上過去）
+     * @param {Object} app - 申込オブジェクト
+     * @returns {boolean}
+     */
+    function isApplicationArchived(app) {
+      if (!app) return false;
+      if (app.eventId) {
+        const parentEvent = state.events.find(e => e.id === app.eventId);
+        if (parentEvent && isEventArchived(parentEvent)) return true;
+      }
+      const dateStr = app.payEndDatetime || app.endDatetime;
+      if (!dateStr) return false;
+      const targetDate = new Date(dateStr.replace(/-/g, '/'));
+      if (isNaN(targetDate.getTime())) return false;
+
+      const now = new Date();
+      const threeMonthsAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
+      return targetDate < threeMonthsAgo;
     }
 
     function escapeHtml(str) {
