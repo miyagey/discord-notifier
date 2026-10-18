@@ -34,9 +34,6 @@ const WEBHOOK_CALENDAR = (typeof CONFIG !== 'undefined' && CONFIG.WEBHOOK_CALEND
   ? CONFIG.WEBHOOK_CALENDAR
   : (_props.getProperty("WEBHOOK_CALENDAR") || "");
 
-/** イベント・申込の登録用 Google フォーム URL */
-const REGISTRATION_FORM_URL = "https://forms.gle/VcErZhtVcUHtL6ET8";
-
 /** Webアプリ（閲覧用カンバンボード）のURL（Cloudflare等で短縮されたURLまたはGAS WebApp URL） */
 const WEBAPP_URL = (typeof CONFIG !== 'undefined' && CONFIG.WEBAPP_URL)
   ? CONFIG.WEBAPP_URL

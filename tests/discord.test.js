@@ -8,7 +8,6 @@ let testContext;
 
 beforeAll(() => {
   testContext = {
-    REGISTRATION_FORM_URL: 'https://forms.gle/VcErZhtVcUHtL6ET8',
     WEBAPP_URL: 'https://ticket.example.com',
     WEBHOOK_APPLY: 'https://discord.com/api/webhooks/test-apply',
     WEBHOOK_PAYMENT: 'https://discord.com/api/webhooks/test-payment',
@@ -353,11 +352,19 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
   });
 
   describe('getRegistrationFooterMessage', () => {
-    it('登録フォームURLとWebアプリURLを含むフッターが生成されること', () => {
+    it('WebアプリURLを含むフッターが生成されること', () => {
       const footer = DiscordService.getRegistrationFooterMessage();
       expect(footer).toContain('📝 **イベント・申込の確認＆登録はこちら**');
-      expect(footer).toContain('https://forms.gle/VcErZhtVcUHtL6ET8');
       expect(footer).toContain('https://ticket.example.com');
+      expect(footer).not.toContain('forms.gle');
+    });
+
+    it('WEBAPP_URL が未設定の場合は空文字を返すこと', () => {
+      const originalUrl = testContext.WEBAPP_URL;
+      testContext.WEBAPP_URL = '';
+      const footer = DiscordService.getRegistrationFooterMessage();
+      expect(footer).toBe('');
+      testContext.WEBAPP_URL = originalUrl;
     });
   });
 
