@@ -153,7 +153,7 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 
 | チャンネル / Webhook | 送信トリガー | フッター有無 | 備考 |
 | :--- | :--- | :--- | :--- |
-| `WEBHOOK_APPLY` | 申込締切リマインド（通常） | **あり** (登録フォーム + WebアプリURL) | 対象0件時も案内通知 |
+| `WEBHOOK_APPLY` | 申込締切リマインド（通常） | **あり** (WebアプリURL案内) | 対象0件時も案内通知 |
 | `WEBHOOK_APPLY` | 翌日先着リマインド / リセールリマインド | **なし** | 該当がある場合のみ送信 |
 | `WEBHOOK_APPLY` | Webアプリからの新規申込登録 | **なし** | 即時通知 |
 | `WEBHOOK_PAYMENT` | 本日入金締切リマインド | **なし** | **対象0件時は送信せずスキップ** |
@@ -173,8 +173,7 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 
 ----------------------------------------
 📝 **イベント・申込の確認＆登録はこちら**
-・【フォーム (登録)】: https://forms.gle/...
-・【Webアプリ (一覧・カンバン)】: https://your-webapp-url
+・【Webアプリ (一覧・登録)】: https://your-webapp-url
 ```
 
 #### 入金締切リマインド (フッターなし・対象がある場合のみ送信)

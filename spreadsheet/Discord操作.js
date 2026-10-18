@@ -328,15 +328,13 @@ const DiscordService = {
    * @returns {string} 登録案内メッセージフッター
    */
   getRegistrationFooterMessage() {
-    const lines = [
+    if (!WEBAPP_URL) return "";
+
+    return [
       "----------------------------------------",
       "📝 **イベント・申込の確認＆登録はこちら**",
-      `・【フォーム (登録)】: ${REGISTRATION_FORM_URL}`
-    ];
-    if (WEBAPP_URL) {
-      lines.push(`・【Webアプリ (一覧・カンバン)】: ${WEBAPP_URL}`);
-    }
-    return lines.join("\n");
+      `・【Webアプリ (一覧・登録)】: ${WEBAPP_URL}`
+    ].join("\n");
   },
 
   /**
