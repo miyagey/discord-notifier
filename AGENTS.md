@@ -47,7 +47,7 @@ AI エージェントがバッチ処理スクリプトを作成・編集する�
 ### 2.4 DTO (Data Transfer Object) / Parameter Object パターンおよび型定義
 - 3つ以上の引数や省略可能オプションを持つ関数・メソッドは、単一のオブジェクト引数形式（例: `{ title, startDate, endDate, location, summary }`）で受け取るように設計し、詳細な JSDoc コメントを付与すること。
 - **型定義の一元管理（`spreadsheet/型定義.js`）**:
-  - イベント情報（`EventDto`）、申込情報（`ApplicationDto`）、通知用アイテム（`CalendarEventItemDto`, `TomorrowEventsDto`）などの主要なデータオブジェクトの構造は、`spreadsheet/型定義.js` に JSDoc の `@typedef` として集約・定義する。
+  - イベント情報（`EventDto`）、申込情報（`ApplicationDto`）、リマインド設定（`RemindConfigDto`）などの主要なデータオブジェクトの構造は、`spreadsheet/型定義.js` に JSDoc の `@typedef` として集約・定義する。
   - 各サービスやオーケストレーション層の関数シグネチャでは、インラインで長大なプロパティ定義を重複記述せず、`@param {EventDto} event` のように型名を直接参照してコードの可読性を保つこと。
 
 ### 2.5 マジックナンバー・直インデックスの禁止

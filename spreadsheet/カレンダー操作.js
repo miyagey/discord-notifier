@@ -74,13 +74,13 @@ const CalendarService = {
   },
 
   /**
-   * 明日の予定イベントを取得して整形する
+   * 明日の予定イベント一覧を取得する
    * @param {Date} [baseDate] - 基準日 (省略時は現在日時)
-   * @returns {TomorrowEventsDto|null}
+   * @returns {EventDto[]} イベントDTO配列
    */
   getTomorrowEvents(baseDate) {
     const calendar = this.getCalendar();
-    if (!calendar) return null;
+    if (!calendar) return [];
 
     const today = baseDate ? new Date(baseDate) : new Date();
 
@@ -93,37 +93,29 @@ const CalendarService = {
     tomorrowEnd.setHours(23, 59, 59, 999);
 
     const calEvents = calendar.getEvents(tomorrowStart, tomorrowEnd);
-    const dateTitle = formatDateJST(tomorrowStart, "MM/dd(E)");
 
-    const formattedEvents = calEvents.map(event => {
-      const title = event.getTitle();
-      const location = event.getLocation() || "";
-      const description = event.getDescription() || "";
+    return calEvents.map(event => {
+      const fullTitle = event.getTitle();
+      const brandMatch = fullTitle.match(/^【(.*?)】(.*)$/);
+      const brand = brandMatch ? brandMatch[1] : "";
+      const eventName = brandMatch ? brandMatch[2].trim() : fullTitle;
       const start = event.getStartTime();
       const end = event.getEndTime();
-      let timeStr = "";
-
-      if (event.isAllDayEvent()) {
-        const startDateStr = formatDateJST(start, "MM/dd");
-        const actualEnd = new Date(end.getTime() - 1);
-        const endDateStr = formatDateJST(actualEnd, "MM/dd");
-        timeStr = (startDateStr === endDateStr) ? "[終日]" : `${startDateStr} 〜 ${endDateStr} [連日終日]`;
-      } else {
-        timeStr = `${formatDateJST(start, "HH:mm")} 〜 ${formatDateJST(end, "HH:mm")}`;
-      }
 
       return {
-        title,
-        timeStr,
-        location,
-        description
+        title: fullTitle,
+        brand: brand,
+        eventName: eventName,
+        startDate: formatDateJST(start, "yyyy-MM-dd"),
+        endDate: formatDateJST(end, "yyyy-MM-dd"),
+        startTime: start,
+        endTime: end,
+        isAllDay: event.isAllDayEvent(),
+        location: event.getLocation() || "",
+        description: event.getDescription() || "",
+        calendarEventId: event.getId()
       };
     });
-
-    return {
-      dateTitle,
-      events: formattedEvents
-    };
   },
 
   /**

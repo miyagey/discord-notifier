@@ -49,6 +49,33 @@ function formatBrandEventTitle(brand, eventName) {
   return `${brandStr}${name}`;
 }
 
+/**
+ * イベントの時間表示文字列を生成する
+ * 終日の場合は "[終日]" または "MM/dd 〜 MM/dd [連日終日]"、時間指定の場合は "HH:mm 〜 HH:mm"
+ * @param {EventDto} event - イベントDTO
+ * @returns {string} フォーマットされた時間帯文字列 (例: "[終日]", "18:00 〜 20:00")
+ */
+function formatEventTimeRange(event) {
+  if (!event) return "";
+  if (event.timeStr) return event.timeStr;
+
+  if (event.isAllDay) {
+    if (event.startTime && event.endTime) {
+      const startDateStr = formatDateJST(event.startTime, "MM/dd");
+      const actualEnd = new Date(event.endTime.getTime() - 1);
+      const endDateStr = formatDateJST(actualEnd, "MM/dd");
+      return (startDateStr === endDateStr) ? "[終日]" : `${startDateStr} 〜 ${endDateStr} [連日終日]`;
+    }
+    return "[終日]";
+  }
+
+  if (event.startTime && event.endTime) {
+    return `${formatDateJST(event.startTime, "HH:mm")} 〜 ${formatDateJST(event.endTime, "HH:mm")}`;
+  }
+
+  return "[終日]";
+}
+
 
 /**
  * エラーログを統一形式で出力する
