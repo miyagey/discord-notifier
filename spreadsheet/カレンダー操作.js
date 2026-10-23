@@ -20,14 +20,13 @@ const CalendarService = {
     }
 
     const registeredEvents = [];
-    let registeredCount = 0;
 
     for (const ev of unregisteredEvents) {
       const calId = this.createAllDayEvent(ev);
 
       if (calId) {
+        ev.calendarEventId = calId;
         SheetService.updateMasterCalendarId(ev.rowIndex, calId);
-        registeredCount++;
         registeredEvents.push(ev);
       }
     }
@@ -37,7 +36,7 @@ const CalendarService = {
       Logger.log(`Discordへ ${registeredEvents.length} 件のカレンダー登録完了通知を送信しました。`);
     }
 
-    return registeredCount;
+    return registeredEvents.length;
   },
 
   /**
@@ -49,25 +48,18 @@ const CalendarService = {
     const calendar = this.getCalendar();
     if (!calendar || !event) return null;
 
-    const eventName = event.eventName || event.name || "";
-    const title = formatBrandEventTitle(event.brand, eventName);
-    const startDate = event.startDate;
-    const endDate = event.endDate || startDate;
-    const location = event.location || "";
-    const description = event.description || event.summary || "";
-
-    const startD = (startDate instanceof Date) ? new Date(startDate) : new Date(startDate);
-    const endRaw = endDate || startDate;
-    let endD = (endRaw instanceof Date) ? new Date(endRaw) : new Date(endRaw);
+    const title = formatBrandEventTitle(event.brand, event.eventName);
+    const startDate = new Date(event.startDate);
+    const endDate = new Date(event.endDate || event.startDate);
 
     // Googleカレンダーの仕様上、終日イベントの終了日は翌日0:00を指定する
-    endD.setDate(endD.getDate() + 1);
+    endDate.setDate(endDate.getDate() + 1);
 
     const options = {};
-    if (location) options.location = location;
-    if (description) options.description = description;
+    if (event.location) options.location = event.location;
+    if (event.description) options.description = event.description;
 
-    const calEvent = calendar.createAllDayEvent(title, startD, endD, options);
+    const calEvent = calendar.createAllDayEvent(title, startDate, endDate, options);
     const eventId = calEvent.getId();
     Logger.log(`カレンダー登録成功: ${title} (ID: ${eventId})`);
     return eventId;
@@ -88,8 +80,7 @@ const CalendarService = {
     tomorrowStart.setDate(today.getDate() + 1);
     tomorrowStart.setHours(0, 0, 0, 0);
 
-    const tomorrowEnd = new Date(today);
-    tomorrowEnd.setDate(today.getDate() + 1);
+    const tomorrowEnd = new Date(tomorrowStart);
     tomorrowEnd.setHours(23, 59, 59, 999);
 
     const calEvents = calendar.getEvents(tomorrowStart, tomorrowEnd);
