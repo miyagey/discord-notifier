@@ -138,7 +138,7 @@ const DiscordService = {
 
   /**
    * 明日の予定一覧通知を送信
-   * @param {EventDto[]|{dateTitle: string, events: EventDto[]}} [events] - 予定イベントDTO配列
+   * @param {EventDto[]} [events] - 予定イベントDTO配列
    * @param {Date} [targetDate] - 対象日（省略時は明日）
    */
   notifyTomorrowEvents(events, targetDate) {
@@ -149,22 +149,14 @@ const DiscordService = {
       return;
     }
 
-    // 後方互換性サポート: { dateTitle, events } 形式で渡された場合
-    let eventList = events;
-    let explicitDateTitle = "";
-    if (!Array.isArray(events) && events.events) {
-      eventList = events.events;
-      explicitDateTitle = events.dateTitle || "";
-    }
-
     const tomorrow = targetDate ? new Date(targetDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const dateTitle = explicitDateTitle || formatDateJST(tomorrow, "MM/dd(E)");
+    const dateTitle = formatDateJST(tomorrow, "MM/dd(E)");
     const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
 
-    if (!eventList || eventList.length === 0) {
+    if (events.length === 0) {
       messageLines.push("明日の予定はありません。");
     } else {
-      eventList.forEach(event => {
+      events.forEach(event => {
         const title = event.title || formatBrandEventTitle(event.brand, event.eventName);
         const timeStr = formatEventTimeRange(event);
         messageLines.push(`### 📌 ${title}`, `⏰ ${timeStr}`);

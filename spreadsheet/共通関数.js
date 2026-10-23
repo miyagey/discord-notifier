@@ -57,7 +57,6 @@ function formatBrandEventTitle(brand, eventName) {
  */
 function formatEventTimeRange(event) {
   if (!event) return "";
-  if (event.timeStr) return event.timeStr;
 
   if (event.isAllDay) {
     if (event.startTime && event.endTime) {

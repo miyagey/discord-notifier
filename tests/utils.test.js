@@ -163,10 +163,6 @@ describe('共通関数.js (ユーティリティ・フォーマッター) の単
       expect(formatEventTimeRange(event)).toBe('18:00 〜 20:30');
     });
 
-    it('timeStr が既に存在する場合は優先して返却すること', () => {
-      expect(formatEventTimeRange({ timeStr: 'カスタム時間' })).toBe('カスタム時間');
-    });
-
     it('event が未指定の場合は空文字を返却すること', () => {
       expect(formatEventTimeRange(null)).toBe('');
     });

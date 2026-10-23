@@ -414,29 +414,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(sentMessage).toContain('明日の予定はありません。');
     });
 
-    it('後方互換性: { dateTitle, events } 形式のオブジェクトも受け取れること', () => {
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
-        sentMessage = message;
-      };
-
-      const legacyData = {
-        dateTitle: '10/20(火)',
-        events: [
-          {
-            title: '【デレ】アリーナツアー',
-            timeStr: '18:00 〜 20:00',
-            location: 'Kアリーナ横浜'
-          }
-        ]
-      };
-
-      DiscordService.notifyTomorrowEvents(legacyData);
-      expect(sentMessage).toContain('## 📅 明日 10/20(火) の予定リスト');
-      expect(sentMessage).toContain('### 📌 【デレ】アリーナツアー');
-      expect(sentMessage).toContain('⏰ 18:00 〜 20:00');
-    });
-
     it('events が null または未指定の場合は送信をスキップすること', () => {
       let called = false;
       DiscordService.sendNotification = () => {
