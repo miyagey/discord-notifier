@@ -25,10 +25,10 @@ const APPLY_COL = {
   APPLY_ID: 0,       // A列: 申し込みID
   EVENT_ID: 1,       // B列: イベントID
   BRAND: 2,          // C列: ブランド名
-  EVENT_NAME_ALT: 3, // D列: 代替イベント名
+  EVENT_NAME: 3,     // D列: イベント名
   APPLY_NAME: 4,     // E列: 受付区分/申し込み名称
   START_DATE: 5,     // F列: 申込開始日時
-  APPLY_END_DATE: 6, // G列: 申込締切日時
+  END_DATE: 6,       // G列: 申込締切日時
   APPLY_METHOD: 7,   // H列: 申込方法
   RESULT_DATE: 8,    // I列: 当落発表日時
   PAY_END_DATE: 9,   // J列: 入金締切日時
@@ -113,10 +113,10 @@ const SheetService = {
       const parentEvent = eventMap[eventId] || null;
 
       const brand = String(row[APPLY_COL.BRAND] || (parentEvent ? parentEvent.brand : '')).trim();
-      const eventName = String(row[APPLY_COL.EVENT_NAME_ALT] || (parentEvent ? parentEvent.eventName : '')).trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || (parentEvent ? parentEvent.eventName : '')).trim();
 
       const startRaw = row[APPLY_COL.START_DATE];
-      const endRaw = row[APPLY_COL.APPLY_END_DATE];
+      const endRaw = row[APPLY_COL.END_DATE];
       const resultRaw = row[APPLY_COL.RESULT_DATE];
       const payEndRaw = row[APPLY_COL.PAY_END_DATE];
       const sheetStatus = String(row[APPLY_COL.STATUS] || '').trim();
@@ -156,16 +156,15 @@ const SheetService = {
    */
   fetchDeadlineApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
-    const context = this.getBatchContext();
-    if (!context) return [];
-    const { applyData, masterMap } = context;
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
 
     const items = [];
     for (let i = 1; i < applyData.length; i++) {
       const row = applyData[i];
       const applyId = row[APPLY_COL.APPLY_ID];
       const eventId = row[APPLY_COL.EVENT_ID];
-      const applyEndDateRaw = row[APPLY_COL.APPLY_END_DATE];
+      const applyEndDateRaw = row[APPLY_COL.END_DATE];
       const applyName = row[APPLY_COL.APPLY_NAME] || "";
 
       if (!applyId || !applyEndDateRaw) continue;
@@ -177,9 +176,8 @@ const SheetService = {
       // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
       if (new Date(applyEndDateRaw) <= baseDate) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
       const endDatetime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
 
@@ -207,9 +205,8 @@ const SheetService = {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = formatDateJST(tomorrow, "yyyy-MM-dd");
 
-    const context = this.getBatchContext();
-    if (!context) return [];
-    const { applyData, masterMap } = context;
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
 
     const items = [];
     for (let i = 1; i < applyData.length; i++) {
@@ -224,9 +221,8 @@ const SheetService = {
       const applyStartStr = formatDateJST(applyStartDateRaw, "yyyy-MM-dd");
       if (applyStartStr !== tomorrowStr) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
       const startDatetime = formatDateJST(applyStartDateRaw, "yyyy-MM-dd HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
@@ -252,9 +248,8 @@ const SheetService = {
   fetchResaleApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
 
-    const context = this.getBatchContext();
-    if (!context) return [];
-    const { applyData, masterMap } = context;
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
 
     const items = [];
     for (let i = 1; i < applyData.length; i++) {
@@ -263,7 +258,7 @@ const SheetService = {
       const eventId = row[APPLY_COL.EVENT_ID];
       const applyName = row[APPLY_COL.APPLY_NAME] || "";
       const applyStartDateRaw = row[APPLY_COL.START_DATE];
-      const applyEndDateRaw = row[APPLY_COL.APPLY_END_DATE];
+      const applyEndDateRaw = row[APPLY_COL.END_DATE];
 
       if (!applyId || !applyName.includes("リセール") || !applyStartDateRaw || !applyEndDateRaw) continue;
 
@@ -272,9 +267,8 @@ const SheetService = {
 
       // 受付期間中（開始日 <= 本日 <= 終了日）
       if (todayStr >= applyStartStr && todayStr <= applyEndStr) {
-        const masterInfo = masterMap[eventId] || {};
-        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-        const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+        const brand = String(row[APPLY_COL.BRAND] || "").trim();
+        const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
         const endDatetime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
         const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
@@ -301,9 +295,8 @@ const SheetService = {
   fetchPaymentApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
 
-    const context = this.getBatchContext();
-    if (!context) return [];
-    const { applyData, masterMap } = context;
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
 
     const items = [];
     for (let i = 1; i < applyData.length; i++) {
@@ -321,9 +314,8 @@ const SheetService = {
       // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
       if (new Date(payEndDateRaw) <= baseDate) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
       const payEndDatetime = formatDateJST(payEndDateRaw, "yyyy-MM-dd HH:mm");
       const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
@@ -495,7 +487,7 @@ const SheetService = {
       for (let j = 1; j < applyValues.length; j++) {
         if (String(applyValues[j][APPLY_COL.EVENT_ID]) === String(data.id)) {
           applySheet.getRange(j + 1, APPLY_COL.BRAND + 1).setValue(data.brand || '');
-          applySheet.getRange(j + 1, APPLY_COL.EVENT_NAME_ALT + 1).setValue(data.eventName || '');
+          applySheet.getRange(j + 1, APPLY_COL.EVENT_NAME + 1).setValue(data.eventName || '');
         }
       }
     }
@@ -599,10 +591,10 @@ const SheetService = {
 
     applySheet.getRange(targetRow, APPLY_COL.EVENT_ID + 1).setValue(data.eventId || '');
     if (brand) applySheet.getRange(targetRow, APPLY_COL.BRAND + 1).setValue(brand);
-    if (eventName) applySheet.getRange(targetRow, APPLY_COL.EVENT_NAME_ALT + 1).setValue(eventName);
+    if (eventName) applySheet.getRange(targetRow, APPLY_COL.EVENT_NAME + 1).setValue(eventName);
     applySheet.getRange(targetRow, APPLY_COL.APPLY_NAME + 1).setValue(data.applyName || '');
     applySheet.getRange(targetRow, APPLY_COL.START_DATE + 1).setValue(data.startDatetime || '');
-    applySheet.getRange(targetRow, APPLY_COL.APPLY_END_DATE + 1).setValue(data.endDatetime || '');
+    applySheet.getRange(targetRow, APPLY_COL.END_DATE + 1).setValue(data.endDatetime || '');
     applySheet.getRange(targetRow, APPLY_COL.APPLY_METHOD + 1).setValue(data.method || '');
     applySheet.getRange(targetRow, APPLY_COL.RESULT_DATE + 1).setValue(data.resultDatetime || '');
     applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
@@ -647,43 +639,12 @@ const SheetService = {
   },
 
   /**
-   * イベントマスターシートのデータ配列から eventId をキーとした情報マップを生成
-   * @param {Array<Array<any>>} masterData - イベントマスターの全行データ
-   * @returns {Object<string, {brand: string, eventName: string}>}
+   * 「申し込み管理」シートの全行データを取得
+   * @returns {Array<Array<any>>}
    */
-  getMasterEventMap(masterData) {
-    const masterMap = {};
-    if (!masterData || masterData.length <= 1) return masterMap;
-
-    for (let i = 1; i < masterData.length; i++) {
-      const eventId = masterData[i][MASTER_COL.ID];
-      if (eventId) {
-        masterMap[eventId] = {
-          brand: masterData[i][MASTER_COL.BRAND],
-          eventName: masterData[i][MASTER_COL.EVENT_NAME]
-        };
-      }
-    }
-    return masterMap;
-  },
-
-  /**
-   * バッチ処理用コンテキスト（シートデータおよびイベントマスターマップ）を取得
-   * @returns {{ masterSheet: GoogleAppsScript.Spreadsheet.Sheet, applySheet: GoogleAppsScript.Spreadsheet.Sheet, masterData: Array<Array<any>>, applyData: Array<Array<any>>, masterMap: Object<string, {brand: string, eventName: string}> }|null}
-   */
-  getBatchContext() {
-    const ss = this.getSpreadsheet();
-    if (!ss) return null;
-
-    const masterSheet = this.getMasterSheet();
-    const applySheet = this.getApplySheet();
-    if (!masterSheet || !applySheet) return null;
-
-    const masterData = masterSheet.getDataRange().getValues();
-    const applyData = applySheet.getDataRange().getValues();
-    const masterMap = this.getMasterEventMap(masterData);
-
-    return { masterSheet, applySheet, masterData, applyData, masterMap };
+  getApplyData() {
+    const sheet = this.getApplySheet();
+    return sheet ? sheet.getDataRange().getValues() : [];
   },
 
   /**
