@@ -40,13 +40,16 @@ beforeAll(() => {
         const day = String(jstDate.getDate()).padStart(2, '0');
         const hours = String(jstDate.getHours()).padStart(2, '0');
         const minutes = String(jstDate.getMinutes()).padStart(2, '0');
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const dayOfWeek = days[jstDate.getDay()];
 
         return formatStr
           .replace(/yyyy/g, String(year))
           .replace(/MM/g, month)
           .replace(/dd/g, day)
           .replace(/HH/g, hours)
-          .replace(/mm/g, minutes);
+          .replace(/mm/g, minutes)
+          .replace(/E/g, dayOfWeek);
       }
     }
   };
@@ -369,7 +372,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
   });
 
   describe('notifyTomorrowEvents', () => {
-    it('予定オブジェクトDTOを受け取り、正しくメッセージ送信を呼び出すこと', () => {
+    it('EventDto[] 配列を受け取り、正しくメッセージ送信を呼び出すこと', () => {
       let sentWebhook = '';
       let sentMessage = '';
       DiscordService.sendNotification = (webhook, message) => {
@@ -377,19 +380,19 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         sentMessage = message;
       };
 
-      const tomorrowData = {
-        dateTitle: '10/18(日)',
-        events: [
-          {
-            title: '【学マス】初星学園フェスティバル',
-            timeStr: '[終日]',
-            location: '幕張メッセ',
-            description: '開場 10:00'
-          }
-        ]
-      };
+      const events = [
+        {
+          title: '【学マス】初星学園フェスティバル',
+          isAllDay: true,
+          startTime: new Date('2026-10-18T00:00:00+09:00'),
+          endTime: new Date('2026-10-19T00:00:00+09:00'),
+          location: '幕張メッセ',
+          description: '開場 10:00'
+        }
+      ];
 
-      DiscordService.notifyTomorrowEvents(tomorrowData);
+      const targetDate = new Date('2026-10-18T12:00:00+09:00');
+      DiscordService.notifyTomorrowEvents(events, targetDate);
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
       expect(sentMessage).toContain('## 📅 明日 10/18(日) の予定リスト');
@@ -399,17 +402,19 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(sentMessage).toContain('📝 説明:\n> 開場 10:00');
     });
 
-    it('予定が0件の場合は「明日の予定はありません」と送信すること', () => {
+    it('イベント配列が空の場合は「明日の予定はありません」と送信すること', () => {
       let sentMessage = '';
       DiscordService.sendNotification = (webhook, message) => {
         sentMessage = message;
       };
 
-      DiscordService.notifyTomorrowEvents({ dateTitle: '10/19(月)', events: [] });
+      const targetDate = new Date('2026-10-19T12:00:00+09:00');
+      DiscordService.notifyTomorrowEvents([], targetDate);
+      expect(sentMessage).toContain('## 📅 明日 10/19(月) の予定リスト');
       expect(sentMessage).toContain('明日の予定はありません。');
     });
 
-    it('tomorrowEvents が null または未指定の場合は送信をスキップすること', () => {
+    it('events が null または未指定の場合は送信をスキップすること', () => {
       let called = false;
       DiscordService.sendNotification = () => {
         called = true;

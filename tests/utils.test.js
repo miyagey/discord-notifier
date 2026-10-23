@@ -6,6 +6,7 @@ import vm from 'vm';
 let formatDateJST;
 let formatDateRange;
 let formatBrandEventTitle;
+let formatEventTimeRange;
 let calculateEventStatus;
 let calculateApplicationStatus;
 
@@ -31,13 +32,16 @@ beforeAll(() => {
         const day = String(jstDate.getDate()).padStart(2, '0');
         const hours = String(jstDate.getHours()).padStart(2, '0');
         const minutes = String(jstDate.getMinutes()).padStart(2, '0');
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const dayOfWeek = days[jstDate.getDay()];
 
         return formatStr
           .replace(/yyyy/g, String(year))
           .replace(/MM/g, month)
           .replace(/dd/g, day)
           .replace(/HH/g, hours)
-          .replace(/mm/g, minutes);
+          .replace(/mm/g, minutes)
+          .replace(/E/g, dayOfWeek);
       }
     }
   };
@@ -51,6 +55,7 @@ beforeAll(() => {
   formatDateJST = context.formatDateJST;
   formatDateRange = context.formatDateRange;
   formatBrandEventTitle = context.formatBrandEventTitle;
+  formatEventTimeRange = context.formatEventTimeRange;
   calculateEventStatus = context.calculateEventStatus;
   calculateApplicationStatus = context.calculateApplicationStatus;
 });
@@ -127,6 +132,39 @@ describe('共通関数.js (ユーティリティ・フォーマッター) の単
       expect(formatDateRange(null, '2026-11-08')).toBe('');
       expect(formatDateRange('', '')).toBe('');
       expect(formatDateRange('invalid-date', '2026-11-08')).toBe('');
+    });
+  });
+
+  describe('formatEventTimeRange', () => {
+    it('isAllDay が true で単日の場合、"[終日]" を返却すること', () => {
+      const event = {
+        isAllDay: true,
+        startTime: new Date('2026-11-07T00:00:00+09:00'),
+        endTime: new Date('2026-11-08T00:00:00+09:00')
+      };
+      expect(formatEventTimeRange(event)).toBe('[終日]');
+    });
+
+    it('isAllDay が true で連日の場合、"MM/dd 〜 MM/dd [連日終日]" を返却すること', () => {
+      const event = {
+        isAllDay: true,
+        startTime: new Date('2026-11-07T00:00:00+09:00'),
+        endTime: new Date('2026-11-09T00:00:00+09:00')
+      };
+      expect(formatEventTimeRange(event)).toBe('11/07 〜 11/08 [連日終日]');
+    });
+
+    it('時間指定イベントの場合、"HH:mm 〜 HH:mm" を返却すること', () => {
+      const event = {
+        isAllDay: false,
+        startTime: new Date('2026-11-07T18:00:00+09:00'),
+        endTime: new Date('2026-11-07T20:30:00+09:00')
+      };
+      expect(formatEventTimeRange(event)).toBe('18:00 〜 20:30');
+    });
+
+    it('event が未指定の場合は空文字を返却すること', () => {
+      expect(formatEventTimeRange(null)).toBe('');
     });
   });
 

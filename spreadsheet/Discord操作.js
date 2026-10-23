@@ -138,24 +138,28 @@ const DiscordService = {
 
   /**
    * 明日の予定一覧通知を送信
-   * @param {TomorrowEventsDto} [tomorrowEvents] - 予定結果DTO
+   * @param {EventDto[]} [events] - 予定イベントDTO配列
+   * @param {Date} [targetDate] - 対象日（省略時は明日）
    */
-  notifyTomorrowEvents(tomorrowEvents) {
+  notifyTomorrowEvents(events, targetDate) {
     if (!WEBHOOK_CALENDAR) return;
 
-    if (!tomorrowEvents) {
+    if (!events) {
       Logger.log("明日のカレンダー予定の取得結果がありませんでした。");
       return;
     }
 
-    const { dateTitle, events } = tomorrowEvents;
+    const tomorrow = targetDate ? new Date(targetDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const dateTitle = formatDateJST(tomorrow, "MM/dd(E)");
     const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
 
-    if (!events || events.length === 0) {
+    if (events.length === 0) {
       messageLines.push("明日の予定はありません。");
     } else {
       events.forEach(event => {
-        messageLines.push(`### 📌 ${event.title}`, `⏰ ${event.timeStr}`);
+        const title = event.title || formatBrandEventTitle(event.brand, event.eventName);
+        const timeStr = formatEventTimeRange(event);
+        messageLines.push(`### 📌 ${title}`, `⏰ ${timeStr}`);
         if (event.location) messageLines.push(`📍 場所: ${event.location}`);
         if (event.description) messageLines.push(`📝 説明:\n> ${event.description.replace(/\n/g, '\n> ')}`);
         messageLines.push("\n---\n");

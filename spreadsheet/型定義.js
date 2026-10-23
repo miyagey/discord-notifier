@@ -13,6 +13,10 @@
  * @property {string} [endDate] - 終了日 (yyyy-MM-dd)
  * @property {string} [location] - 会場名
  * @property {string} [description] - 概要・特記事項
+ * @property {string} [title] - カレンダー上の完全タイトル (例: "【学マス】初星学園フェスティバル")
+ * @property {Date} [startTime] - 開始日時
+ * @property {Date} [endTime] - 終了日時
+ * @property {boolean} [isAllDay] - 終日イベントかどうか
  * @property {string} [calendarEventId] - GoogleカレンダーイベントID
  * @property {string} [discordChannelId] - DiscordチャンネルID
  * @property {string} [status] - 開催ステータス ('開催前' | '開催期間' | '開催終了')
@@ -33,22 +37,6 @@
  * @property {string} [payEndDatetime] - 入金締切日時 (yyyy-MM-dd HH:mm)
  * @property {string} [method] - 申込方法 / 案内URL
  * @property {string} [status] - 申込ステータス
- */
-
-/**
- * カレンダー予定アイテム DTO
- * @typedef {Object} CalendarEventItemDto
- * @property {string} title - イベントタイトル
- * @property {string} timeStr - 時間帯文字列 (例: "[終日]", "18:00 〜 20:00")
- * @property {string} [location] - 会場名
- * @property {string} [description] - 概要説明
- */
-
-/**
- * 明日の予定一覧 DTO
- * @typedef {Object} TomorrowEventsDto
- * @property {string} dateTitle - 日付タイトル (例: "11/07(土)")
- * @property {CalendarEventItemDto[]} events - 予定イベント配列
  */
 
 /**

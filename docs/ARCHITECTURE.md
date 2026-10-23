@@ -49,7 +49,7 @@ flowchart TD
 | **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・設定駆動（`REMIND_CONFIGS`）によるリマインド通知（締切・先着・リセール・入金）の一元送信（`sendRemindNotification`）および共通フォーマット（`formatRemindItem`）。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
 | **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
-| **型定義層 (Type Definitions)** | `spreadsheet/型定義.js` | JSDoc の `@typedef` を用いて、システム全体で受け渡される DTO（`EventDto`, `ApplicationDto`, `TomorrowEventsDto`, `RemindType`, `RemindConfigDto` 等）のスキーマを一元管理する。 |
+| **型定義層 (Type Definitions)** | `spreadsheet/型定義.js` | JSDoc の `@typedef` を用いて、システム全体で受け渡される DTO（`EventDto`, `ApplicationDto`, `RemindType`, `RemindConfigDto` 等）のスキーマを一元管理する。 |
 | **共通設定・定数** | `spreadsheet/設定値.js` | 環境変数・Webhook URL・Bot トークンなどの設定値やプロパティ取得を集中管理する。 |
 
 ---
