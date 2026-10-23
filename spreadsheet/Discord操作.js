@@ -79,27 +79,10 @@ const DiscordService = {
   notifyNewCalendarEvent(event) {
     if (!WEBHOOK_CALENDAR || !event) return;
 
-    const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || "");
-    const dateStr = formatDateRange(event.startDate, event.endDate);
-    const location = event.location || "";
-    const description = event.description || "";
-
     const lines = [
       "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
-      `📅 **${brandEventTitle}**`,
-      ` └ 期間: **${dateStr} [終日]**`
+      ...this.formatCalendarEventBlock(event)
     ];
-
-    if (location) lines.push(` └ 会場: ${location}`);
-    if (description) {
-      const trimmed = String(description).trim();
-      if (trimmed.includes("\n")) {
-        const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
-        lines.push(` └ 概要:\n${quoted}`);
-      } else {
-        lines.push(` └ 概要: ${trimmed}`);
-      }
-    }
 
     this.sendNotification(WEBHOOK_CALENDAR, lines.join('\n'));
   },
@@ -113,24 +96,7 @@ const DiscordService = {
 
     const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
     events.forEach(event => {
-      const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || "");
-      const dateStr = formatDateRange(event.startDate, event.endDate);
-      const location = event.location || "";
-      const description = event.description || "";
-
-      messageLines.push(`📅 **${brandEventTitle}**`);
-      messageLines.push(` └ 期間: **${dateStr} [終日]**`);
-      if (location) messageLines.push(` └ 会場: ${location}`);
-      if (description) {
-        const trimmed = String(description).trim();
-        if (trimmed.includes("\n")) {
-          const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
-          messageLines.push(` └ 概要:\n${quoted}`);
-        } else {
-          messageLines.push(` └ 概要: ${trimmed}`);
-        }
-      }
-      messageLines.push("");
+      messageLines.push(...this.formatCalendarEventBlock(event), "");
     });
 
     this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n').trimEnd());
@@ -187,7 +153,7 @@ const DiscordService = {
     if (!event) return null;
 
     // 1. 公演名
-    const displayName = event.eventName || '';
+    const eventName = event.eventName || '';
 
     // 開催日時の表記フォーマット化（formatDateRange を活用）
     const dateStr = formatDateRange(event.startDate, event.endDate) || event.startDate || "未定";
@@ -197,12 +163,12 @@ const DiscordService = {
 
     // 2. チャンネル名の生成とサニタイズ (例: 学マス-live-tour-標)
     const brand = event.brand || '';
-    const rawName = brand ? `${brand}-${displayName}` : displayName;
+    const rawName = brand ? `${brand}-${eventName}` : eventName;
     const sanitizedName = this.sanitizeChannelName(rawName);
 
     // 3. トピック (チャンネル説明) テキストの構築
     const topicText = [
-      `公演名: ${displayName}`,
+      `公演名: ${eventName}`,
       `開催日時: ${dateStr}`,
       `会場: ${venue}`,
       `概要: ${description}`
@@ -231,7 +197,7 @@ const DiscordService = {
     // 4. 作成されたチャンネルへ初回イベント詳細メッセージを投稿
     this.sendFirstMessageToChannel(channelId, {
       ...event,
-      displayName: displayName,
+      eventName: eventName,
       dateStr: dateStr,
       location: venue,
       description: description
@@ -256,7 +222,10 @@ const DiscordService = {
         emptyMessage: "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n",
         withFooter: true,
         timeLabel: "締切時刻",
-        getTimeStr: (item) => item.timeStr || (item.endDatetime ? `${item.endDatetime}まで` : "")
+        getTimeStr: (item) => {
+          const time = item.endDatetime || item.timeStr || "";
+          return time && !time.includes("まで") ? `${time}まで` : time;
+        }
       },
       FIRST_COME: {
         webhookUrl: WEBHOOK_APPLY,
@@ -264,8 +233,8 @@ const DiscordService = {
         withFooter: false,
         timeLabel: "開始日時",
         getTimeStr: (item) => {
-          const timeStr = item.timeStr || (item.startDatetime ? `${item.startDatetime}から` : "");
-          return timeStr.includes("から") ? timeStr : `${timeStr}から`;
+          const time = item.startDatetime || item.timeStr || "";
+          return time && !time.includes("から") ? `${time}から` : time;
         }
       },
       RESALE: {
@@ -274,8 +243,8 @@ const DiscordService = {
         withFooter: false,
         timeLabel: "締切日時",
         getTimeStr: (item) => {
-          const deadlineStr = item.deadlineStr || (item.endDatetime ? `${item.endDatetime}まで` : "");
-          return deadlineStr.includes("まで") ? deadlineStr : `${deadlineStr}まで`;
+          const time = item.endDatetime || item.deadlineStr || item.timeStr || "";
+          return time && !time.includes("まで") ? `${time}まで` : time;
         }
       },
       PAYMENT: {
@@ -284,9 +253,44 @@ const DiscordService = {
         emptyLog: "本日入金締切のチケットはありませんでした。",
         withFooter: false,
         timeLabel: "入金締切",
-        getTimeStr: (item) => item.timeStr || (item.payEndDatetime ? `${item.payEndDatetime}` : "")
+        getTimeStr: (item) => {
+          const time = item.payEndDatetime || item.timeStr || "";
+          return time && !time.includes("まで") ? `${time}まで` : time;
+        }
       }
     };
+  },
+
+  /**
+   * カレンダー登録イベントの表示用テキスト行配列を生成する
+   * @param {EventDto} event - イベントDTO
+   * @returns {string[]} メッセージ行の配列
+   */
+  formatCalendarEventBlock(event) {
+    if (!event) return [];
+
+    const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || "");
+    const dateStr = formatDateRange(event.startDate, event.endDate);
+    const location = event.location || "";
+    const description = event.description || "";
+
+    const lines = [
+      `📅 **${brandEventTitle}**`,
+      ` └ 期間: **${dateStr} [終日]**`
+    ];
+
+    if (location) lines.push(` └ 会場: ${location}`);
+    if (description) {
+      const trimmed = String(description).trim();
+      if (trimmed.includes("\n")) {
+        const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
+        lines.push(` └ 概要:\n${quoted}`);
+      } else {
+        lines.push(` └ 概要: ${trimmed}`);
+      }
+    }
+
+    return lines;
   },
 
   /**
@@ -299,8 +303,7 @@ const DiscordService = {
    */
   formatRemindItem(item, { timeLabel, timeStr }) {
     if (!item) return "";
-    const eventName = item.eventName || item.name || "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, eventName);
+    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name || "");
     const applyName = item.applyName || "未指定";
     const method = item.method || item.applyMethod || "";
 
@@ -366,14 +369,15 @@ const DiscordService = {
   sendFirstMessageToChannel(channelId, event) {
     if (!channelId || !DISCORD_BOT_TOKEN) return;
 
+    const eventName = event.eventName || event.displayName || "未定";
     // ブランドに応じた枠線カラーの判定
     const embedColor = typeof getBrandColor === 'function' ? getBrandColor(event.brand) : 0x3498db;
 
     const embed = {
-      title: `🎉 ${event.displayName}`,
+      title: `🎉 ${eventName}`,
       color: embedColor,
       fields: [
-        { name: "公演名", value: event.displayName || "未定", inline: false },
+        { name: "公演名", value: eventName, inline: false },
         { name: "開催日時", value: event.dateStr || "未定", inline: true },
         { name: "会場", value: event.location || "未定", inline: true },
         { name: "概要", value: event.description || "特記事項なし", inline: false }
