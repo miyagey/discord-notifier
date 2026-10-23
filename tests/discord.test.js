@@ -204,6 +204,42 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
+  describe('formatCalendarEventBlock', () => {
+    it('イベントDTOを受け取り、表示用テキスト行配列を正しく生成すること', () => {
+      const event = {
+        brand: '学マス',
+        eventName: '初星フェス',
+        startDate: '2026-11-01',
+        endDate: '2026-11-02',
+        location: '武道館',
+        description: '特記事項メモ'
+      };
+
+      const lines = DiscordService.formatCalendarEventBlock(event);
+      expect(lines).toContain('📅 **【学マス】初星フェス**');
+      expect(lines).toContain(' └ 期間: **2026-11-01 〜 2026-11-02 [終日]**');
+      expect(lines).toContain(' └ 会場: 武道館');
+      expect(lines).toContain(' └ 概要: 特記事項メモ');
+    });
+
+    it('概要が複数行の場合は引用符形式に変換されること', () => {
+      const event = {
+        brand: 'シャニ',
+        eventName: 'LIVE',
+        startDate: '2026-11-01',
+        description: '行1\n行2'
+      };
+
+      const lines = DiscordService.formatCalendarEventBlock(event);
+      expect(lines.some(l => l.includes('> 行1\n> 行2'))).toBe(true);
+    });
+
+    it('event が null または未指定の場合は空配列を返すこと', () => {
+      expect(DiscordService.formatCalendarEventBlock(null)).toEqual([]);
+      expect(DiscordService.formatCalendarEventBlock(undefined)).toEqual([]);
+    });
+  });
+
   describe('formatApplyMethodBlock', () => {
     it('1行テキスト（URL等）の場合はインラインで整形されること', () => {
       const result = DiscordService.formatApplyMethodBlock('https://example.com/apply');
