@@ -25,12 +25,11 @@ const APPLY_COL = {
   APPLY_ID: 0,       // A列: 申し込みID
   EVENT_ID: 1,       // B列: イベントID
   BRAND: 2,          // C列: ブランド名
-  EVENT_NAME_ALT: 3, // D列: 代替イベント名
+  EVENT_NAME: 3,     // D列: イベント名
   APPLY_NAME: 4,     // E列: 受付区分/申し込み名称
   START_DATE: 5,     // F列: 申込開始日時
-  APPLY_END_DATE: 6, // G列: 申込締切日時
+  END_DATE: 6,       // G列: 申込締切日時
   APPLY_METHOD: 7,   // H列: 申込方法
-  URL: 7,            // H列: 互換用エイリアス
   RESULT_DATE: 8,    // I列: 当落発表日時
   PAY_END_DATE: 9,   // J列: 入金締切日時
   STATUS: 10         // K列: ステータス
@@ -114,10 +113,10 @@ const SheetService = {
       const parentEvent = eventMap[eventId] || null;
 
       const brand = String(row[APPLY_COL.BRAND] || (parentEvent ? parentEvent.brand : '')).trim();
-      const eventName = String(row[APPLY_COL.EVENT_NAME_ALT] || (parentEvent ? parentEvent.eventName || parentEvent.name : '')).trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || (parentEvent ? parentEvent.eventName : '')).trim();
 
       const startRaw = row[APPLY_COL.START_DATE];
-      const endRaw = row[APPLY_COL.APPLY_END_DATE];
+      const endRaw = row[APPLY_COL.END_DATE];
       const resultRaw = row[APPLY_COL.RESULT_DATE];
       const payEndRaw = row[APPLY_COL.PAY_END_DATE];
       const sheetStatus = String(row[APPLY_COL.STATUS] || '').trim();
@@ -157,24 +156,15 @@ const SheetService = {
    */
   fetchDeadlineApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
 
     const items = [];
-    const ss = this.getSpreadsheet();
-    if (!ss) return items;
-
-    const masterSheet = ss.getSheetByName("イベントマスター");
-    const applySheet = ss.getSheetByName("申し込み管理");
-    if (!masterSheet || !applySheet) return items;
-
-    const masterData = masterSheet.getDataRange().getValues();
-    const applyData = applySheet.getDataRange().getValues();
-    const masterMap = this.getMasterEventMap(masterData);
-
     for (let i = 1; i < applyData.length; i++) {
       const row = applyData[i];
       const applyId = row[APPLY_COL.APPLY_ID];
       const eventId = row[APPLY_COL.EVENT_ID];
-      const applyEndDateRaw = row[APPLY_COL.APPLY_END_DATE];
+      const applyEndDateRaw = row[APPLY_COL.END_DATE];
       const applyName = row[APPLY_COL.APPLY_NAME] || "";
 
       if (!applyId || !applyEndDateRaw) continue;
@@ -186,12 +176,9 @@ const SheetService = {
       // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
       if (new Date(applyEndDateRaw) <= baseDate) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
-      const brandEventTitle = formatBrandEventTitle(brand, eventName);
-      const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
-      const formattedTime = formatDateJST(applyEndDateRaw, "HH:mm");
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
+      const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
       const endDatetime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
 
       items.push({
@@ -199,10 +186,8 @@ const SheetService = {
         eventId: eventId,
         brand: brand,
         eventName: eventName,
-        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
         endDatetime: endDatetime,
-        timeStr: `${formattedTime}まで`, // 互換用
         method: applyMethod
       });
     }
@@ -220,18 +205,10 @@ const SheetService = {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = formatDateJST(tomorrow, "yyyy-MM-dd");
 
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
+
     const items = [];
-    const ss = this.getSpreadsheet();
-    if (!ss) return items;
-
-    const masterSheet = ss.getSheetByName("イベントマスター");
-    const applySheet = ss.getSheetByName("申し込み管理");
-    if (!masterSheet || !applySheet) return items;
-
-    const masterData = masterSheet.getDataRange().getValues();
-    const applyData = applySheet.getDataRange().getValues();
-    const masterMap = this.getMasterEventMap(masterData);
-
     for (let i = 1; i < applyData.length; i++) {
       const row = applyData[i];
       const applyId = row[APPLY_COL.APPLY_ID];
@@ -244,23 +221,18 @@ const SheetService = {
       const applyStartStr = formatDateJST(applyStartDateRaw, "yyyy-MM-dd");
       if (applyStartStr !== tomorrowStr) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
-      const brandEventTitle = formatBrandEventTitle(brand, eventName);
-      const formattedTime = formatDateJST(applyStartDateRaw, "HH:mm");
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
       const startDatetime = formatDateJST(applyStartDateRaw, "yyyy-MM-dd HH:mm");
-      const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
+      const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
       items.push({
         id: applyId,
         eventId: eventId,
         brand: brand,
         eventName: eventName,
-        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
         startDatetime: startDatetime,
-        timeStr: formattedTime, // 互換用
         method: applyMethod
       });
     }
@@ -276,25 +248,17 @@ const SheetService = {
   fetchResaleApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
 
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
+
     const items = [];
-    const ss = this.getSpreadsheet();
-    if (!ss) return items;
-
-    const masterSheet = ss.getSheetByName("イベントマスター");
-    const applySheet = ss.getSheetByName("申し込み管理");
-    if (!masterSheet || !applySheet) return items;
-
-    const masterData = masterSheet.getDataRange().getValues();
-    const applyData = applySheet.getDataRange().getValues();
-    const masterMap = this.getMasterEventMap(masterData);
-
     for (let i = 1; i < applyData.length; i++) {
       const row = applyData[i];
       const applyId = row[APPLY_COL.APPLY_ID];
       const eventId = row[APPLY_COL.EVENT_ID];
       const applyName = row[APPLY_COL.APPLY_NAME] || "";
       const applyStartDateRaw = row[APPLY_COL.START_DATE];
-      const applyEndDateRaw = row[APPLY_COL.APPLY_END_DATE];
+      const applyEndDateRaw = row[APPLY_COL.END_DATE];
 
       if (!applyId || !applyName.includes("リセール") || !applyStartDateRaw || !applyEndDateRaw) continue;
 
@@ -303,22 +267,18 @@ const SheetService = {
 
       // 受付期間中（開始日 <= 本日 <= 終了日）
       if (todayStr >= applyStartStr && todayStr <= applyEndStr) {
-        const masterInfo = masterMap[eventId] || {};
-        const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-        const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
-        const brandEventTitle = formatBrandEventTitle(brand, eventName);
-        const formattedEndTime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
-        const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
+        const brand = String(row[APPLY_COL.BRAND] || "").trim();
+        const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
+        const endDatetime = formatDateJST(applyEndDateRaw, "yyyy-MM-dd HH:mm");
+        const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
         items.push({
           id: applyId,
           eventId: eventId,
           brand: brand,
           eventName: eventName,
-          brandEvent: brandEventTitle, // 互換用
           applyName: applyName,
-          endDatetime: formattedEndTime,
-          deadlineStr: formattedEndTime, // 互換用
+          endDatetime: endDatetime,
           method: applyMethod
         });
       }
@@ -335,18 +295,10 @@ const SheetService = {
   fetchPaymentApplyItems(baseDate = new Date()) {
     const todayStr = formatDateJST(baseDate, "yyyy-MM-dd");
 
+    const applyData = this.getApplyData();
+    if (applyData.length <= 1) return [];
+
     const items = [];
-    const ss = this.getSpreadsheet();
-    if (!ss) return items;
-
-    const masterSheet = ss.getSheetByName("イベントマスター");
-    const applySheet = ss.getSheetByName("申し込み管理");
-    if (!masterSheet || !applySheet) return items;
-
-    const masterData = masterSheet.getDataRange().getValues();
-    const applyData = applySheet.getDataRange().getValues();
-    const masterMap = this.getMasterEventMap(masterData);
-
     for (let i = 1; i < applyData.length; i++) {
       const row = applyData[i];
       const applyId = row[APPLY_COL.APPLY_ID];
@@ -362,23 +314,18 @@ const SheetService = {
       // 締切時刻が基準日時より過去の場合はスキップ（時刻考慮）
       if (new Date(payEndDateRaw) <= baseDate) continue;
 
-      const masterInfo = masterMap[eventId] || {};
-      const eventName = masterInfo.eventName || row[APPLY_COL.EVENT_NAME_ALT] || "";
-      const brand = masterInfo.brand || row[APPLY_COL.BRAND] || "";
-      const brandEventTitle = formatBrandEventTitle(brand, eventName);
-      const formattedTime = formatDateJST(payEndDateRaw, "HH:mm");
+      const brand = String(row[APPLY_COL.BRAND] || "").trim();
+      const eventName = String(row[APPLY_COL.EVENT_NAME] || "").trim();
       const payEndDatetime = formatDateJST(payEndDateRaw, "yyyy-MM-dd HH:mm");
-      const applyMethod = row[APPLY_COL.APPLY_METHOD] || row[APPLY_COL.URL] || "";
+      const applyMethod = row[APPLY_COL.APPLY_METHOD] || "";
 
       items.push({
         id: applyId,
         eventId: eventId,
         brand: brand,
         eventName: eventName,
-        brandEvent: brandEventTitle, // 互換用
         applyName: applyName,
         payEndDatetime: payEndDatetime,
-        timeStr: `${formattedTime}まで`, // 互換用
         method: applyMethod
       });
     }
@@ -468,18 +415,7 @@ const SheetService = {
     if (!sheet) throw new Error("「イベントマスター」シートが見つかりません。");
 
     const values = sheet.getDataRange().getValues();
-    let maxIdNum = 0;
-
-    for (let i = 1; i < values.length; i++) {
-      const idStr = String(values[i][MASTER_COL.ID] || '');
-      const match = idStr.match(/^EV-(\d+)$/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxIdNum) maxIdNum = num;
-      }
-    }
-
-    const eventId = 'EV-' + String(maxIdNum + 1).padStart(3, '0');
+    const eventId = this.generateNextId(values, MASTER_COL.ID, 'EV');
     const nextRow = sheet.getLastRow() + 1;
 
     const masterIfsFormula = `=IFS(
@@ -515,9 +451,7 @@ const SheetService = {
    * @param {EventDto} data - イベントDTO
    */
   updateEventRow(data) {
-    const ss = this.getSpreadsheet();
-    if (!ss) throw new Error("スプレッドシートを開けません。");
-    const masterSheet = ss.getSheetByName('イベントマスター');
+    const masterSheet = this.getMasterSheet();
     if (!masterSheet) throw new Error("「イベントマスター」シートが見つかりません。");
 
     const values = masterSheet.getDataRange().getValues();
@@ -547,13 +481,13 @@ const SheetService = {
     masterSheet.getRange(targetRow, MASTER_COL.SUMMARY + 1).setValue(description);
 
     // 申し込み管理シート側のブランド・イベント名も同期更新
-    const applySheet = ss.getSheetByName('申し込み管理');
+    const applySheet = this.getApplySheet();
     if (applySheet) {
       const applyValues = applySheet.getDataRange().getValues();
       for (let j = 1; j < applyValues.length; j++) {
         if (String(applyValues[j][APPLY_COL.EVENT_ID]) === String(data.id)) {
           applySheet.getRange(j + 1, APPLY_COL.BRAND + 1).setValue(data.brand || '');
-          applySheet.getRange(j + 1, APPLY_COL.EVENT_NAME_ALT + 1).setValue(data.name || '');
+          applySheet.getRange(j + 1, APPLY_COL.EVENT_NAME + 1).setValue(data.eventName || '');
         }
       }
     }
@@ -565,9 +499,7 @@ const SheetService = {
    * @returns {string} 発行された申し込みID (AP-xxx)
    */
   insertApplication(data) {
-    const ss = this.getSpreadsheet();
-    if (!ss) throw new Error("スプレッドシートを開けません。");
-    const applySheet = ss.getSheetByName('申し込み管理');
+    const applySheet = this.getApplySheet();
     if (!applySheet) throw new Error("「申し込み管理」シートが見つかりません。");
 
     let eventId = data.eventId || '';
@@ -576,7 +508,7 @@ const SheetService = {
 
     // イベントマスターから補完
     if (eventId && (!brand || !eventName)) {
-      const masterSheet = ss.getSheetByName('イベントマスター');
+      const masterSheet = this.getMasterSheet();
       if (masterSheet) {
         const mValues = masterSheet.getDataRange().getValues();
         for (let i = 1; i < mValues.length; i++) {
@@ -590,18 +522,7 @@ const SheetService = {
     }
 
     const values = applySheet.getDataRange().getValues();
-    let maxIdNum = 0;
-
-    for (let i = 1; i < values.length; i++) {
-      const idStr = String(values[i][APPLY_COL.APPLY_ID] || '');
-      const match = idStr.match(/^AP-(\d+)$/);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxIdNum) maxIdNum = num;
-      }
-    }
-
-    const applyId = 'AP-' + String(maxIdNum + 1).padStart(3, '0');
+    const applyId = this.generateNextId(values, APPLY_COL.APPLY_ID, 'AP');
     const nextRow = applySheet.getLastRow() + 1;
 
     const ifsFormula = `=IFS(
@@ -634,9 +555,7 @@ const SheetService = {
    * @param {ApplicationDto} data - 申込DTO
    */
   updateApplicationRow(data) {
-    const ss = this.getSpreadsheet();
-    if (!ss) throw new Error("スプレッドシートを開けません。");
-    const applySheet = ss.getSheetByName('申し込み管理');
+    const applySheet = this.getApplySheet();
     if (!applySheet) throw new Error("「申し込み管理」シートが見つかりません。");
 
     const values = applySheet.getDataRange().getValues();
@@ -657,7 +576,7 @@ const SheetService = {
     let eventName = data.eventName || '';
 
     if (data.eventId && (!brand || !eventName)) {
-      const masterSheet = ss.getSheetByName('イベントマスター');
+      const masterSheet = this.getMasterSheet();
       if (masterSheet) {
         const mValues = masterSheet.getDataRange().getValues();
         for (let i = 1; i < mValues.length; i++) {
@@ -672,10 +591,10 @@ const SheetService = {
 
     applySheet.getRange(targetRow, APPLY_COL.EVENT_ID + 1).setValue(data.eventId || '');
     if (brand) applySheet.getRange(targetRow, APPLY_COL.BRAND + 1).setValue(brand);
-    if (eventName) applySheet.getRange(targetRow, APPLY_COL.EVENT_NAME_ALT + 1).setValue(eventName);
+    if (eventName) applySheet.getRange(targetRow, APPLY_COL.EVENT_NAME + 1).setValue(eventName);
     applySheet.getRange(targetRow, APPLY_COL.APPLY_NAME + 1).setValue(data.applyName || '');
     applySheet.getRange(targetRow, APPLY_COL.START_DATE + 1).setValue(data.startDatetime || '');
-    applySheet.getRange(targetRow, APPLY_COL.APPLY_END_DATE + 1).setValue(data.endDatetime || '');
+    applySheet.getRange(targetRow, APPLY_COL.END_DATE + 1).setValue(data.endDatetime || '');
     applySheet.getRange(targetRow, APPLY_COL.APPLY_METHOD + 1).setValue(data.method || '');
     applySheet.getRange(targetRow, APPLY_COL.RESULT_DATE + 1).setValue(data.resultDatetime || '');
     applySheet.getRange(targetRow, APPLY_COL.PAY_END_DATE + 1).setValue(data.payEndDatetime || '');
@@ -720,51 +639,33 @@ const SheetService = {
   },
 
   /**
-   * イベントマスターシートのデータ配列から eventId をキーとした情報マップを生成
-   * @param {Array<Array<any>>} masterData - イベントマスターの全行データ
-   * @returns {Object<string, {brand: string, eventName: string}>}
+   * 「申し込み管理」シートの全行データを取得
+   * @returns {Array<Array<any>>}
    */
-  getMasterEventMap(masterData) {
-    const masterMap = {};
-    if (!masterData || masterData.length <= 1) return masterMap;
-
-    for (let i = 1; i < masterData.length; i++) {
-      const eventId = masterData[i][MASTER_COL.ID];
-      if (eventId) {
-        masterMap[eventId] = {
-          brand: masterData[i][MASTER_COL.BRAND],
-          eventName: masterData[i][MASTER_COL.EVENT_NAME]
-        };
-      }
-    }
-    return masterMap;
+  getApplyData() {
+    const sheet = this.getApplySheet();
+    return sheet ? sheet.getDataRange().getValues() : [];
   },
 
   /**
-   * イベント名またはブランド名込みのタイトルからイベントマスター情報を逆引き検索する
-   * @param {Array<Array<any>>} masterData 
-   * @param {string} rawTitle 
-   * @returns {{eventId: string, brand: string, eventName: string}|null}
+   * シートデータから指定プレフィックスの連番IDを自動発行する
+   * @param {Array<Array<any>>} values - シートデータ配列
+   * @param {number} colIndex - ID列のインデックス
+   * @param {string} prefix - IDプレフィックス (例: 'EV', 'AP')
+   * @returns {string} 連番ID (例: 'EV-001')
    */
-  findMasterEventByTitle(masterData, rawTitle) {
-    if (!masterData || masterData.length <= 1 || !rawTitle) return null;
-    const cleanRaw = String(rawTitle).trim();
-
-    for (let i = 1; i < masterData.length; i++) {
-      const eventId = masterData[i][MASTER_COL.ID];
-      const brand = masterData[i][MASTER_COL.BRAND] || "";
-      const eventName = masterData[i][MASTER_COL.EVENT_NAME] || "";
-      const fullTitleWithBrand = brand ? `【${brand}】${eventName}` : eventName;
-
-      if (
-        cleanRaw === fullTitleWithBrand ||
-        cleanRaw === eventName ||
-        (eventName && cleanRaw.includes(eventName)) ||
-        (fullTitleWithBrand && cleanRaw.includes(fullTitleWithBrand))
-      ) {
-        return { eventId, brand, eventName };
+  generateNextId(values, colIndex, prefix) {
+    let maxIdNum = 0;
+    const regex = new RegExp(`^${prefix}-(\\d+)$`);
+    for (let i = 1; i < values.length; i++) {
+      const idStr = String(values[i][colIndex] || '');
+      const match = idStr.match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxIdNum) maxIdNum = num;
       }
     }
-    return null;
+    return `${prefix}-${String(maxIdNum + 1).padStart(3, '0')}`;
   }
 };
+
