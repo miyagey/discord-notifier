@@ -338,24 +338,6 @@ const DiscordService = {
     return lines;
   },
 
-  /**
-   * リマインドアイテムの各文字列をフォーマット
-   * @param {ApplicationDto} item - 申込アイテムDTO
-   * @param {Object} options - フォーマットオプション
-   * @param {string} options.timeLabel - 時間ラベル
-   * @param {string} options.timeStr - 時間文字列
-   * @returns {string}
-   */
-  formatRemindItem(item, { timeLabel, timeStr }) {
-    if (!item) return "";
-    const brandEvent = item.brandEvent || formatBrandEventTitle(item.brand, item.eventName || item.name || "");
-    const applyName = item.applyName || "未指定";
-    const method = item.method || item.applyMethod || "";
-
-    let str = `\n📅 **${brandEvent}**\n └ 受付区分: ${applyName}\n └ ${timeLabel}: **${timeStr}**\n`;
-    if (method) str += this.formatApplyMethodBlock(method);
-    return str;
-  },
 
   /**
    * 申込方法（URLまたは複数行テキスト）をDiscord用に整形する

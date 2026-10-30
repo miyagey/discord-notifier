@@ -46,7 +46,7 @@ flowchart TD
 | :--- | :--- | :--- |
 | **オーケストレーション層** | `spreadsheet/定期通知バッチ.js`<br>`spreadsheet/Webアプリ.js` | 処理全体のフロー制御に専念する。<br>・定期バッチ: データの抽出指示 ➔ フォーマット指示 ➔ 送信指示<br>・Webアプリ: リクエスト受付 ➔ 各層の呼び出し（カレンダー・チャンネル作成等） ➔ レスポンス返却 |
 | **データアクセス層** | `spreadsheet/スプレッドシート操作.js`<br>(`SheetService`) | スプレッドシートのシート構造・列インデックス（`MASTER_COL`, `APPLY_COL`）を隠蔽し、データの取得・保存を行う。<br>外部層に対しては名前付きプロパティのモデルオブジェクト（DTO）を返す。 |
-| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック）整形・送信。<br>・設定駆動（`REMIND_CONFIGS`）によるリマインド通知（締切・先着・リセール・入金）の一元送信（`sendRemindNotification`）および共通フォーマット（`formatRemindItem`）。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
+| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック・リッチ Embed）整形・送信。<br>・設定駆動（`REMIND_CONFIGS`）によるリマインド通知（締切・先着・リセール・入金）の一元送信（`sendRemindNotification`）および Embed カード生成（`formatRemindEmbed`）。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
 | **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
 | **型定義層 (Type Definitions)** | `spreadsheet/型定義.js` | JSDoc の `@typedef` を用いて、システム全体で受け渡される DTO（`EventDto`, `ApplicationDto`, `RemindType`, `RemindConfigDto` 等）のスキーマを一元管理する。 |
@@ -111,7 +111,7 @@ flowchart TD
 ### 2.6 関数の配置ルール（トップダウン設計）
 コードの可読性を最大化し、新規参画者や保守者がコードの全体像を即座に把握できるよう、全ファイルで**トップダウン配置（新聞記事スタイル）**を徹底する：
 1. **最上部（高レベル）**: 外部から呼び出される公開エントリーポイント・メイン処理関数（例: `sendRemindNotification`, `syncEventsToSheet`, `fetchEvents`）
-2. **中盤（中レベル）**: 業務固有のテンプレート生成、フォーマッター、設定マップ（例: `REMIND_CONFIGS`, `formatRemindItem`）
+2. **中盤（中レベル）**: 業務固有のテンプレート生成、フォーマッター、設定マップ（例: `REMIND_CONFIGS`, `formatRemindEmbed`）
 3. **末尾（低レベル・インフラ）**: 内部ヘルパー、基底通信クライアント、シートインスタンス取得（例: `getSpreadsheet`, `fetchDiscordApi`, `sendNotification`, `getCalendar`）
 
 ---
@@ -125,17 +125,18 @@ Discord Webhook へのリクエストが短時間に集中した場合、Discord
 2. 指示された待機時間（ミリ秒）+ 500ms スリープして最大 3 回まで自動再試行。
 3. すべて失敗した場合はエラーログを記録し、例外をスロー。
 
-### 3.2 Discord 送信文字数制限 (2000文字) 対策
-Discord Webhook の 1 メッセージあたりの上限文字数は 2,000 文字です。  
-`DiscordService.sendItemListNotification` では、通知対象のアイテムを安全に分割送信します：
-- 累積文字数がフッターを含めて 2,000 文字を超える直前で一度メッセージを送信（`Utilities.sleep(500)` でレートリミットを回避）。
-- 新しいメッセージとして次のアイテム群を連結し、最終メッセージの末尾に共通フッターを付与。
+### 3.2 Discord メッセージおよび Embed 制限 (10 Embeds / 2000文字) 対策
+Discord Webhook では 1 メッセージあたり最大 10 個の Embed、および 2,000 文字の上限が定められています。  
+`DiscordService.sendRemindNotification` では、通知対象のアイテムを安全に分割送信します：
+- アイテム単位でリッチな Embed カード（`formatRemindEmbed`）を生成。
+- 10 件を超える場合は 10 件ずつのチャンクに分割し、順次送信（`Utilities.sleep(500)` でレートリミットを回避）。
+- 初回チャンクに見出しメッセージと強調タイトルを付与し、最終チャンクの末尾に共通フッター（受付状況シートへのリンク等）を付与。
 
 ### 3.3 リマインド通知の設定駆動 (Config-driven) アーキテクチャ
 複数のリマインド種別（申込締切、翌日先着、受付中リセール、入金締切）におけるコード重複と 1:1 メソッドの乱立を防ぐため、設定駆動設計（Strategy パターン）を採用しています：
-- **設定マップ (`REMIND_CONFIGS`)**: 送信先 Webhook URL、見出しタイトル、時間ラベル名、時間文字列抽出関数、0件時挙動（空メッセージ送信 / ログ出力 / スキップ）、フッター有無を種別ごとに集中定義。
-- **共通フォーマッター (`formatRemindItem`)**: 共通の Markdown レイアウト（ブランド・イベント名、受付区分、時間ラベル、申込方法）にパラメータを流し込んで整形。
-- **共通送信メソッド (`sendRemindNotification`)**: 指定された種別の設定に基づき、件数判定・フォーマット・分割送信（`sendItemListNotification`）を一元実行。新規リマインド種別の追加時は設定を追記するだけで対応可能。
+- **設定マップ (`REMIND_CONFIGS`)**: 送信先 Webhook URL、見出しタイトル、時間ラベル名、時間文字列抽出関数、テーマカラー（`color`）、0件時挙動（空メッセージ送信 / ログ出力 / スキップ）、フッター有無を種別ごとに集中定義。
+- **共通 Embed フォーマッター (`formatRemindEmbed`)**: 共通の Embed カードレイアウト（ブランド・イベント名タイトル、受付区分、時間ラベル・値、申込方法フィールド）にパラメータを流し込んで整形。
+- **共通送信メソッド (`sendRemindNotification`)**: 指定された種別の設定に基づき、件数判定・Embed 化・10件分割送信を一元実行。新規リマインド種別の追加時は設定を追記するだけで対応可能。
 
 ### 3.4 Discord API 通信と Cloudflare WAF (40333 エラー) 対策
 GAS (Google Apps Script) の IP アドレス帯域や User-Agent が Discord 側（Cloudflare WAF）でブロックされる問題への恒久対策として、以下のアーキテクチャを採用しています：

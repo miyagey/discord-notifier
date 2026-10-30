@@ -245,61 +245,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
-  describe('formatRemindItem', () => {
-    it('申込締切アイテムが正しくフォーマットされること', () => {
-      const dummyItem = {
-        brandEvent: '【学マス】LIVE TOUR',
-        applyName: 'アソビストア限定先行',
-        timeStr: '23:59まで',
-        method: 'https://asobistore.jp/ticket'
-      };
-
-      const result = DiscordService.formatRemindItem(dummyItem, {
-        timeLabel: '締切時刻',
-        timeStr: dummyItem.timeStr
-      });
-      expect(result).toContain('📅 **【学マス】LIVE TOUR**');
-      expect(result).toContain('└ 受付区分: アソビストア限定先行');
-      expect(result).toContain('└ 締切時刻: **23:59まで**');
-      expect(result).toContain('└ 申込方法: https://asobistore.jp/ticket');
-    });
-
-    it('共通DTO形式（brand, eventName, endDatetime）から正しく自動フォーマットされること', () => {
-      const dtoItem = {
-        brand: '学マス',
-        eventName: '初星公演',
-        applyName: 'WEB先行',
-        endDatetime: '2026-11-20 23:59',
-        method: 'https://example.com'
-      };
-
-      const result = DiscordService.formatRemindItem(dtoItem, {
-        timeLabel: '締切時刻',
-        timeStr: `${dtoItem.endDatetime}まで`
-      });
-      expect(result).toContain('📅 **【学マス】初星公演**');
-      expect(result).toContain('└ 受付区分: WEB先行');
-      expect(result).toContain('└ 締切時刻: **2026-11-20 23:59まで**');
-      expect(result).toContain('└ 申込方法: https://example.com');
-    });
-
-    it('入金締切アイテムが正しくフォーマットされること', () => {
-      const dummyItem = {
-        brandEvent: '【デレ】7th LIVE',
-        applyName: '一般先行',
-        method: ''
-      };
-
-      const result = DiscordService.formatRemindItem(dummyItem, {
-        timeLabel: '入金締切',
-        timeStr: '21:00まで'
-      });
-      expect(result).toContain('📅 **【デレ】7th LIVE**');
-      expect(result).toContain('└ 受付区分: 一般先行');
-      expect(result).toContain('└ 入金締切: **21:00まで**');
-    });
-  });
-
   describe('REMIND_CONFIGS', () => {
     it('全リマインド種別の設定が正しく定義されていること', () => {
       const configs = DiscordService.REMIND_CONFIGS;
