@@ -770,4 +770,85 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(fieldMap['概要']).toBe('特記事項メモ');
     });
   });
+
+  describe('sendEmbedsNotification', () => {
+    it('10件以下のEmbedを一度で送信し、タイトルとサブタイトルをcontentに設定すること', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const embeds = [{ title: 'Embed 1' }, { title: 'Embed 2' }];
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        subTitle: '補足テキスト',
+        embeds
+      });
+
+      expect(spySend).toHaveBeenCalledTimes(1);
+      expect(spySend).toHaveBeenCalledWith('https://example.com/webhook', {
+        content: '## タイトル\n補足テキスト',
+        embeds
+      });
+
+      spySend.mockRestore();
+    });
+
+    it('10件を超える場合に10件ずつ分割送信し、2回目以降に (続き) が付くこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const embeds = Array.from({ length: 12 }, (_, i) => ({ title: `Embed ${i + 1}` }));
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds
+      });
+
+      expect(spySend).toHaveBeenCalledTimes(2);
+      expect(spySend.mock.calls[0][1]).toEqual({
+        content: '## タイトル',
+        embeds: embeds.slice(0, 10)
+      });
+      expect(spySend.mock.calls[1][1]).toEqual({
+        content: '## タイトル (続き)',
+        embeds: embeds.slice(10, 12)
+      });
+
+      spySend.mockRestore();
+    });
+
+    it('embeds が空または null の場合は何もしないこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds: []
+      });
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds: null
+      });
+
+      expect(spySend).not.toHaveBeenCalled();
+      spySend.mockRestore();
+    });
+  });
+
+  describe('resolveProxyUrl', () => {
+    it('PROXY_BASE_URL がある場合に discord.com をプロキシURLに置換すること', () => {
+      const originalProxy = testContext.PROXY_BASE_URL;
+      testContext.PROXY_BASE_URL = 'https://proxy.example.workers.dev';
+
+      const result = DiscordService.resolveProxyUrl('https://discord.com/api/webhooks/123/xyz');
+      expect(result).toBe('https://proxy.example.workers.dev/api/webhooks/123/xyz');
+
+      testContext.PROXY_BASE_URL = originalProxy;
+    });
+
+    it('PROXY_BASE_URL が空の場合はそのままのURLを返すこと', () => {
+      const originalProxy = testContext.PROXY_BASE_URL;
+      testContext.PROXY_BASE_URL = '';
+
+      const result = DiscordService.resolveProxyUrl('https://discord.com/api/webhooks/123/xyz');
+      expect(result).toBe('https://discord.com/api/webhooks/123/xyz');
+
+      testContext.PROXY_BASE_URL = originalProxy;
+    });
+  });
 });

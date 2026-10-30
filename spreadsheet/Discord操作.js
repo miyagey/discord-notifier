@@ -46,19 +46,11 @@ const DiscordService = {
     })).filter(Boolean);
 
     // 3. Discord の仕様（1メッセージ最大10 Embeds）に合わせて分割送信
-    const MAX_EMBEDS_PER_MESSAGE = 10;
-    for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
-      const chunk = embeds.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
-      const content = i === 0
-        ? [config.headerTitle, footerMessage].filter(Boolean).join("\n")
-        : `${config.headerTitle} (続き)`;
-
-      this.sendNotification(config.webhookUrl, { content, embeds: chunk });
-
-      if (i + MAX_EMBEDS_PER_MESSAGE < embeds.length) {
-        Utilities.sleep(500);
-      }
-    }
+    this.sendEmbedsNotification(config.webhookUrl, {
+      headerTitle: config.headerTitle,
+      subTitle: footerMessage,
+      embeds
+    });
   },
 
   /**
@@ -98,21 +90,10 @@ const DiscordService = {
       .map(event => this.formatCalendarEventEmbed(event))
       .filter(Boolean);
 
-    if (embeds.length === 0) return;
-
-    const headerTitle = "## 🆕 Googleカレンダーに新しいイベントを登録したよ！";
-    const MAX_EMBEDS_PER_MESSAGE = 10;
-
-    for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
-      const chunk = embeds.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
-      const content = i === 0 ? headerTitle : `${headerTitle} (続き)`;
-
-      this.sendNotification(WEBHOOK_CALENDAR, { content, embeds: chunk });
-
-      if (i + MAX_EMBEDS_PER_MESSAGE < embeds.length) {
-        Utilities.sleep(500);
-      }
-    }
+    this.sendEmbedsNotification(WEBHOOK_CALENDAR, {
+      headerTitle: "## 🆕 Googleカレンダーに新しいイベントを登録したよ！",
+      embeds
+    });
   },
 
   /**
@@ -216,6 +197,40 @@ const DiscordService = {
     });
 
     return channelId;
+  },
+
+  /**
+   * 新規作成チャンネルへ初回イベント詳細メッセージ (Embed) を投稿する
+   * @param {string} channelId - Discord チャンネルID
+   * @param {EventDto} event - イベントDTO
+   */
+  sendFirstMessageToChannel(channelId, event) {
+    if (!channelId || !DISCORD_BOT_TOKEN) return;
+
+    const eventName = event.eventName || event.displayName || "未定";
+    // ブランドに応じた枠線カラーの判定
+    const embedColor = typeof getBrandColor === 'function' ? getBrandColor(event.brand) : 0x3498db;
+
+    const embed = {
+      title: `🎉 ${eventName}`,
+      color: embedColor,
+      fields: [
+        { name: "公演名", value: eventName, inline: false },
+        { name: "開催日時", value: event.dateStr || "未定", inline: true },
+        { name: "会場", value: event.location || "未定", inline: true },
+        { name: "概要", value: event.description || "特記事項なし", inline: false }
+      ],
+      footer: { text: `Event ID: ${event.id || 'NEW'}` }
+    };
+
+    const res = this.fetchDiscordApi(`/channels/${channelId}/messages`, {
+      method: 'post',
+      payload: { embeds: [embed] }
+    });
+
+    if (res && res.success) {
+      Logger.log(`チャンネル (${channelId}) へ初回メッセージを投稿しました。`);
+    }
   },
 
   // ==================================================
@@ -402,43 +417,35 @@ const DiscordService = {
     return sanitized || "event-channel";
   },
 
-  /**
-   * 新規作成チャンネルへ初回イベント詳細メッセージ (Embed) を投稿する
-   * @param {string} channelId - Discord チャンネルID
-   * @param {EventDto} event - イベントDTO
-   */
-  sendFirstMessageToChannel(channelId, event) {
-    if (!channelId || !DISCORD_BOT_TOKEN) return;
-
-    const eventName = event.eventName || event.displayName || "未定";
-    // ブランドに応じた枠線カラーの判定
-    const embedColor = typeof getBrandColor === 'function' ? getBrandColor(event.brand) : 0x3498db;
-
-    const embed = {
-      title: `🎉 ${eventName}`,
-      color: embedColor,
-      fields: [
-        { name: "公演名", value: eventName, inline: false },
-        { name: "開催日時", value: event.dateStr || "未定", inline: true },
-        { name: "会場", value: event.location || "未定", inline: true },
-        { name: "概要", value: event.description || "特記事項なし", inline: false }
-      ],
-      footer: { text: `Event ID: ${event.id || 'NEW'}` }
-    };
-
-    const res = this.fetchDiscordApi(`/channels/${channelId}/messages`, {
-      method: 'post',
-      payload: { embeds: [embed] }
-    });
-
-    if (res && res.success) {
-      Logger.log(`チャンネル (${channelId}) へ初回メッセージを投稿しました。`);
-    }
-  },
-
   // ==================================================
   // 4. 低レベル通信・インフラメソッド群
   // ==================================================
+
+  /**
+   * Embed 配列を Discord の仕様（1メッセージ最大10件）に合わせて分割送信する
+   * @param {string} webhookUrl - 送信先 Webhook URL
+   * @param {Object} options - 送信オプション
+   * @param {string} options.headerTitle - 初回メッセージの見出しタイトル
+   * @param {string} [options.subTitle] - 初回メッセージの補足テキスト
+   * @param {Object[]} options.embeds - 送信する Embed オブジェクト配列
+   */
+  sendEmbedsNotification(webhookUrl, { headerTitle, subTitle, embeds }) {
+    if (!webhookUrl || !embeds || embeds.length === 0) return;
+
+    const MAX_EMBEDS_PER_MESSAGE = 10;
+    for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
+      const chunk = embeds.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
+      const content = i === 0
+        ? [headerTitle, subTitle].filter(Boolean).join("\n")
+        : `${headerTitle} (続き)`;
+
+      this.sendNotification(webhookUrl, { content, embeds: chunk });
+
+      if (i + MAX_EMBEDS_PER_MESSAGE < embeds.length) {
+        Utilities.sleep(500);
+      }
+    }
+  },
 
 
   /**
@@ -454,10 +461,7 @@ const DiscordService = {
         throw new Error("Webhook URLが設定されていません。");
       }
 
-      // URLが「discord.com」だった場合、自動で自分専用プロキシに書き換える
-      if (PROXY_BASE_URL && webhookUrl.includes("https://discord.com")) {
-        webhookUrl = webhookUrl.replace("https://discord.com", PROXY_BASE_URL);
-      }
+      const targetUrl = this.resolveProxyUrl(webhookUrl);
 
       let payload;
       if (typeof payloadOrMessage === 'object' && payloadOrMessage !== null) {
@@ -477,7 +481,7 @@ const DiscordService = {
       let isSuccess = false;
 
       for (let i = 0; i < MAX_RETRIES; i++) {
-        const response = UrlFetchApp.fetch(webhookUrl, options);
+        const response = UrlFetchApp.fetch(targetUrl, options);
         const responseCode = response.getResponseCode();
 
         if (responseCode === 200 || responseCode === 204) {
@@ -535,13 +539,11 @@ const DiscordService = {
       return null;
     }
 
-    let url = endpoint.startsWith('http')
+    const rawUrl = endpoint.startsWith('http')
       ? endpoint
       : `https://discord.com/api/v10${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
-    if (PROXY_BASE_URL && url.includes("https://discord.com")) {
-      url = url.replace("https://discord.com", PROXY_BASE_URL);
-    }
+    const url = this.resolveProxyUrl(rawUrl);
 
     const requestOptions = {
       method: method.toLowerCase(),
@@ -581,5 +583,17 @@ const DiscordService = {
       Logger.log(`Discord API 呼び出し中に例外が発生しました [${method.toUpperCase()} ${endpoint}]: ${e.toString()}`);
       return { success: false, status: 0, error: e };
     }
+  },
+
+  /**
+   * PROXY_BASE_URL が設定されている場合、URLのホストをプロキシ先に置換する
+   * @param {string} url - 対象URL
+   * @returns {string} 解決されたURL
+   */
+  resolveProxyUrl(url) {
+    if (PROXY_BASE_URL && url && url.includes("https://discord.com")) {
+      return url.replace("https://discord.com", PROXY_BASE_URL);
+    }
+    return url;
   }
 };

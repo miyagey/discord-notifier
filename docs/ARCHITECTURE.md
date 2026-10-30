@@ -127,10 +127,10 @@ Discord Webhook へのリクエストが短時間に集中した場合、Discord
 
 ### 3.2 Discord メッセージおよび Embed 制限 (10 Embeds / 2000文字) 対策
 Discord Webhook では 1 メッセージあたり最大 10 個の Embed、および 2,000 文字の上限が定められています。  
-`DiscordService.sendRemindNotification` では、通知対象のアイテムを安全に分割送信します：
-- アイテム単位でリッチな Embed カード（`formatRemindEmbed`）を生成。
-- 10 件を超える場合は 10 件ずつのチャンクに分割し、順次送信（`Utilities.sleep(500)` でレートリミットを回避）。
-- 初回チャンクに見出しメッセージと強調タイトルを付与し、最終チャンクの末尾に共通フッター（受付状況シートへのリンク等）を付与。
+`DiscordService.sendEmbedsNotification` では、通知対象の Embed 群を安全に分割送信します：
+- 10 件を超える場合は 10 件ずつのチャンクに自動分割し、順次送信（`Utilities.sleep(500)` でレートリミットを回避）。
+- 初回チャンクに見出しメッセージやタイトルを付与し、2回目以降のチャンクには `(続き)` を付与。
+- `sendRemindNotification` および `notifyNewCalendarEvent` の両方でこの共通メソッドを活用。
 
 ### 3.3 リマインド通知の設定駆動 (Config-driven) アーキテクチャ
 複数のリマインド種別（申込締切、翌日先着、受付中リセール、入金締切）におけるコード重複と 1:1 メソッドの乱立を防ぐため、設定駆動設計（Strategy パターン）を採用しています：
@@ -141,11 +141,14 @@ Discord Webhook では 1 メッセージあたり最大 10 個の Embed、およ
 ### 3.4 Discord API 通信と Cloudflare WAF (40333 エラー) 対策
 GAS (Google Apps Script) の IP アドレス帯域や User-Agent が Discord 側（Cloudflare WAF）でブロックされる問題への恒久対策として、以下のアーキテクチャを採用しています：
 
-1. **プロキシ URL 自動置換**:
+1. **プロキシ URL 自動置換 (`resolveProxyUrl`)**:
    - `PROXY_BASE_URL` が設定されている場合、送信先 URL（Webhook および Bot API）を自動でリバースプロキシ（Cloudflare Workers 等）宛に置換します。
    ```javascript
-   if (PROXY_BASE_URL && url.includes("https://discord.com")) {
-     url = url.replace("https://discord.com", PROXY_BASE_URL);
+   resolveProxyUrl(url) {
+     if (PROXY_BASE_URL && url && url.includes("https://discord.com")) {
+       return url.replace("https://discord.com", PROXY_BASE_URL);
+     }
+     return url;
    }
    ```
 2. **Cloudflare WAF (HTTP 403 / code: 40333) 回避と User-Agent 上書き**:
