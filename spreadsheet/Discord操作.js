@@ -25,8 +25,12 @@ const DiscordService = {
 
     if (!items || items.length === 0) {
       if (config.emptyMessage) {
-        const message = config.emptyMessage + (config.withFooter ? this.getRegistrationFooterMessage() : "");
-        this.sendNotification(config.webhookUrl, message);
+        const parts = [config.emptyMessage];
+        if (config.withFooter) {
+          const footer = this.getRegistrationFooterMessage();
+          if (footer) parts.push(footer);
+        }
+        this.sendNotification(config.webhookUrl, parts.join("\n"));
       } else if (config.emptyLog) {
         Logger.log(config.emptyLog);
       }
@@ -225,7 +229,7 @@ const DiscordService = {
         webhookUrl: WEBHOOK_APPLY,
         headerTitle: "## 🔔 本日締切のチケット申込があります！",
         color: 0xe67e22, // 鮮やかなオレンジ
-        emptyMessage: "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n",
+        emptyMessage: "## 🔔 本日締切のチケット申込はありません！\n漏れがあれば教えてね！",
         withFooter: true,
         timeLabel: "締切時刻",
         getTimeStr: (item) => {
@@ -434,11 +438,7 @@ const DiscordService = {
   getRegistrationFooterMessage() {
     if (!WEBAPP_URL) return "";
 
-    return [
-      "----------------------------------------",
-      "📝 **イベント・申込の確認＆登録はこちら**",
-      `・【Webアプリ (一覧・登録)】: ${WEBAPP_URL}`
-    ].join("\n");
+    return `📝 イベント・申込の確認＆登録は[Webアプリ](<${WEBAPP_URL}>)から`;
   },
 
   /**

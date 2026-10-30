@@ -674,9 +674,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
   describe('getRegistrationFooterMessage', () => {
     it('WebアプリURLを含むフッターが生成されること', () => {
       const footer = DiscordService.getRegistrationFooterMessage();
-      expect(footer).toContain('📝 **イベント・申込の確認＆登録はこちら**');
-      expect(footer).toContain('https://ticket.example.com');
-      expect(footer).not.toContain('forms.gle');
+      expect(footer).toBe('📝 イベント・申込の確認＆登録は[Webアプリ](<https://ticket.example.com>)から');
     });
 
     it('WEBAPP_URL が未設定の場合は空文字を返すこと', () => {
