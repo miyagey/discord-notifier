@@ -33,16 +33,16 @@ const DiscordService = {
       return;
     }
 
-    const footer = config.withFooter ? "\n" + this.getRegistrationFooterMessage() : undefined;
     this.sendItemListNotification({
       webhookUrl: config.webhookUrl,
       headerTitle: config.headerTitle,
+      color: config.color,
       items: items,
-      formatItemFunc: (item) => this.formatRemindItem(item, {
+      formatFieldFunc: (item) => this.formatRemindEmbedField(item, {
         timeLabel: config.timeLabel,
         timeStr: config.getTimeStr(item)
       }),
-      footer: footer
+      withFooter: config.withFooter
     });
   },
 
@@ -218,7 +218,8 @@ const DiscordService = {
     return {
       APPLY: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🔔 **本日締切のチケット申込があります！**",
+        headerTitle: "🔔 本日締切のチケット申込があります！",
+        color: 0xe67e22, // 鮮やかなオレンジ
         emptyMessage: "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n",
         withFooter: true,
         timeLabel: "締切時刻",
@@ -229,7 +230,8 @@ const DiscordService = {
       },
       FIRST_COME: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🏃 **明日から先着受付が始まります！忘れずに！**",
+        headerTitle: "🏃 明日から先着受付が始まります！忘れずに！",
+        color: 0x3498db, // 爽やかなブルー
         withFooter: false,
         timeLabel: "開始日時",
         getTimeStr: (item) => {
@@ -239,7 +241,8 @@ const DiscordService = {
       },
       RESALE: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🔄 **受付中のリセールがあります！**",
+        headerTitle: "🔄 受付中のリセールがあります！",
+        color: 0x2ecc71, // エメラルドグリーン
         withFooter: false,
         timeLabel: "締切日時",
         getTimeStr: (item) => {
@@ -249,7 +252,8 @@ const DiscordService = {
       },
       PAYMENT: {
         webhookUrl: WEBHOOK_PAYMENT,
-        headerTitle: "💸 **本日入金締切のチケットがあります！**",
+        headerTitle: "💸 本日入金締切のチケットがあります！",
+        color: 0xf1c40f, // 明るいイエローゴールド
         emptyLog: "本日入金締切のチケットはありませんでした。",
         withFooter: false,
         timeLabel: "入金締切",
@@ -258,6 +262,41 @@ const DiscordService = {
           return time && !time.includes("まで") ? `${time}まで` : time;
         }
       }
+    };
+  },
+
+  /**
+   * 申込アイテムを Embed 用のフィールドオブジェクトに変換
+   * @param {ApplicationDto} item - 申込アイテムDTO
+   * @param {Object} options - フォーマットオプション
+   * @param {string} options.timeLabel - 時間ラベル（例: "締切時刻"）
+   * @param {string} options.timeStr - 時間文字列（例: "23:59まで"）
+   * @returns {{ name: string, value: string, inline: boolean }|null}
+   */
+  formatRemindEmbedField(item, { timeLabel, timeStr }) {
+    if (!item) return null;
+    const title = formatBrandEventTitle(item.brand, item.eventName || item.name || "");
+    const applyName = item.applyName || "未指定";
+    const method = item.method || item.applyMethod || "";
+
+    const valueLines = [
+      `・受付区分: **${applyName}**`,
+      `・${timeLabel}: **${timeStr}**`
+    ];
+
+    if (method) {
+      const trimmed = String(method).trim();
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        valueLines.push(`・申込方法: [チケットページを開く](${trimmed})`);
+      } else {
+        valueLines.push(`・申込方法: ${trimmed}`);
+      }
+    }
+
+    return {
+      name: `📅 ${title}`,
+      value: valueLines.join("\n"),
+      inline: false
     };
   },
 
@@ -400,45 +439,76 @@ const DiscordService = {
   // ==================================================
 
   /**
-   * アイテムリストを上限文字数(2000字)を超えないよう安全に分割組み立てしてDiscordへ送信する (DTOパターン)
+   * アイテムリストを Embed 形式に組み立てて Discord へ送信する (DTOパターン)
    * @param {Object} params - パラメータオブジェクト
    * @param {string} params.webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} params.headerTitle - メッセージ冒頭のタイトル
+   * @param {string} params.headerTitle - Embed のタイトル
+   * @param {number} [params.color=0x3498db] - Embed の枠線カラーコード
    * @param {Array<object>} params.items - 通知対象のアイテム配列
-   * @param {function(object): string} params.formatItemFunc - 各アイテムを文字列に変換するフォーマット関数
-   * @param {string} [params.footer] - 最終メッセージに付与するフッター文字列（省略可）
+   * @param {function(object): { name: string, value: string, inline?: boolean }} [params.formatFieldFunc] - 各アイテムを Embed フィールドに変換する関数
+   * @param {function(object): string} [params.formatItemFunc] - （旧互換用）テキスト変換関数
+   * @param {boolean} [params.withFooter=false] - フッターを表示するかどうか
+   * @param {string} [params.footer] - （旧互換用）フッター文字列
    */
-  sendItemListNotification({ webhookUrl, headerTitle, items, formatItemFunc, footer }) {
-    const DISCORD_MAX_LENGTH = 2000;
-    const footerText = footer || "";
-    const footerLength = footerText.length;
+  sendItemListNotification({
+    webhookUrl,
+    headerTitle,
+    color = 0x3498db,
+    items,
+    formatFieldFunc,
+    formatItemFunc,
+    withFooter = false,
+    footer
+  }) {
+    if (!items || items.length === 0 || !webhookUrl) return;
 
-    if (!items || items.length === 0) return;
+    // Discord Embed は 1 メッセージあたり最大 25 フィールド
+    const MAX_FIELDS_PER_EMBED = 25;
+    const cleanTitle = String(headerTitle || "").replace(/\*\*/g, "");
+    const hasFooter = withFooter || Boolean(footer);
+    const footerText = hasFooter ? "📝 イベント・申込の確認＆登録はWebアプリから" : undefined;
 
-    let currentMessage = headerTitle + "\n";
+    for (let i = 0; i < items.length; i += MAX_FIELDS_PER_EMBED) {
+      const chunk = items.slice(i, i + MAX_FIELDS_PER_EMBED);
+      const fields = chunk.map((item, idx) => {
+        if (typeof formatFieldFunc === 'function') {
+          return formatFieldFunc(item);
+        }
+        if (typeof formatItemFunc === 'function') {
+          const text = formatItemFunc(item);
+          return { name: `項目 ${idx + 1}`, value: text, inline: false };
+        }
+        return null;
+      }).filter(Boolean);
 
-    for (let i = 0; i < items.length; i++) {
-      const itemText = formatItemFunc(items[i]);
+      const embed = {
+        title: cleanTitle,
+        color: color,
+        fields: fields
+      };
 
-      if ((currentMessage + itemText + footerLength).length > DISCORD_MAX_LENGTH) {
-        this.sendNotification(webhookUrl, currentMessage);
+      if (typeof WEBAPP_URL !== 'undefined' && WEBAPP_URL) {
+        embed.url = WEBAPP_URL;
+      }
+
+      if (footerText) {
+        embed.footer = { text: footerText };
+      }
+
+      this.sendNotification(webhookUrl, { embeds: [embed] });
+
+      if (i + MAX_FIELDS_PER_EMBED < items.length) {
         Utilities.sleep(500);
-        currentMessage = headerTitle + "\n" + itemText;
-      } else {
-        currentMessage += itemText;
       }
     }
-
-    currentMessage += footerText;
-    this.sendNotification(webhookUrl, currentMessage);
   },
 
   /**
    * Discord（プロキシ経由）へメッセージを送信する
    * @param {string} webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} message - 送信するメッセージ（Markdown形式可）
+   * @param {string|Object} payloadOrMessage - 送信するメッセージ（Markdown文字列またはJSONペイロードオブジェクト）
    */
-  sendNotification(webhookUrl, message) {
+  sendNotification(webhookUrl, payloadOrMessage) {
     try {
       Logger.log("--- Discordへのメッセージ送信を開始 ---");
 
@@ -451,7 +521,13 @@ const DiscordService = {
         webhookUrl = webhookUrl.replace("https://discord.com", PROXY_BASE_URL);
       }
 
-      const payload = { "content": message };
+      let payload;
+      if (typeof payloadOrMessage === 'object' && payloadOrMessage !== null) {
+        payload = payloadOrMessage;
+      } else {
+        payload = { "content": String(payloadOrMessage || "") };
+      }
+
       const options = {
         "method": "post",
         "contentType": "application/json",

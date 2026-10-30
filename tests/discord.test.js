@@ -50,7 +50,8 @@ beforeAll(() => {
           .replace(/HH/g, hours)
           .replace(/mm/g, minutes)
           .replace(/E/g, dayOfWeek);
-      }
+      },
+      sleep: () => {}
     }
   };
 
@@ -337,6 +338,151 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       const getTimeStr = DiscordService.REMIND_CONFIGS.RESALE.getTimeStr;
       expect(getTimeStr({ endDatetime: '23:59' })).toBe('23:59まで');
       expect(getTimeStr({ deadlineStr: '23:59まで' })).toBe('23:59まで');
+    });
+
+    it('各リマインド種別に適切なカラーコードが設定されていること', () => {
+      const configs = DiscordService.REMIND_CONFIGS;
+      expect(configs.APPLY.color).toBe(0xe67e22);
+      expect(configs.FIRST_COME.color).toBe(0x3498db);
+      expect(configs.RESALE.color).toBe(0x2ecc71);
+      expect(configs.PAYMENT.color).toBe(0xf1c40f);
+    });
+  });
+
+  describe('formatRemindEmbedField', () => {
+    it('申込アイテムDTOから正しくEmbed用フィールドオブジェクトを生成すること', () => {
+      const item = {
+        brand: '学マス',
+        eventName: '初星公演',
+        applyName: '先行抽選',
+        method: 'https://asobistore.jp/ticket'
+      };
+
+      const field = DiscordService.formatRemindEmbedField(item, {
+        timeLabel: '締切時刻',
+        timeStr: '23:59まで'
+      });
+
+      expect(field).toEqual({
+        name: '📅 【学マス】初星公演',
+        value: '・受付区分: **先行抽選**\n・締切時刻: **23:59まで**\n・申込方法: [チケットページを開く](https://asobistore.jp/ticket)',
+        inline: false
+      });
+    });
+
+    it('申込方法がURL以外（テキスト）の場合はそのまま表示されること', () => {
+      const item = {
+        brand: 'シャニ',
+        eventName: 'LIVE TOUR',
+        applyName: '一般販売',
+        method: '店頭端末にて購入'
+      };
+
+      const field = DiscordService.formatRemindEmbedField(item, {
+        timeLabel: '開始日時',
+        timeStr: '10:00から'
+      });
+
+      expect(field.value).toContain('・申込方法: 店頭端末にて購入');
+    });
+
+    it('申込方法がない場合は申込方法行が含まれないこと', () => {
+      const item = {
+        brand: 'デレ',
+        eventName: '7th LIVE',
+        applyName: '一般'
+      };
+
+      const field = DiscordService.formatRemindEmbedField(item, {
+        timeLabel: '入金締切',
+        timeStr: '21:00まで'
+      });
+
+      expect(field.value).not.toContain('申込方法');
+    });
+
+    it('item が null または未指定の場合は null を返すこと', () => {
+      expect(DiscordService.formatRemindEmbedField(null, {})).toBeNull();
+    });
+  });
+
+  describe('sendItemListNotification', () => {
+    it('アイテム配列を Embed 形式に組み立てて sendNotification に渡すこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const items = [
+        {
+          brand: '学マス',
+          eventName: '初星公演',
+          applyName: '先行',
+          endDatetime: '2026-11-20 23:59'
+        }
+      ];
+
+      DiscordService.sendItemListNotification({
+        webhookUrl: 'https://discord.com/api/webhooks/test',
+        headerTitle: '🔔 本日締切のチケット申込があります！',
+        color: 0xe67e22,
+        items: items,
+        formatFieldFunc: (item) => ({
+          name: `📅 【${item.brand}】${item.eventName}`,
+          value: `・受付区分: **${item.applyName}**`,
+          inline: false
+        }),
+        withFooter: true
+      });
+
+      expect(spySend).toHaveBeenCalledWith(
+        'https://discord.com/api/webhooks/test',
+        expect.objectContaining({
+          embeds: [
+            expect.objectContaining({
+              title: '🔔 本日締切のチケット申込があります！',
+              color: 0xe67e22,
+              url: 'https://ticket.example.com',
+              fields: [
+                {
+                  name: '📅 【学マス】初星公演',
+                  value: '・受付区分: **先行**',
+                  inline: false
+                }
+              ],
+              footer: { text: '📝 イベント・申込の確認＆登録はWebアプリから' }
+            })
+          ]
+        })
+      );
+
+      spySend.mockRestore();
+    });
+
+    it('アイテムが25件を超える場合に25件ごとに分割して送信すること', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      // 30件のダミーアイテム
+      const items = Array.from({ length: 30 }, (_, i) => ({
+        brand: '学マス',
+        eventName: `公演 ${i + 1}`,
+        applyName: '先行'
+      }));
+
+      DiscordService.sendItemListNotification({
+        webhookUrl: 'https://discord.com/api/webhooks/test',
+        headerTitle: 'テストタイトル',
+        items: items,
+        formatFieldFunc: (item) => ({ name: item.eventName, value: item.applyName })
+      });
+
+      // 25件と5件で計2回呼び出されるはず
+      expect(spySend).toHaveBeenCalledTimes(2);
+
+      const firstCallEmbeds = spySend.mock.calls[0][1].embeds;
+      expect(firstCallEmbeds[0].fields.length).toBe(25);
+
+      const secondCallEmbeds = spySend.mock.calls[1][1].embeds;
+      expect(secondCallEmbeds[0].fields.length).toBe(5);
+
+      spySend.mockRestore();
     });
   });
 
