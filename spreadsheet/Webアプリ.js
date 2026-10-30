@@ -73,7 +73,7 @@ function createEvent(data) {
       calId = CalendarService.createAllDayEvent(data) || '';
 
       if (calId) {
-        DiscordService.notifyNewCalendarEvent(data);
+        DiscordService.notifyNewCalendarEvent([data]);
       }
     } catch (calErr) {
       logError('createEvent.calendarSync', calErr);

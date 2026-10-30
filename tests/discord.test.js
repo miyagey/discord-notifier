@@ -50,7 +50,8 @@ beforeAll(() => {
           .replace(/HH/g, hours)
           .replace(/mm/g, minutes)
           .replace(/E/g, dayOfWeek);
-      }
+      },
+      sleep: () => {}
     }
   };
 
@@ -67,51 +68,12 @@ beforeAll(() => {
 
 describe('Discord操作.js (フォーマッター・メッセージ生成) の単体テスト', () => {
   describe('notifyNewCalendarEvent', () => {
-    it('イベントDTOを受け取り、正しく整形してカレンダー通知を送信すること', () => {
+    it('イベントDTO配列を受け取り、正しく Embed 形式でカレンダー通知を送信すること', () => {
       let sentWebhook = '';
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
+      let sentPayload = null;
+      DiscordService.sendNotification = (webhook, payload) => {
         sentWebhook = webhook;
-        sentMessage = message;
-      };
-
-      const event = {
-        brand: 'シャニ',
-        eventName: 'LIVE TOUR',
-        startDate: '2026-11-07',
-        endDate: '2026-11-08',
-        location: '幕張メッセ',
-        description: 'ツアー詳細情報'
-      };
-
-      DiscordService.notifyNewCalendarEvent(event);
-
-      expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
-      expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
-      expect(sentMessage).toContain('📅 **【シャニ】LIVE TOUR**');
-      expect(sentMessage).toContain('└ 期間: **2026-11-07 〜 2026-11-08 [終日]**');
-      expect(sentMessage).toContain('└ 会場: 幕張メッセ');
-      expect(sentMessage).toContain('└ 概要: ツアー詳細情報');
-    });
-
-    it('event が null または未指定の場合は送信をスキップすること', () => {
-      let called = false;
-      DiscordService.sendNotification = () => {
-        called = true;
-      };
-
-      DiscordService.notifyNewCalendarEvent(null);
-      expect(called).toBe(false);
-    });
-  });
-
-  describe('notifyBatchCalendarEvents', () => {
-    it('イベントDTO配列を受け取り、正しく一括整形してカレンダー通知を送信すること', () => {
-      let sentWebhook = '';
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
-        sentWebhook = webhook;
-        sentMessage = message;
+        sentPayload = payload;
       };
 
       const events = [
@@ -133,33 +95,65 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         }
       ];
 
-      DiscordService.notifyBatchCalendarEvents(events);
+      DiscordService.notifyNewCalendarEvent(events);
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
-      expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
-      expect(sentMessage).toContain('📅 **【学マス】初星学園フェスティバル**');
-      expect(sentMessage).toContain('└ 期間: **2026-12-01 〜 2026-12-02 [終日]**');
-      expect(sentMessage).toContain('└ 会場: 幕張メッセ');
-      expect(sentMessage).toContain('└ 概要: イベント概要1');
-      expect(sentMessage).toContain('📅 **【デレ】CINDERELLA GIRLS LIVE**');
-      expect(sentMessage).toContain('└ 期間: **2026-12-10 [終日]**');
-      expect(sentMessage).toContain('└ 会場: Kアリーナ横浜');
+      expect(sentPayload.content).toBe('## 🆕 Googleカレンダーに新しいイベントを登録したよ！');
+      expect(sentPayload.embeds).toHaveLength(2);
+      expect(sentPayload.embeds[0]).toEqual(expect.objectContaining({
+        title: '📅 【学マス】初星学園フェスティバル',
+        fields: expect.arrayContaining([
+          { name: '期間', value: '2026-12-01 〜 2026-12-02 [終日]', inline: true },
+          { name: '会場', value: '幕張メッセ', inline: true },
+          { name: '概要', value: 'イベント概要1', inline: false }
+        ])
+      }));
+      expect(sentPayload.embeds[1]).toEqual(expect.objectContaining({
+        title: '📅 【デレ】CINDERELLA GIRLS LIVE',
+        fields: expect.arrayContaining([
+          { name: '期間', value: '2026-12-10 [終日]', inline: true },
+          { name: '会場', value: 'Kアリーナ横浜', inline: true }
+        ])
+      }));
     });
 
-    it('events が null または空配列の場合は送信をスキップすること', () => {
+    it('10件を超えるイベントがある場合、10件ごとにチャンク分割され2回目以降のcontentに「(続き)」が付くこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const events = Array.from({ length: 15 }, (_, i) => ({
+        brand: '学マス',
+        eventName: `イベント ${i + 1}`,
+        startDate: '2026-12-01',
+        endDate: '2026-12-01'
+      }));
+
+      DiscordService.notifyNewCalendarEvent(events);
+
+      expect(spySend).toHaveBeenCalledTimes(2);
+
+      const firstCall = spySend.mock.calls[0][1];
+      expect(firstCall.content).toBe('## 🆕 Googleカレンダーに新しいイベントを登録したよ！');
+      expect(firstCall.embeds).toHaveLength(10);
+
+      const secondCall = spySend.mock.calls[1][1];
+      expect(secondCall.content).toBe('## 🆕 Googleカレンダーに新しいイベントを登録したよ！ (続き)');
+      expect(secondCall.embeds).toHaveLength(5);
+
+      spySend.mockRestore();
+    });
+
+    it('event が null または空配列の場合は送信をスキップすること', () => {
       let called = false;
       DiscordService.sendNotification = () => {
         called = true;
       };
 
-      DiscordService.notifyBatchCalendarEvents(null);
+      DiscordService.notifyNewCalendarEvent(null);
       expect(called).toBe(false);
 
-      DiscordService.notifyBatchCalendarEvents([]);
+      DiscordService.notifyNewCalendarEvent([]);
       expect(called).toBe(false);
     });
-
-
   });
 
   describe('notifyNewApplication', () => {
@@ -204,8 +198,8 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
-  describe('formatCalendarEventBlock', () => {
-    it('イベントDTOを受け取り、表示用テキスト行配列を正しく生成すること', () => {
+  describe('formatCalendarEventEmbed', () => {
+    it('イベントDTOを受け取り、Embedオブジェクトを正しく生成すること', () => {
       const event = {
         brand: '学マス',
         eventName: '初星フェス',
@@ -215,28 +209,38 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         description: '特記事項メモ'
       };
 
-      const lines = DiscordService.formatCalendarEventBlock(event);
-      expect(lines).toContain('📅 **【学マス】初星フェス**');
-      expect(lines).toContain(' └ 期間: **2026-11-01 〜 2026-11-02 [終日]**');
-      expect(lines).toContain(' └ 会場: 武道館');
-      expect(lines).toContain(' └ 概要: 特記事項メモ');
+      const embed = DiscordService.formatCalendarEventEmbed(event);
+      expect(embed).toEqual({
+        title: '📅 【学マス】初星フェス',
+        color: expect.any(Number),
+        fields: [
+          { name: '期間', value: '2026-11-01 〜 2026-11-02 [終日]', inline: true },
+          { name: '会場', value: '武道館', inline: true },
+          { name: '概要', value: '特記事項メモ', inline: false }
+        ]
+      });
     });
 
-    it('概要が複数行の場合は引用符形式に変換されること', () => {
+    it('会場や説明がない場合でも正しくEmbedを生成すること', () => {
       const event = {
         brand: 'シャニ',
         eventName: 'LIVE',
-        startDate: '2026-11-01',
-        description: '行1\n行2'
+        startDate: '2026-11-01'
       };
 
-      const lines = DiscordService.formatCalendarEventBlock(event);
-      expect(lines.some(l => l.includes('> 行1\n> 行2'))).toBe(true);
+      const embed = DiscordService.formatCalendarEventEmbed(event);
+      expect(embed).toEqual({
+        title: '📅 【シャニ】LIVE',
+        color: expect.any(Number),
+        fields: [
+          { name: '期間', value: '2026-11-01 [終日]', inline: true }
+        ]
+      });
     });
 
-    it('event が null または未指定の場合は空配列を返すこと', () => {
-      expect(DiscordService.formatCalendarEventBlock(null)).toEqual([]);
-      expect(DiscordService.formatCalendarEventBlock(undefined)).toEqual([]);
+    it('event が null または未指定の場合は null を返すこと', () => {
+      expect(DiscordService.formatCalendarEventEmbed(null)).toBeNull();
+      expect(DiscordService.formatCalendarEventEmbed(undefined)).toBeNull();
     });
   });
 
@@ -255,61 +259,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     it('空文字列の場合は空文字を返却すること', () => {
       expect(DiscordService.formatApplyMethodBlock('')).toBe('');
       expect(DiscordService.formatApplyMethodBlock(null)).toBe('');
-    });
-  });
-
-  describe('formatRemindItem', () => {
-    it('申込締切アイテムが正しくフォーマットされること', () => {
-      const dummyItem = {
-        brandEvent: '【学マス】LIVE TOUR',
-        applyName: 'アソビストア限定先行',
-        timeStr: '23:59まで',
-        method: 'https://asobistore.jp/ticket'
-      };
-
-      const result = DiscordService.formatRemindItem(dummyItem, {
-        timeLabel: '締切時刻',
-        timeStr: dummyItem.timeStr
-      });
-      expect(result).toContain('📅 **【学マス】LIVE TOUR**');
-      expect(result).toContain('└ 受付区分: アソビストア限定先行');
-      expect(result).toContain('└ 締切時刻: **23:59まで**');
-      expect(result).toContain('└ 申込方法: https://asobistore.jp/ticket');
-    });
-
-    it('共通DTO形式（brand, eventName, endDatetime）から正しく自動フォーマットされること', () => {
-      const dtoItem = {
-        brand: '学マス',
-        eventName: '初星公演',
-        applyName: 'WEB先行',
-        endDatetime: '2026-11-20 23:59',
-        method: 'https://example.com'
-      };
-
-      const result = DiscordService.formatRemindItem(dtoItem, {
-        timeLabel: '締切時刻',
-        timeStr: `${dtoItem.endDatetime}まで`
-      });
-      expect(result).toContain('📅 **【学マス】初星公演**');
-      expect(result).toContain('└ 受付区分: WEB先行');
-      expect(result).toContain('└ 締切時刻: **2026-11-20 23:59まで**');
-      expect(result).toContain('└ 申込方法: https://example.com');
-    });
-
-    it('入金締切アイテムが正しくフォーマットされること', () => {
-      const dummyItem = {
-        brandEvent: '【デレ】7th LIVE',
-        applyName: '一般先行',
-        method: ''
-      };
-
-      const result = DiscordService.formatRemindItem(dummyItem, {
-        timeLabel: '入金締切',
-        timeStr: '21:00まで'
-      });
-      expect(result).toContain('📅 **【デレ】7th LIVE**');
-      expect(result).toContain('└ 受付区分: 一般先行');
-      expect(result).toContain('└ 入金締切: **21:00まで**');
     });
   });
 
@@ -337,6 +286,105 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       const getTimeStr = DiscordService.REMIND_CONFIGS.RESALE.getTimeStr;
       expect(getTimeStr({ endDatetime: '23:59' })).toBe('23:59まで');
       expect(getTimeStr({ deadlineStr: '23:59まで' })).toBe('23:59まで');
+    });
+
+    it('各リマインド種別に適切なカラーコードが設定されていること', () => {
+      const configs = DiscordService.REMIND_CONFIGS;
+      expect(configs.APPLY.color).toBe(0xe67e22);
+      expect(configs.FIRST_COME.color).toBe(0x3498db);
+      expect(configs.RESALE.color).toBe(0x2ecc71);
+      expect(configs.PAYMENT.color).toBe(0xf1c40f);
+    });
+  });
+
+  describe('formatRemindEmbed', () => {
+    it('申込アイテムDTOから正しく独立したEmbedカードオブジェクトを生成すること', () => {
+      const item = {
+        brand: '学マス',
+        eventName: '初星公演',
+        applyName: '先行抽選',
+        method: 'https://asobistore.jp/ticket'
+      };
+
+      const embed = DiscordService.formatRemindEmbed(item, {
+        timeLabel: '締切時刻',
+        timeStr: '23:59まで',
+        color: 0xe67e22
+      });
+
+      expect(embed).toEqual({
+        title: '📅 【学マス】初星公演',
+        color: 0xe67e22, // options.color
+        url: 'https://asobistore.jp/ticket',
+        fields: [
+          { name: '受付区分', value: '先行抽選', inline: true },
+          { name: '締切時刻', value: '**23:59まで**', inline: true },
+          { name: '申込方法', value: '[チケットページを開く](<https://asobistore.jp/ticket>)', inline: false }
+        ]
+      });
+    });
+
+    it('getBrandColor が定義されている場合はブランドカラーを優先すること', () => {
+      testContext.getBrandColor = (brand) => (brand === '学マス' ? 0xffd700 : null);
+
+      const item = {
+        brand: '学マス',
+        eventName: '初星公演',
+        applyName: '先行'
+      };
+
+      const embed = DiscordService.formatRemindEmbed(item, {
+        timeLabel: '締切時刻',
+        timeStr: '23:59まで',
+        color: 0xe67e22
+      });
+
+      expect(embed.color).toBe(0xffd700);
+
+      delete testContext.getBrandColor;
+    });
+
+    it('申込方法がURL以外（テキスト）の場合はそのままフィールドに表示され、embed.url は設定されないこと', () => {
+      const item = {
+        brand: 'シャニ',
+        eventName: 'LIVE TOUR',
+        applyName: '一般販売',
+        method: '店頭端末にて購入'
+      };
+
+      const embed = DiscordService.formatRemindEmbed(item, {
+        timeLabel: '開始日時',
+        timeStr: '10:00から',
+        color: 0x3498db
+      });
+
+      expect(embed.url).toBeUndefined();
+      expect(embed.fields).toContainEqual({
+        name: '申込方法',
+        value: '店頭端末にて購入',
+        inline: false
+      });
+    });
+
+    it('申込方法がない場合は申込方法フィールドが含まれないこと', () => {
+      const item = {
+        brand: 'デレ',
+        eventName: '7th LIVE',
+        applyName: '一般'
+      };
+
+      const embed = DiscordService.formatRemindEmbed(item, {
+        timeLabel: '入金締切',
+        timeStr: '21:00まで',
+        color: 0xf1c40f
+      });
+
+      expect(embed.url).toBeUndefined();
+      expect(embed.fields.some(f => f.name === '申込方法')).toBe(false);
+    });
+
+    it('item が null または未指定の場合は null を返すこと', () => {
+      expect(DiscordService.formatRemindEmbed(null, {})).toBeNull();
     });
   });
 
@@ -370,40 +418,65 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       spyLog.mockRestore();
     });
 
-    it('アイテムが存在する場合に sendItemListNotification が正しく呼び出されること', () => {
-      const spySendList = vi.spyOn(DiscordService, 'sendItemListNotification').mockImplementation(() => {});
+    it('アイテムが存在する場合に各アイテムが独立したEmbedカードになり、contentにタイトルとWebアプリリンクが配置されること', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
 
-      const items = [{
-        brand: '学マス',
-        eventName: '初星公演',
-        applyName: '先行',
-        endDatetime: '2026-11-20 23:59'
-      }];
+      const items = [
+        {
+          brand: '学マス',
+          eventName: '初星公演',
+          applyName: '先行',
+          endDatetime: '2026-11-20 23:59'
+        },
+        {
+          brand: 'シャニ',
+          eventName: 'LIVE TOUR',
+          applyName: 'CD先行',
+          endDatetime: '2026-11-20 23:59'
+        }
+      ];
 
       DiscordService.sendRemindNotification('APPLY', items);
-      expect(spySendList).toHaveBeenCalledWith(expect.objectContaining({
-        headerTitle: expect.stringContaining('本日締切のチケット申込があります！'),
-        items: items
+
+      expect(spySend).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          content: expect.stringContaining('本日締切のチケット申込があります！'),
+          embeds: [
+            expect.objectContaining({ title: expect.stringContaining('初星公演') }),
+            expect.objectContaining({ title: expect.stringContaining('LIVE TOUR') })
+          ]
+        })
+      );
+      expect(spySend.mock.calls[0][1].content).toContain('Webアプリ');
+
+      spySend.mockRestore();
+    });
+
+    it('10件を超える場合、10件ごとにチャンク分割され2回目以降のcontentに「(続き)」が付くこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const items = Array.from({ length: 15 }, (_, i) => ({
+        brand: '学マス',
+        eventName: `公演 ${i + 1}`,
+        applyName: '先行',
+        endDatetime: '2026-11-20 23:59'
       }));
 
-      spySendList.mockRestore();
-    });
-  });
+      DiscordService.sendRemindNotification('APPLY', items);
 
-  describe('getRegistrationFooterMessage', () => {
-    it('WebアプリURLを含むフッターが生成されること', () => {
-      const footer = DiscordService.getRegistrationFooterMessage();
-      expect(footer).toContain('📝 **イベント・申込の確認＆登録はこちら**');
-      expect(footer).toContain('https://ticket.example.com');
-      expect(footer).not.toContain('forms.gle');
-    });
+      expect(spySend).toHaveBeenCalledTimes(2);
 
-    it('WEBAPP_URL が未設定の場合は空文字を返すこと', () => {
-      const originalUrl = testContext.WEBAPP_URL;
-      testContext.WEBAPP_URL = '';
-      const footer = DiscordService.getRegistrationFooterMessage();
-      expect(footer).toBe('');
-      testContext.WEBAPP_URL = originalUrl;
+      const firstCall = spySend.mock.calls[0][1];
+      expect(firstCall.content).toContain('本日締切のチケット申込があります！');
+      expect(firstCall.content).not.toContain('(続き)');
+      expect(firstCall.embeds.length).toBe(10);
+
+      const secondCall = spySend.mock.calls[1][1];
+      expect(secondCall.content).toBe('## 🔔 本日締切のチケット申込があります！ (続き)');
+      expect(secondCall.embeds.length).toBe(5);
+
+      spySend.mockRestore();
     });
   });
 
@@ -427,11 +500,13 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         }
       ];
 
-      const targetDate = new Date('2026-10-18T12:00:00+09:00');
-      DiscordService.notifyTomorrowEvents(events, targetDate);
+      DiscordService.notifyTomorrowEvents(events);
+
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const expectedTitle = `## 📅 明日 ${testContext.formatDateJST(tomorrow, 'MM/dd(E)')} の予定リスト`;
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
-      expect(sentMessage).toContain('## 📅 明日 10/18(日) の予定リスト');
+      expect(sentMessage).toContain(expectedTitle);
       expect(sentMessage).toContain('### 📌 【学マス】初星学園フェスティバル');
       expect(sentMessage).toContain('⏰ [終日]');
       expect(sentMessage).toContain('📍 場所: 幕張メッセ');
@@ -444,9 +519,8 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         sentMessage = message;
       };
 
-      const targetDate = new Date('2026-10-19T12:00:00+09:00');
-      DiscordService.notifyTomorrowEvents([], targetDate);
-      expect(sentMessage).toContain('## 📅 明日 10/19(月) の予定リスト');
+      DiscordService.notifyTomorrowEvents([]);
+      expect(sentMessage).toContain('## 📅 明日');
       expect(sentMessage).toContain('明日の予定はありません。');
     });
 
@@ -694,6 +768,87 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(fieldMap['開催日時']).toBe('2027-04-01 〜 2027-04-02');
       expect(fieldMap['会場']).toBe('幕張メッセ');
       expect(fieldMap['概要']).toBe('特記事項メモ');
+    });
+  });
+
+  describe('sendEmbedsNotification', () => {
+    it('10件以下のEmbedを一度で送信し、タイトルとサブタイトルをcontentに設定すること', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const embeds = [{ title: 'Embed 1' }, { title: 'Embed 2' }];
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        subTitle: '補足テキスト',
+        embeds
+      });
+
+      expect(spySend).toHaveBeenCalledTimes(1);
+      expect(spySend).toHaveBeenCalledWith('https://example.com/webhook', {
+        content: '## タイトル\n補足テキスト',
+        embeds
+      });
+
+      spySend.mockRestore();
+    });
+
+    it('10件を超える場合に10件ずつ分割送信し、2回目以降に (続き) が付くこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      const embeds = Array.from({ length: 12 }, (_, i) => ({ title: `Embed ${i + 1}` }));
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds
+      });
+
+      expect(spySend).toHaveBeenCalledTimes(2);
+      expect(spySend.mock.calls[0][1]).toEqual({
+        content: '## タイトル',
+        embeds: embeds.slice(0, 10)
+      });
+      expect(spySend.mock.calls[1][1]).toEqual({
+        content: '## タイトル (続き)',
+        embeds: embeds.slice(10, 12)
+      });
+
+      spySend.mockRestore();
+    });
+
+    it('embeds が空または null の場合は何もしないこと', () => {
+      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
+
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds: []
+      });
+      DiscordService.sendEmbedsNotification('https://example.com/webhook', {
+        headerTitle: '## タイトル',
+        embeds: null
+      });
+
+      expect(spySend).not.toHaveBeenCalled();
+      spySend.mockRestore();
+    });
+  });
+
+  describe('resolveProxyUrl', () => {
+    it('PROXY_BASE_URL がある場合に discord.com をプロキシURLに置換すること', () => {
+      const originalProxy = testContext.PROXY_BASE_URL;
+      testContext.PROXY_BASE_URL = 'https://proxy.example.workers.dev';
+
+      const result = DiscordService.resolveProxyUrl('https://discord.com/api/webhooks/123/xyz');
+      expect(result).toBe('https://proxy.example.workers.dev/api/webhooks/123/xyz');
+
+      testContext.PROXY_BASE_URL = originalProxy;
+    });
+
+    it('PROXY_BASE_URL が空の場合はそのままのURLを返すこと', () => {
+      const originalProxy = testContext.PROXY_BASE_URL;
+      testContext.PROXY_BASE_URL = '';
+
+      const result = DiscordService.resolveProxyUrl('https://discord.com/api/webhooks/123/xyz');
+      expect(result).toBe('https://discord.com/api/webhooks/123/xyz');
+
+      testContext.PROXY_BASE_URL = originalProxy;
     });
   });
 });
