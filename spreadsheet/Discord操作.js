@@ -223,7 +223,7 @@ const DiscordService = {
     return {
       APPLY: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🔔 本日締切のチケット申込があります！",
+        headerTitle: "## 🔔 本日締切のチケット申込があります！",
         color: 0xe67e22, // 鮮やかなオレンジ
         emptyMessage: "🔔 **本日締切のチケット申込はありません！**\n\n漏れがあれば教えてね！\n\n",
         withFooter: true,
@@ -235,7 +235,7 @@ const DiscordService = {
       },
       FIRST_COME: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🏃 明日から先着受付が始まります！忘れずに！",
+        headerTitle: "## 🏃 明日から先着受付が始まります！忘れずに！",
         color: 0x3498db, // 爽やかなブルー
         withFooter: false,
         timeLabel: "開始日時",
@@ -246,7 +246,7 @@ const DiscordService = {
       },
       RESALE: {
         webhookUrl: WEBHOOK_APPLY,
-        headerTitle: "🔄 受付中のリセールがあります！",
+        headerTitle: "## 🔄 受付中のリセールがあります！",
         color: 0x2ecc71, // エメラルドグリーン
         withFooter: false,
         timeLabel: "締切日時",
@@ -257,7 +257,7 @@ const DiscordService = {
       },
       PAYMENT: {
         webhookUrl: WEBHOOK_PAYMENT,
-        headerTitle: "💸 本日入金締切のチケットがあります！",
+        headerTitle: "## 💸 本日入金締切のチケットがあります！",
         color: 0xf1c40f, // 明るいイエローゴールド
         emptyLog: "本日入金締切のチケットはありませんでした。",
         withFooter: false,
@@ -557,7 +557,7 @@ const DiscordService = {
 
     // 2. 後方互換: 1つの Embed 内に fields を並べる旧形式 (1メッセージ最大25フィールド)
     const MAX_FIELDS_PER_EMBED = 25;
-    const cleanTitle = String(headerTitle || "").replace(/\*\*/g, "");
+    const cleanTitle = String(headerTitle || "").replace(/^#+\s*/, "").replace(/\*\*/g, "");
     const footerText = hasFooter ? "📝 イベント・申込の確認＆登録はWebアプリから" : undefined;
 
     for (let i = 0; i < items.length; i += MAX_FIELDS_PER_EMBED) {
