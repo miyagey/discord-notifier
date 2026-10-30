@@ -98,9 +98,8 @@ const DiscordService = {
   /**
    * 明日の予定一覧通知を送信
    * @param {EventDto[]} [events] - 予定イベントDTO配列
-   * @param {Date} [targetDate] - 対象日（省略時は明日）
    */
-  notifyTomorrowEvents(events, targetDate) {
+  notifyTomorrowEvents(events) {
     if (!WEBHOOK_CALENDAR) return;
 
     if (!events) {
@@ -108,7 +107,7 @@ const DiscordService = {
       return;
     }
 
-    const tomorrow = targetDate ? new Date(targetDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const dateTitle = formatDateJST(tomorrow, "MM/dd(E)");
     const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
 

@@ -586,11 +586,13 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         }
       ];
 
-      const targetDate = new Date('2026-10-18T12:00:00+09:00');
-      DiscordService.notifyTomorrowEvents(events, targetDate);
+      DiscordService.notifyTomorrowEvents(events);
+
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const expectedTitle = `## 📅 明日 ${testContext.formatDateJST(tomorrow, 'MM/dd(E)')} の予定リスト`;
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
-      expect(sentMessage).toContain('## 📅 明日 10/18(日) の予定リスト');
+      expect(sentMessage).toContain(expectedTitle);
       expect(sentMessage).toContain('### 📌 【学マス】初星学園フェスティバル');
       expect(sentMessage).toContain('⏰ [終日]');
       expect(sentMessage).toContain('📍 場所: 幕張メッセ');
@@ -603,9 +605,8 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         sentMessage = message;
       };
 
-      const targetDate = new Date('2026-10-19T12:00:00+09:00');
-      DiscordService.notifyTomorrowEvents([], targetDate);
-      expect(sentMessage).toContain('## 📅 明日 10/19(月) の予定リスト');
+      DiscordService.notifyTomorrowEvents([]);
+      expect(sentMessage).toContain('## 📅 明日');
       expect(sentMessage).toContain('明日の予定はありません。');
     });
 
