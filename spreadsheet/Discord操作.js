@@ -80,14 +80,11 @@ const DiscordService = {
   },
 
   /**
-   * Googleカレンダー登録完了のDiscord通知を送信（単一・複数両対応）
-   * @param {EventDto|EventDto[]} eventsOrEvent - イベントDTOまたはその配列
+   * Googleカレンダー登録完了のDiscord通知を送信
+   * @param {EventDto[]} events - 登録成功したイベントDTO配列
    */
-  notifyNewCalendarEvent(eventsOrEvent) {
-    if (!WEBHOOK_CALENDAR || !eventsOrEvent) return;
-
-    const events = Array.isArray(eventsOrEvent) ? eventsOrEvent : [eventsOrEvent];
-    if (events.length === 0) return;
+  notifyNewCalendarEvent(events) {
+    if (!WEBHOOK_CALENDAR || !events || events.length === 0) return;
 
     const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
     events.forEach(event => {

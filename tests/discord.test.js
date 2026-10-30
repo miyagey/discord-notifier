@@ -68,7 +68,7 @@ beforeAll(() => {
 
 describe('Discord操作.js (フォーマッター・メッセージ生成) の単体テスト', () => {
   describe('notifyNewCalendarEvent', () => {
-    it('単一のイベントDTOを受け取り、正しく整形してカレンダー通知を送信すること', () => {
+    it('単一のイベントDTO配列を受け取り、正しく整形してカレンダー通知を送信すること', () => {
       let sentWebhook = '';
       let sentMessage = '';
       DiscordService.sendNotification = (webhook, message) => {
@@ -85,7 +85,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         description: 'ツアー詳細情報'
       };
 
-      DiscordService.notifyNewCalendarEvent(event);
+      DiscordService.notifyNewCalendarEvent([event]);
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
       expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
