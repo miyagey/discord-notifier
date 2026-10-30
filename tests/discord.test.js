@@ -147,20 +147,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       DiscordService.notifyNewCalendarEvent([]);
       expect(called).toBe(false);
     });
-
-    it('（後方互換）notifyBatchCalendarEvents から呼び出しても正しく送信されること', () => {
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
-        sentMessage = message;
-      };
-
-      DiscordService.notifyBatchCalendarEvents([{
-        brand: '学マス',
-        eventName: 'テスト'
-      }]);
-
-      expect(sentMessage).toContain('📅 **【学マス】テスト**');
-    });
   });
 
   describe('notifyNewApplication', () => {
@@ -440,63 +426,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
-  describe('formatRemindEmbedField', () => {
-    it('申込アイテムDTOから正しくEmbed用フィールドオブジェクトを生成すること', () => {
-      const item = {
-        brand: '学マス',
-        eventName: '初星公演',
-        applyName: '先行抽選',
-        method: 'https://asobistore.jp/ticket'
-      };
-
-      const field = DiscordService.formatRemindEmbedField(item, {
-        timeLabel: '締切時刻',
-        timeStr: '23:59まで'
-      });
-
-      expect(field).toEqual({
-        name: '📅 【学マス】初星公演',
-        value: '・受付区分: **先行抽選**\n・締切時刻: **23:59まで**\n・申込方法: [チケットページを開く](<https://asobistore.jp/ticket>)',
-        inline: false
-      });
-    });
-
-    it('申込方法がURL以外（テキスト）の場合はそのまま表示されること', () => {
-      const item = {
-        brand: 'シャニ',
-        eventName: 'LIVE TOUR',
-        applyName: '一般販売',
-        method: '店頭端末にて購入'
-      };
-
-      const field = DiscordService.formatRemindEmbedField(item, {
-        timeLabel: '開始日時',
-        timeStr: '10:00から'
-      });
-
-      expect(field.value).toContain('・申込方法: 店頭端末にて購入');
-    });
-
-    it('申込方法がない場合は申込方法行が含まれないこと', () => {
-      const item = {
-        brand: 'デレ',
-        eventName: '7th LIVE',
-        applyName: '一般'
-      };
-
-      const field = DiscordService.formatRemindEmbedField(item, {
-        timeLabel: '入金締切',
-        timeStr: '21:00まで'
-      });
-
-      expect(field.value).not.toContain('申込方法');
-    });
-
-    it('item が null または未指定の場合は null を返すこと', () => {
-      expect(DiscordService.formatRemindEmbedField(null, {})).toBeNull();
-    });
-  });
-
   describe('sendItemListNotification', () => {
     it('formatEmbedFunc が渡された場合、各アイテムを独立したEmbedカードにし、contentにタイトルとWebアプリリンクを配置すること', () => {
       const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
@@ -567,55 +496,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       const secondCall = spySend.mock.calls[1][1];
       expect(secondCall.content).toBe('🔔 本日締切のチケット申込があります！ (続き)');
       expect(secondCall.embeds.length).toBe(5);
-
-      spySend.mockRestore();
-    });
-
-    it('（後方互換）formatFieldFunc が渡された場合、1つのEmbed内にフィールドとしてまとめて送信すること', () => {
-      const spySend = vi.spyOn(DiscordService, 'sendNotification').mockImplementation(() => {});
-
-      const items = [
-        {
-          brand: '学マス',
-          eventName: '初星公演',
-          applyName: '先行',
-          endDatetime: '2026-11-20 23:59'
-        }
-      ];
-
-      DiscordService.sendItemListNotification({
-        webhookUrl: 'https://discord.com/api/webhooks/test',
-        headerTitle: '🔔 本日締切のチケット申込があります！',
-        color: 0xe67e22,
-        items: items,
-        formatFieldFunc: (item) => ({
-          name: `📅 【${item.brand}】${item.eventName}`,
-          value: `・受付区分: **${item.applyName}**`,
-          inline: false
-        }),
-        withFooter: true
-      });
-
-      expect(spySend).toHaveBeenCalledWith(
-        'https://discord.com/api/webhooks/test',
-        expect.objectContaining({
-          embeds: [
-            expect.objectContaining({
-              title: '🔔 本日締切のチケット申込があります！',
-              color: 0xe67e22,
-              url: 'https://ticket.example.com',
-              fields: [
-                {
-                  name: '📅 【学マス】初星公演',
-                  value: '・受付区分: **先行**',
-                  inline: false
-                }
-              ],
-              footer: { text: '📝 イベント・申込の確認＆登録はWebアプリから' }
-            })
-          ]
-        })
-      );
 
       spySend.mockRestore();
     });

@@ -44,14 +44,12 @@ const DiscordService = {
       webhookUrl: config.webhookUrl,
       headerTitle: config.headerTitle,
       subTitle: subTitle,
-      color: config.color,
       items: items,
       formatEmbedFunc: (item) => this.formatRemindEmbed(item, {
         timeLabel: config.timeLabel,
         timeStr: config.getTimeStr(item),
         color: config.color
-      }),
-      withFooter: config.withFooter
+      })
     });
   },
 
@@ -98,14 +96,6 @@ const DiscordService = {
     });
 
     this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n').trimEnd());
-  },
-
-  /**
-   * （後方互換用エイリアス）カレンダー未登録イベントの一括同期完了通知を送信
-   * @param {EventDto[]} events - 登録成功したイベントDTO配列
-   */
-  notifyBatchCalendarEvents(events) {
-    this.notifyNewCalendarEvent(events);
   },
 
   /**
@@ -325,41 +315,6 @@ const DiscordService = {
   },
 
   /**
-   * （後方互換用）申込アイテムを Embed 用のフィールドオブジェクトに変換
-   * @param {ApplicationDto} item - 申込アイテムDTO
-   * @param {Object} options - フォーマットオプション
-   * @param {string} options.timeLabel - 時間ラベル（例: "締切時刻"）
-   * @param {string} options.timeStr - 時間文字列（例: "23:59まで"）
-   * @returns {{ name: string, value: string, inline: boolean }|null}
-   */
-  formatRemindEmbedField(item, { timeLabel, timeStr }) {
-    if (!item) return null;
-    const title = formatBrandEventTitle(item.brand, item.eventName || item.name || "");
-    const applyName = item.applyName || "未指定";
-    const method = item.method || item.applyMethod || "";
-
-    const valueLines = [
-      `・受付区分: **${applyName}**`,
-      `・${timeLabel}: **${timeStr}**`
-    ];
-
-    if (method) {
-      const trimmed = String(method).trim();
-      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        valueLines.push(`・申込方法: [チケットページを開く](<${trimmed}>)`);
-      } else {
-        valueLines.push(`・申込方法: ${trimmed}`);
-      }
-    }
-
-    return {
-      name: `📅 ${title}`,
-      value: valueLines.join("\n"),
-      inline: false
-    };
-  },
-
-  /**
    * カレンダー登録イベントの表示用テキスト行配列を生成する
    * @param {EventDto} event - イベントDTO
    * @returns {string[]} メッセージ行の配列
@@ -498,95 +453,38 @@ const DiscordService = {
    * 申込・イベント単位で独立した Embed カードを生成し、メッセージ本文にタイトルと補足を配置する
    * @param {Object} params - パラメータオブジェクト
    * @param {string} params.webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} params.headerTitle - メッセージ本文のタイトル（例: "🔔 本日締切のチケット申込があります！"）
+   * @param {string} params.headerTitle - メッセージ本文のタイトル（例: "## 🔔 本日締切のチケット申込があります！"）
    * @param {string} [params.subTitle] - メッセージ本文の補足テキスト（例: "📝 イベント・申込の確認＆登録は[Webアプリ](<URL>)から"）
-   * @param {number} [params.color=0x3498db] - Embed の枠線カラーコード
    * @param {Array<object>} params.items - 通知対象のアイテム配列
-   * @param {function(object): Object} [params.formatEmbedFunc] - 各アイテムを独立した Embed オブジェクトに変換する関数
-   * @param {function(object): { name: string, value: string, inline?: boolean }} [params.formatFieldFunc] - （旧互換用）各アイテムを Embed フィールドに変換する関数
-   * @param {function(object): string} [params.formatItemFunc] - （旧互換用）テキスト変換関数
-   * @param {boolean} [params.withFooter=false] - フッターを表示するかどうか
-   * @param {string} [params.footer] - （旧互換用）フッター文字列
+   * @param {function(object): Object} params.formatEmbedFunc - 各アイテムを独立した Embed オブジェクトに変換する関数
    */
   sendItemListNotification({
     webhookUrl,
     headerTitle,
     subTitle,
-    color = 0x3498db,
     items,
-    formatEmbedFunc,
-    formatFieldFunc,
-    formatItemFunc,
-    withFooter = false,
-    footer
+    formatEmbedFunc
   }) {
     if (!items || items.length === 0 || !webhookUrl) return;
+    if (typeof formatEmbedFunc !== 'function') return;
 
-    const hasFooter = withFooter || Boolean(footer);
-    const webappLink = (typeof WEBAPP_URL !== 'undefined' && WEBAPP_URL) ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
-    const defaultSubTitle = hasFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
-    const effectiveSubTitle = typeof subTitle !== 'undefined' ? subTitle : defaultSubTitle;
+    const MAX_EMBEDS_PER_MESSAGE = 10;
 
-    // 1. formatEmbedFunc が指定されている場合: 申込アイテムごとに独立した Embed を生成 (1メッセージ最大10個)
-    if (typeof formatEmbedFunc === 'function') {
-      const MAX_EMBEDS_PER_MESSAGE = 10;
+    for (let i = 0; i < items.length; i += MAX_EMBEDS_PER_MESSAGE) {
+      const chunk = items.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
+      const embeds = chunk.map((item) => formatEmbedFunc(item)).filter(Boolean);
 
-      for (let i = 0; i < items.length; i += MAX_EMBEDS_PER_MESSAGE) {
-        const chunk = items.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
-        const embeds = chunk.map((item) => formatEmbedFunc(item)).filter(Boolean);
-
-        let content = "";
-        if (i === 0) {
-          const parts = [headerTitle, effectiveSubTitle].filter(Boolean);
-          content = parts.join("\n");
-        } else {
-          content = `${headerTitle} (続き)`;
-        }
-
-        this.sendNotification(webhookUrl, { content, embeds });
-
-        if (i + MAX_EMBEDS_PER_MESSAGE < items.length) {
-          Utilities.sleep(500);
-        }
-      }
-      return;
-    }
-
-    // 2. 後方互換: 1つの Embed 内に fields を並べる旧形式 (1メッセージ最大25フィールド)
-    const MAX_FIELDS_PER_EMBED = 25;
-    const cleanTitle = String(headerTitle || "").replace(/^#+\s*/, "").replace(/\*\*/g, "");
-    const footerText = hasFooter ? "📝 イベント・申込の確認＆登録はWebアプリから" : undefined;
-
-    for (let i = 0; i < items.length; i += MAX_FIELDS_PER_EMBED) {
-      const chunk = items.slice(i, i + MAX_FIELDS_PER_EMBED);
-      const fields = chunk.map((item, idx) => {
-        if (typeof formatFieldFunc === 'function') {
-          return formatFieldFunc(item);
-        }
-        if (typeof formatItemFunc === 'function') {
-          const text = formatItemFunc(item);
-          return { name: `項目 ${idx + 1}`, value: text, inline: false };
-        }
-        return null;
-      }).filter(Boolean);
-
-      const embed = {
-        title: cleanTitle,
-        color: color,
-        fields: fields
-      };
-
-      if (typeof WEBAPP_URL !== 'undefined' && WEBAPP_URL) {
-        embed.url = WEBAPP_URL;
+      let content = "";
+      if (i === 0) {
+        const parts = [headerTitle, subTitle].filter(Boolean);
+        content = parts.join("\n");
+      } else {
+        content = `${headerTitle} (続き)`;
       }
 
-      if (footerText) {
-        embed.footer = { text: footerText };
-      }
+      this.sendNotification(webhookUrl, { content, embeds });
 
-      this.sendNotification(webhookUrl, { embeds: [embed] });
-
-      if (i + MAX_FIELDS_PER_EMBED < items.length) {
+      if (i + MAX_EMBEDS_PER_MESSAGE < items.length) {
         Utilities.sleep(500);
       }
     }
