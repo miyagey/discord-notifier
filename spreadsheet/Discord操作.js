@@ -23,30 +23,42 @@ const DiscordService = {
       throw new Error(`未定義のリマインド種別です: ${type}`);
     }
 
-    const webappLink = WEBAPP_URL ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
-    const subTitle = config.withFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
+    const footerMessage = config.withFooter
+      ? `📝 イベント・申込の確認＆登録は${WEBAPP_URL ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ"}から`
+      : "";
 
+    // 1. 対象アイテムが 0 件の場合の処理
     if (!items || items.length === 0) {
       if (config.emptyMessage) {
-        const parts = [config.emptyMessage, subTitle].filter(Boolean);
-        this.sendNotification(config.webhookUrl, parts.join("\n"));
+        const content = [config.emptyMessage, footerMessage].filter(Boolean).join("\n");
+        this.sendNotification(config.webhookUrl, content);
       } else if (config.emptyLog) {
         Logger.log(config.emptyLog);
       }
       return;
     }
 
-    this.sendItemListNotification({
-      webhookUrl: config.webhookUrl,
-      headerTitle: config.headerTitle,
-      subTitle: subTitle,
-      items: items,
-      formatEmbedFunc: (item) => this.formatRemindEmbed(item, {
-        timeLabel: config.timeLabel,
-        timeStr: config.getTimeStr(item),
-        color: config.color
-      })
-    });
+    // 2. アイテムを Embed カード配列に変換
+    const embeds = items.map(item => this.formatRemindEmbed(item, {
+      timeLabel: config.timeLabel,
+      timeStr: config.getTimeStr(item),
+      color: config.color
+    })).filter(Boolean);
+
+    // 3. Discord の仕様（1メッセージ最大10 Embeds）に合わせて分割送信
+    const MAX_EMBEDS_PER_MESSAGE = 10;
+    for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
+      const chunk = embeds.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
+      const content = i === 0
+        ? [config.headerTitle, footerMessage].filter(Boolean).join("\n")
+        : `${config.headerTitle} (続き)`;
+
+      this.sendNotification(config.webhookUrl, { content, embeds: chunk });
+
+      if (i + MAX_EMBEDS_PER_MESSAGE < embeds.length) {
+        Utilities.sleep(500);
+      }
+    }
   },
 
   /**
@@ -412,47 +424,6 @@ const DiscordService = {
   // 4. 低レベル通信・インフラメソッド群
   // ==================================================
 
-  /**
-   * アイテムリストを Embed 形式に組み立てて Discord へ送信する (DTOパターン)
-   * 申込・イベント単位で独立した Embed カードを生成し、メッセージ本文にタイトルと補足を配置する
-   * @param {Object} params - パラメータオブジェクト
-   * @param {string} params.webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} params.headerTitle - メッセージ本文のタイトル（例: "## 🔔 本日締切のチケット申込があります！"）
-   * @param {string} [params.subTitle] - メッセージ本文の補足テキスト（例: "📝 イベント・申込の確認＆登録は[Webアプリ](<URL>)から"）
-   * @param {Array<object>} params.items - 通知対象のアイテム配列
-   * @param {function(object): Object} params.formatEmbedFunc - 各アイテムを独立した Embed オブジェクトに変換する関数
-   */
-  sendItemListNotification({
-    webhookUrl,
-    headerTitle,
-    subTitle,
-    items,
-    formatEmbedFunc
-  }) {
-    if (!items || items.length === 0 || !webhookUrl) return;
-    if (typeof formatEmbedFunc !== 'function') return;
-
-    const MAX_EMBEDS_PER_MESSAGE = 10;
-
-    for (let i = 0; i < items.length; i += MAX_EMBEDS_PER_MESSAGE) {
-      const chunk = items.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
-      const embeds = chunk.map((item) => formatEmbedFunc(item)).filter(Boolean);
-
-      let content = "";
-      if (i === 0) {
-        const parts = [headerTitle, subTitle].filter(Boolean);
-        content = parts.join("\n");
-      } else {
-        content = `${headerTitle} (続き)`;
-      }
-
-      this.sendNotification(webhookUrl, { content, embeds });
-
-      if (i + MAX_EMBEDS_PER_MESSAGE < items.length) {
-        Utilities.sleep(500);
-      }
-    }
-  },
 
   /**
    * Discord（プロキシ経由）へメッセージを送信する
