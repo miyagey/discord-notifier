@@ -33,14 +33,19 @@ const DiscordService = {
       return;
     }
 
+    const webappLink = WEBAPP_URL ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
+    const subTitle = config.withFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
+
     this.sendItemListNotification({
       webhookUrl: config.webhookUrl,
       headerTitle: config.headerTitle,
+      subTitle: subTitle,
       color: config.color,
       items: items,
-      formatFieldFunc: (item) => this.formatRemindEmbedField(item, {
+      formatEmbedFunc: (item) => this.formatRemindEmbed(item, {
         timeLabel: config.timeLabel,
-        timeStr: config.getTimeStr(item)
+        timeStr: config.getTimeStr(item),
+        color: config.color
       }),
       withFooter: config.withFooter
     });
@@ -266,7 +271,60 @@ const DiscordService = {
   },
 
   /**
-   * 申込アイテムを Embed 用のフィールドオブジェクトに変換
+   * 申込アイテムを独立した Embed カードオブジェクトに変換
+   * @param {ApplicationDto} item - 申込アイテムDTO
+   * @param {Object} options - フォーマットオプション
+   * @param {string} options.timeLabel - 時間ラベル（例: "締切時刻"）
+   * @param {string} options.timeStr - 時間文字列（例: "23:59まで"）
+   * @param {number} [options.color=0x3498db] - フォールバックの枠線カラー
+   * @returns {Object|null} Discord Embed オブジェクト
+   */
+  formatRemindEmbed(item, { timeLabel, timeStr, color = 0x3498db }) {
+    if (!item) return null;
+    const title = formatBrandEventTitle(item.brand, item.eventName || item.name || "");
+    const applyName = item.applyName || "未指定";
+    const method = item.method || item.applyMethod || "";
+    const embedColor = (typeof getBrandColor === 'function' ? getBrandColor(item.brand) : null) || color;
+
+    const fields = [
+      { name: "受付区分", value: applyName, inline: true },
+      { name: timeLabel, value: `**${timeStr}**`, inline: true }
+    ];
+
+    let url = undefined;
+    if (method) {
+      const trimmed = String(method).trim();
+      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        url = trimmed;
+        fields.push({
+          name: "申込方法",
+          value: `[チケットページを開く](<${trimmed}>)`,
+          inline: false
+        });
+      } else {
+        fields.push({
+          name: "申込方法",
+          value: trimmed,
+          inline: false
+        });
+      }
+    }
+
+    const embed = {
+      title: `📅 ${title}`,
+      color: embedColor,
+      fields: fields
+    };
+
+    if (url) {
+      embed.url = url;
+    }
+
+    return embed;
+  },
+
+  /**
+   * （後方互換用）申込アイテムを Embed 用のフィールドオブジェクトに変換
    * @param {ApplicationDto} item - 申込アイテムDTO
    * @param {Object} options - フォーマットオプション
    * @param {string} options.timeLabel - 時間ラベル（例: "締切時刻"）
@@ -287,7 +345,7 @@ const DiscordService = {
     if (method) {
       const trimmed = String(method).trim();
       if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        valueLines.push(`・申込方法: [チケットページを開く](${trimmed})`);
+        valueLines.push(`・申込方法: [チケットページを開く](<${trimmed}>)`);
       } else {
         valueLines.push(`・申込方法: ${trimmed}`);
       }
@@ -440,12 +498,15 @@ const DiscordService = {
 
   /**
    * アイテムリストを Embed 形式に組み立てて Discord へ送信する (DTOパターン)
+   * 申込・イベント単位で独立した Embed カードを生成し、メッセージ本文にタイトルと補足を配置する
    * @param {Object} params - パラメータオブジェクト
    * @param {string} params.webhookUrl - 送信先の Discord Webhook URL
-   * @param {string} params.headerTitle - Embed のタイトル
+   * @param {string} params.headerTitle - メッセージ本文のタイトル（例: "🔔 本日締切のチケット申込があります！"）
+   * @param {string} [params.subTitle] - メッセージ本文の補足テキスト（例: "📝 イベント・申込の確認＆登録は[Webアプリ](<URL>)から"）
    * @param {number} [params.color=0x3498db] - Embed の枠線カラーコード
    * @param {Array<object>} params.items - 通知対象のアイテム配列
-   * @param {function(object): { name: string, value: string, inline?: boolean }} [params.formatFieldFunc] - 各アイテムを Embed フィールドに変換する関数
+   * @param {function(object): Object} [params.formatEmbedFunc] - 各アイテムを独立した Embed オブジェクトに変換する関数
+   * @param {function(object): { name: string, value: string, inline?: boolean }} [params.formatFieldFunc] - （旧互換用）各アイテムを Embed フィールドに変換する関数
    * @param {function(object): string} [params.formatItemFunc] - （旧互換用）テキスト変換関数
    * @param {boolean} [params.withFooter=false] - フッターを表示するかどうか
    * @param {string} [params.footer] - （旧互換用）フッター文字列
@@ -453,8 +514,10 @@ const DiscordService = {
   sendItemListNotification({
     webhookUrl,
     headerTitle,
+    subTitle,
     color = 0x3498db,
     items,
+    formatEmbedFunc,
     formatFieldFunc,
     formatItemFunc,
     withFooter = false,
@@ -462,10 +525,39 @@ const DiscordService = {
   }) {
     if (!items || items.length === 0 || !webhookUrl) return;
 
-    // Discord Embed は 1 メッセージあたり最大 25 フィールド
+    const hasFooter = withFooter || Boolean(footer);
+    const webappLink = (typeof WEBAPP_URL !== 'undefined' && WEBAPP_URL) ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
+    const defaultSubTitle = hasFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
+    const effectiveSubTitle = typeof subTitle !== 'undefined' ? subTitle : defaultSubTitle;
+
+    // 1. formatEmbedFunc が指定されている場合: 申込アイテムごとに独立した Embed を生成 (1メッセージ最大10個)
+    if (typeof formatEmbedFunc === 'function') {
+      const MAX_EMBEDS_PER_MESSAGE = 10;
+
+      for (let i = 0; i < items.length; i += MAX_EMBEDS_PER_MESSAGE) {
+        const chunk = items.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
+        const embeds = chunk.map((item) => formatEmbedFunc(item)).filter(Boolean);
+
+        let content = "";
+        if (i === 0) {
+          const parts = [headerTitle, effectiveSubTitle].filter(Boolean);
+          content = parts.join("\n");
+        } else {
+          content = `${headerTitle} (続き)`;
+        }
+
+        this.sendNotification(webhookUrl, { content, embeds });
+
+        if (i + MAX_EMBEDS_PER_MESSAGE < items.length) {
+          Utilities.sleep(500);
+        }
+      }
+      return;
+    }
+
+    // 2. 後方互換: 1つの Embed 内に fields を並べる旧形式 (1メッセージ最大25フィールド)
     const MAX_FIELDS_PER_EMBED = 25;
     const cleanTitle = String(headerTitle || "").replace(/\*\*/g, "");
-    const hasFooter = withFooter || Boolean(footer);
     const footerText = hasFooter ? "📝 イベント・申込の確認＆登録はWebアプリから" : undefined;
 
     for (let i = 0; i < items.length; i += MAX_FIELDS_PER_EMBED) {
