@@ -94,13 +94,25 @@ const DiscordService = {
   notifyNewCalendarEvent(events) {
     if (!WEBHOOK_CALENDAR || !events || events.length === 0) return;
 
-    const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
-    events.forEach(event => {
-      if (!event) return;
-      messageLines.push(...this.formatCalendarEventBlock(event), "");
-    });
+    const embeds = events
+      .map(event => this.formatCalendarEventEmbed(event))
+      .filter(Boolean);
 
-    this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n').trimEnd());
+    if (embeds.length === 0) return;
+
+    const headerTitle = "## 🆕 Googleカレンダーに新しいイベントを登録したよ！";
+    const MAX_EMBEDS_PER_MESSAGE = 10;
+
+    for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
+      const chunk = embeds.slice(i, i + MAX_EMBEDS_PER_MESSAGE);
+      const content = i === 0 ? headerTitle : `${headerTitle} (続き)`;
+
+      this.sendNotification(WEBHOOK_CALENDAR, { content, embeds: chunk });
+
+      if (i + MAX_EMBEDS_PER_MESSAGE < embeds.length) {
+        Utilities.sleep(500);
+      }
+    }
   },
 
   /**
@@ -319,35 +331,39 @@ const DiscordService = {
   },
 
   /**
-   * カレンダー登録イベントの表示用テキスト行配列を生成する
+   * カレンダー登録イベントを独立した Embed カードオブジェクトに変換
    * @param {EventDto} event - イベントDTO
-   * @returns {string[]} メッセージ行の配列
+   * @returns {Object|null} Discord Embed オブジェクト
    */
-  formatCalendarEventBlock(event) {
-    if (!event) return [];
+  formatCalendarEventEmbed(event) {
+    if (!event) return null;
 
     const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || "");
     const dateStr = formatDateRange(event.startDate, event.endDate);
     const location = event.location || "";
     const description = event.description || "";
+    const embedColor = (typeof getBrandColor === 'function' ? getBrandColor(event.brand) : null) || 0x3498db;
 
-    const lines = [
-      `📅 **${brandEventTitle}**`,
-      ` └ 期間: **${dateStr} [終日]**`
+    const fields = [
+      { name: "期間", value: `${dateStr} [終日]`, inline: true }
     ];
 
-    if (location) lines.push(` └ 会場: ${location}`);
+    if (location) {
+      fields.push({ name: "会場", value: location, inline: true });
+    }
+
     if (description) {
       const trimmed = String(description).trim();
-      if (trimmed.includes("\n")) {
-        const quoted = trimmed.split("\n").map(l => `> ${l}`).join("\n");
-        lines.push(` └ 概要:\n${quoted}`);
-      } else {
-        lines.push(` └ 概要: ${trimmed}`);
+      if (trimmed) {
+        fields.push({ name: "概要", value: trimmed, inline: false });
       }
     }
 
-    return lines;
+    return {
+      title: `📅 ${brandEventTitle}`,
+      color: embedColor,
+      fields: fields
+    };
   },
 
 
