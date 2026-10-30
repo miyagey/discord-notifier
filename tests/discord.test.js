@@ -68,7 +68,7 @@ beforeAll(() => {
 
 describe('Discord操作.js (フォーマッター・メッセージ生成) の単体テスト', () => {
   describe('notifyNewCalendarEvent', () => {
-    it('イベントDTOを受け取り、正しく整形してカレンダー通知を送信すること', () => {
+    it('単一のイベントDTOを受け取り、正しく整形してカレンダー通知を送信すること', () => {
       let sentWebhook = '';
       let sentMessage = '';
       DiscordService.sendNotification = (webhook, message) => {
@@ -95,18 +95,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(sentMessage).toContain('└ 概要: ツアー詳細情報');
     });
 
-    it('event が null または未指定の場合は送信をスキップすること', () => {
-      let called = false;
-      DiscordService.sendNotification = () => {
-        called = true;
-      };
-
-      DiscordService.notifyNewCalendarEvent(null);
-      expect(called).toBe(false);
-    });
-  });
-
-  describe('notifyBatchCalendarEvents', () => {
     it('イベントDTO配列を受け取り、正しく一括整形してカレンダー通知を送信すること', () => {
       let sentWebhook = '';
       let sentMessage = '';
@@ -134,7 +122,7 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
         }
       ];
 
-      DiscordService.notifyBatchCalendarEvents(events);
+      DiscordService.notifyNewCalendarEvent(events);
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
       expect(sentMessage).toContain('🆕 **Googleカレンダーに新しいイベントを登録したよ！**');
@@ -147,20 +135,32 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       expect(sentMessage).toContain('└ 会場: Kアリーナ横浜');
     });
 
-    it('events が null または空配列の場合は送信をスキップすること', () => {
+    it('event が null または空配列の場合は送信をスキップすること', () => {
       let called = false;
       DiscordService.sendNotification = () => {
         called = true;
       };
 
-      DiscordService.notifyBatchCalendarEvents(null);
+      DiscordService.notifyNewCalendarEvent(null);
       expect(called).toBe(false);
 
-      DiscordService.notifyBatchCalendarEvents([]);
+      DiscordService.notifyNewCalendarEvent([]);
       expect(called).toBe(false);
     });
 
+    it('（後方互換）notifyBatchCalendarEvents から呼び出しても正しく送信されること', () => {
+      let sentMessage = '';
+      DiscordService.sendNotification = (webhook, message) => {
+        sentMessage = message;
+      };
 
+      DiscordService.notifyBatchCalendarEvents([{
+        brand: '学マス',
+        eventName: 'テスト'
+      }]);
+
+      expect(sentMessage).toContain('📅 **【学マス】テスト**');
+    });
   });
 
   describe('notifyNewApplication', () => {

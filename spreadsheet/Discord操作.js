@@ -82,33 +82,30 @@ const DiscordService = {
   },
 
   /**
-   * Googleカレンダー登録完了のDiscord通知を送信
-   * @param {EventDto} event - イベントDTO
+   * Googleカレンダー登録完了のDiscord通知を送信（単一・複数両対応）
+   * @param {EventDto|EventDto[]} eventsOrEvent - イベントDTOまたはその配列
    */
-  notifyNewCalendarEvent(event) {
-    if (!WEBHOOK_CALENDAR || !event) return;
+  notifyNewCalendarEvent(eventsOrEvent) {
+    if (!WEBHOOK_CALENDAR || !eventsOrEvent) return;
 
-    const lines = [
-      "🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n",
-      ...this.formatCalendarEventBlock(event)
-    ];
-
-    this.sendNotification(WEBHOOK_CALENDAR, lines.join('\n'));
-  },
-
-  /**
-   * カレンダー未登録イベントの一括同期完了通知を送信
-   * @param {EventDto[]} events - 登録成功したイベントDTO配列
-   */
-  notifyBatchCalendarEvents(events) {
-    if (!events || events.length === 0 || !WEBHOOK_CALENDAR) return;
+    const events = Array.isArray(eventsOrEvent) ? eventsOrEvent : [eventsOrEvent];
+    if (events.length === 0) return;
 
     const messageLines = ["🆕 **Googleカレンダーに新しいイベントを登録したよ！**\n"];
     events.forEach(event => {
+      if (!event) return;
       messageLines.push(...this.formatCalendarEventBlock(event), "");
     });
 
     this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n').trimEnd());
+  },
+
+  /**
+   * （後方互換用エイリアス）カレンダー未登録イベントの一括同期完了通知を送信
+   * @param {EventDto[]} events - 登録成功したイベントDTO配列
+   */
+  notifyBatchCalendarEvents(events) {
+    this.notifyNewCalendarEvent(events);
   },
 
   /**

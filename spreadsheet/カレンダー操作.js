@@ -32,7 +32,7 @@ const CalendarService = {
     }
 
     if (registeredEvents.length > 0) {
-      DiscordService.notifyBatchCalendarEvents(registeredEvents);
+      DiscordService.notifyNewCalendarEvent(registeredEvents);
       Logger.log(`Discordへ ${registeredEvents.length} 件のカレンダー登録完了通知を送信しました。`);
     }
 
