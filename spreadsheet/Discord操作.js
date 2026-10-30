@@ -23,22 +23,18 @@ const DiscordService = {
       throw new Error(`未定義のリマインド種別です: ${type}`);
     }
 
+    const webappLink = WEBAPP_URL ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
+    const subTitle = config.withFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
+
     if (!items || items.length === 0) {
       if (config.emptyMessage) {
-        const parts = [config.emptyMessage];
-        if (config.withFooter) {
-          const footer = this.getRegistrationFooterMessage();
-          if (footer) parts.push(footer);
-        }
+        const parts = [config.emptyMessage, subTitle].filter(Boolean);
         this.sendNotification(config.webhookUrl, parts.join("\n"));
       } else if (config.emptyLog) {
         Logger.log(config.emptyLog);
       }
       return;
     }
-
-    const webappLink = WEBAPP_URL ? `[Webアプリ](<${WEBAPP_URL}>)` : "Webアプリ";
-    const subTitle = config.withFooter ? `📝 イベント・申込の確認＆登録は${webappLink}から` : undefined;
 
     this.sendItemListNotification({
       webhookUrl: config.webhookUrl,
@@ -377,16 +373,6 @@ const DiscordService = {
     } else {
       return ` └ 申込方法: ${trimmed}\n`;
     }
-  },
-
-  /**
-   * 締切リマインド等の登録・閲覧案内メッセージフッターを生成
-   * @returns {string} 登録案内メッセージフッター
-   */
-  getRegistrationFooterMessage() {
-    if (!WEBAPP_URL) return "";
-
-    return `📝 イベント・申込の確認＆登録は[Webアプリ](<${WEBAPP_URL}>)から`;
   },
 
   /**

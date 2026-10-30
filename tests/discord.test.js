@@ -551,21 +551,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     });
   });
 
-  describe('getRegistrationFooterMessage', () => {
-    it('WebアプリURLを含むフッターが生成されること', () => {
-      const footer = DiscordService.getRegistrationFooterMessage();
-      expect(footer).toBe('📝 イベント・申込の確認＆登録は[Webアプリ](<https://ticket.example.com>)から');
-    });
-
-    it('WEBAPP_URL が未設定の場合は空文字を返すこと', () => {
-      const originalUrl = testContext.WEBAPP_URL;
-      testContext.WEBAPP_URL = '';
-      const footer = DiscordService.getRegistrationFooterMessage();
-      expect(footer).toBe('');
-      testContext.WEBAPP_URL = originalUrl;
-    });
-  });
-
   describe('notifyTomorrowEvents', () => {
     it('EventDto[] 配列を受け取り、正しくメッセージ送信を呼び出すこと', () => {
       let sentWebhook = '';
