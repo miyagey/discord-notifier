@@ -75,6 +75,84 @@ function formatEventTimeRange(event) {
   return "[終日]";
 }
 
+/**
+ * Googleカレンダー等の説明欄に含まれるHTMLタグ・エンティティを除去・整形する
+ * @param {string} text - 元の説明テキスト
+ * @returns {string} 整形されたプレーン/Markdownテキスト
+ */
+function cleanDescriptionText(text) {
+  if (!text) return "";
+  let s = String(text);
+
+  // 改行系タグを改行コードへ変換
+  s = s.replace(/<br\s*\/?>/gi, "\n");
+  s = s.replace(/<\/(?:p|div|li)>/gi, "\n");
+
+  // <a href="...">テキスト</a> の変換
+  s = s.replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, (_, href, inner) => {
+    const cleanInner = inner.replace(/<[^>]+>/g, "").trim();
+    const cleanHref = href.trim();
+    if (!cleanInner || cleanInner === cleanHref) {
+      return cleanHref;
+    }
+    return `[${cleanInner}](${cleanHref})`;
+  });
+
+  // 残りのHTMLタグを除去
+  s = s.replace(/<[^>]+>/g, "");
+
+  // 主要なHTMLエンティティのデコード
+  s = s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, "&");
+
+  return s.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * テキスト内から最初に出現する http/https URL を抽出する
+ * @param {string} text - 検索対象テキスト
+ * @returns {string|null} 抽出されたURL（存在しない場合は null）
+ */
+function extractFirstUrl(text) {
+  if (!text) return null;
+  const match = String(text).match(/https?:\/\/[^\s<>"')\]」』]+/i);
+  return match ? match[0] : null;
+}
+
+/**
+ * HTML文字列から OGP 画像 (og:image / twitter:image) のURLを抽出する
+ * @param {string} html - HTML文字列
+ * @param {string} [baseUrl] - 相対パス解決用のベースURL
+ * @returns {string|null} OGP画像URL（見つからない場合は null）
+ */
+function extractOgpImageUrl(html, baseUrl) {
+  if (!html) return null;
+  const str = String(html);
+
+  const metaRegex = /<meta\s+[^>]*?(?:(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*?content=["']([^"']+)["']|content=["']([^"']+)["'][^>]*?(?:property|name)=["'](?:og:image|twitter:image)["'])[^>]*?>/i;
+  const match = str.match(metaRegex);
+  if (!match) return null;
+
+  let imgUrl = (match[1] || match[2] || "").trim().replace(/&amp;/gi, "&");
+  if (!imgUrl) return null;
+
+  if (imgUrl.startsWith("//")) {
+    imgUrl = `https:${imgUrl}`;
+  } else if (imgUrl.startsWith("/") && baseUrl) {
+    const originMatch = String(baseUrl).match(/^(https?:\/\/[^/]+)/i);
+    if (originMatch) {
+      imgUrl = `${originMatch[1]}${imgUrl}`;
+    }
+  }
+
+  return /^https?:\/\//i.test(imgUrl) ? imgUrl : null;
+}
+
 
 /**
  * エラーログを統一形式で出力する

@@ -46,9 +46,9 @@ flowchart TD
 | :--- | :--- | :--- |
 | **オーケストレーション層** | `spreadsheet/定期通知バッチ.js`<br>`spreadsheet/Webアプリ.js` | 処理全体のフロー制御に専念する。<br>・定期バッチ: データの抽出指示 ➔ フォーマット指示 ➔ 送信指示<br>・Webアプリ: リクエスト受付 ➔ 各層の呼び出し（カレンダー・チャンネル作成等） ➔ レスポンス返却 |
 | **データアクセス層** | `spreadsheet/スプレッドシート操作.js`<br>(`SheetService`) | スプレッドシートのシート構造・列インデックス（`MASTER_COL`, `APPLY_COL`）を隠蔽し、データの取得・保存を行う。<br>外部層に対しては名前付きプロパティのモデルオブジェクト（DTO）を返す。 |
-| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・Markdown・ブロック・リッチ Embed）整形・送信。<br>・設定駆動（`REMIND_CONFIGS`）によるリマインド通知（締切・先着・リセール・入金）の一元送信（`sendRemindNotification`）および Embed カード生成（`formatRemindEmbed`）。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
+| **メッセージ / プレゼンテーション層** | `spreadsheet/Discord操作.js`<br>(`DiscordService` & フォーマッター) | ・Discord Webhook へのメッセージ（本文・リッチ Embed）整形・送信。<br>・設定駆動（`REMIND_CONFIGS`）によるリマインド通知（締切・先着・リセール・入金）の一元送信（`sendRemindNotification`）、新規申込・カレンダー登録・明日の予定通知における Embed カード生成（`formatRemindEmbed`, `formatCalendarEventEmbed`）、および説明欄 URL からの OGP 画像取得・展開（`fetchOgpImage`）。<br>・Discord Bot REST API によるイベントテキストチャンネル動的生成（サニタイズ・トピック設定・初回Embed投稿）。<br>・Bot REST API 汎用クライアント（`fetchDiscordApi`）による安全なHTTP通信・プロキシ対応・認証ヘッダーカプセル化。 |
 | **外部リソース連携層** | `spreadsheet/カレンダー操作.js`<br>(`CalendarService`) | Google カレンダー等の外部サービスへの接続・イベント作成・予定取得を担当する。 |
-| **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
+| **共通関数層 (Utilities / Formatters)** | `spreadsheet/共通関数.js` | 特定の外部APIに依存しない、純粋なデータ変換・フォーマット処理（`formatDateRange`, `formatBrandEventTitle`, `cleanDescriptionText`, `extractFirstUrl`, `extractOgpImageUrl`, 日付計算、ステータス判定等）を担当。<br>オーケストレーション層および各サービス層から共通して参照される。 |
 | **型定義層 (Type Definitions)** | `spreadsheet/型定義.js` | JSDoc の `@typedef` を用いて、システム全体で受け渡される DTO（`EventDto`, `ApplicationDto`, `RemindType`, `RemindConfigDto` 等）のスキーマを一元管理する。 |
 | **共通設定・定数** | `spreadsheet/設定値.js` | 環境変数・Webhook URL・Bot トークンなどの設定値やプロパティ取得を集中管理する。 |
 
@@ -130,7 +130,7 @@ Discord Webhook では 1 メッセージあたり最大 10 個の Embed、およ
 `DiscordService.sendEmbedsNotification` では、通知対象の Embed 群を安全に分割送信します：
 - 10 件を超える場合は 10 件ずつのチャンクに自動分割し、順次送信（`Utilities.sleep(500)` でレートリミットを回避）。
 - 初回チャンクに見出しメッセージやタイトルを付与し、2回目以降のチャンクには `(続き)` を付与。
-- `sendRemindNotification` および `notifyNewCalendarEvent` の両方でこの共通メソッドを活用。
+- `sendRemindNotification`、`notifyNewApplication`、`notifyNewCalendarEvent`、`notifyTomorrowEvents` の全 Embed 通知でこの共通メソッドを活用。
 
 ### 3.3 リマインド通知の設定駆動 (Config-driven) アーキテクチャ
 複数のリマインド種別（申込締切、翌日先着、受付中リセール、入金締切）におけるコード重複と 1:1 メソッドの乱立を防ぐため、設定駆動設計（Strategy パターン）を採用しています：

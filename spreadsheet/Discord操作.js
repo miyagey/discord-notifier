@@ -60,23 +60,13 @@ const DiscordService = {
   notifyNewApplication(application) {
     if (!WEBHOOK_APPLY || !application) return;
 
-    const brandEventTitle = formatBrandEventTitle(application.brand, application.eventName || "");
-    const applyName = application.applyName || "未指定";
-    const endDatetime = application.endDatetime;
-    const payEndDatetime = application.payEndDatetime;
-    const method = application.method || "";
+    const embed = this.formatRemindEmbed(application);
+    if (!embed) return;
 
-    const lines = [
-      "🆕 **新しいチケット申込が登録されたよ！**\n",
-      `📅 **${brandEventTitle}**`,
-      ` └ 受付区分: ${applyName}`
-    ];
-
-    if (endDatetime) lines.push(` └ 申込締切: **${endDatetime}まで**`);
-    if (payEndDatetime) lines.push(` └ 入金締切: **${payEndDatetime}まで**`);
-    if (method) lines.push(this.formatApplyMethodBlock(method).trimEnd());
-
-    this.sendNotification(WEBHOOK_APPLY, lines.join('\n'));
+    this.sendEmbedsNotification(WEBHOOK_APPLY, {
+      headerTitle: "## 🆕 新しいチケット申込が登録されたよ！",
+      embeds: [embed]
+    });
   },
 
   /**
@@ -110,22 +100,21 @@ const DiscordService = {
 
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const dateTitle = formatDateJST(tomorrow, "MM/dd(E)");
-    const messageLines = [`## 📅 明日 ${dateTitle} の予定リスト`];
+    const headerTitle = `## 📅 明日 ${dateTitle} の予定リスト`;
 
     if (events.length === 0) {
-      messageLines.push("明日の予定はありません。");
-    } else {
-      events.forEach(event => {
-        const title = event.title || formatBrandEventTitle(event.brand, event.eventName);
-        const timeStr = formatEventTimeRange(event);
-        messageLines.push(`### 📌 ${title}`, `⏰ ${timeStr}`);
-        if (event.location) messageLines.push(`📍 場所: ${event.location}`);
-        if (event.description) messageLines.push(`📝 説明:\n> ${event.description.replace(/\n/g, '\n> ')}`);
-        messageLines.push("\n---\n");
-      });
+      this.sendNotification(WEBHOOK_CALENDAR, `${headerTitle}\n明日の予定はありません。`);
+      return;
     }
 
-    this.sendNotification(WEBHOOK_CALENDAR, messageLines.join('\n'));
+    const embeds = events
+      .map(event => this.formatCalendarEventEmbed(event))
+      .filter(Boolean);
+
+    this.sendEmbedsNotification(WEBHOOK_CALENDAR, {
+      headerTitle,
+      embeds
+    });
   },
 
   // ==================================================
@@ -295,13 +284,13 @@ const DiscordService = {
   /**
    * 申込アイテムを独立した Embed カードオブジェクトに変換
    * @param {ApplicationDto} item - 申込アイテムDTO
-   * @param {Object} options - フォーマットオプション
-   * @param {string} options.timeLabel - 時間ラベル（例: "締切時刻"）
-   * @param {string} options.timeStr - 時間文字列（例: "23:59まで"）
+   * @param {Object} [options={}] - フォーマットオプション（省略時は新規登録通知用の締切項目を出力）
+   * @param {string} [options.timeLabel] - 時間ラベル（例: "締切時刻"）
+   * @param {string} [options.timeStr] - 時間文字列（例: "23:59まで"）
    * @param {number} [options.color=0x3498db] - フォールバックの枠線カラー
    * @returns {Object|null} Discord Embed オブジェクト
    */
-  formatRemindEmbed(item, { timeLabel, timeStr, color = 0x3498db }) {
+  formatRemindEmbed(item, { timeLabel, timeStr, color = 0x3498db } = {}) {
     if (!item) return null;
     const title = formatBrandEventTitle(item.brand, item.eventName || item.name || "");
     const applyName = item.applyName || "未指定";
@@ -309,9 +298,21 @@ const DiscordService = {
     const embedColor = (typeof getBrandColor === 'function' ? getBrandColor(item.brand) : null) || color;
 
     const fields = [
-      { name: "受付区分", value: applyName, inline: true },
-      { name: timeLabel, value: `**${timeStr}**`, inline: true }
+      { name: "受付区分", value: applyName, inline: true }
     ];
+
+    if (timeLabel && timeStr) {
+      fields.push({ name: timeLabel, value: `**${timeStr}**`, inline: true });
+    } else {
+      if (item.endDatetime) {
+        const endStr = item.endDatetime.includes("まで") ? item.endDatetime : `${item.endDatetime}まで`;
+        fields.push({ name: "申込締切", value: `**${endStr}**`, inline: true });
+      }
+      if (item.payEndDatetime) {
+        const payStr = item.payEndDatetime.includes("まで") ? item.payEndDatetime : `${item.payEndDatetime}まで`;
+        fields.push({ name: "入金締切", value: `**${payStr}**`, inline: true });
+      }
+    }
 
     let url = undefined;
     if (method) {
@@ -346,58 +347,51 @@ const DiscordService = {
   },
 
   /**
-   * カレンダー登録イベントを独立した Embed カードオブジェクトに変換
+   * カレンダーイベントを独立した Embed カードオブジェクトに変換
+   * 説明欄にURLが含まれる場合はタイトルリンク化 (embed.url) および OGP画像の展開 (embed.image) を行う
    * @param {EventDto} event - イベントDTO
    * @returns {Object|null} Discord Embed オブジェクト
    */
   formatCalendarEventEmbed(event) {
     if (!event) return null;
 
-    const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || "");
-    const dateStr = formatDateRange(event.startDate, event.endDate);
+    const brandEventTitle = formatBrandEventTitle(event.brand, event.eventName || event.title || "");
+    const periodStr = (event.startTime && event.endTime)
+      ? formatEventTimeRange(event)
+      : `${formatDateRange(event.startDate, event.endDate)} [終日]`;
     const location = event.location || "";
-    const description = event.description || "";
+    const rawDescription = event.description || "";
+    const cleanedDesc = cleanDescriptionText(rawDescription);
     const embedColor = (typeof getBrandColor === 'function' ? getBrandColor(event.brand) : null) || 0x3498db;
 
     const fields = [
-      { name: "期間", value: `${dateStr} [終日]`, inline: true }
+      { name: "期間", value: periodStr, inline: true }
     ];
 
     if (location) {
       fields.push({ name: "会場", value: location, inline: true });
     }
 
-    if (description) {
-      const trimmed = String(description).trim();
-      if (trimmed) {
-        fields.push({ name: "概要", value: trimmed, inline: false });
-      }
+    if (cleanedDesc) {
+      fields.push({ name: "概要", value: cleanedDesc, inline: false });
     }
 
-    return {
+    const embed = {
       title: `📅 ${brandEventTitle}`,
       color: embedColor,
       fields: fields
     };
-  },
 
-
-  /**
-   * 申込方法（URLまたは複数行テキスト）をDiscord用に整形する
-   * @param {string} methodText - 申込方法の文字列
-   * @returns {string} 整形された申込方法行
-   */
-  formatApplyMethodBlock(methodText) {
-    if (!methodText) return "";
-    const trimmed = String(methodText).trim();
-    if (!trimmed) return "";
-
-    if (trimmed.includes("\n")) {
-      const quoted = trimmed.split("\n").map(line => `> ${line}`).join("\n");
-      return ` └ 申込方法:\n${quoted}\n`;
-    } else {
-      return ` └ 申込方法: ${trimmed}\n`;
+    const url = extractFirstUrl(rawDescription) || extractFirstUrl(cleanedDesc);
+    if (url) {
+      embed.url = url;
+      const ogpImage = this.fetchOgpImage(url);
+      if (ogpImage) {
+        embed.image = { url: ogpImage };
+      }
     }
+
+    return embed;
   },
 
   /**
@@ -582,6 +576,32 @@ const DiscordService = {
     } catch (e) {
       Logger.log(`Discord API 呼び出し中に例外が発生しました [${method.toUpperCase()} ${endpoint}]: ${e.toString()}`);
       return { success: false, status: 0, error: e };
+    }
+  },
+
+  /**
+   * 指定URLのHTMLを取得し、OGP画像URL (og:image) を抽出する
+   * @param {string} url - 取得対象のWebページURL
+   * @returns {string|null} OGP画像URL（取得失敗・未設定時は null）
+   */
+  fetchOgpImage(url) {
+    if (!url || typeof UrlFetchApp === 'undefined') return null;
+
+    try {
+      const response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        muteHttpExceptions: true,
+        followRedirects: true
+      });
+
+      if (!response || typeof response.getResponseCode !== 'function') return null;
+      if (response.getResponseCode() !== 200) return null;
+
+      const html = response.getContentText();
+      return extractOgpImageUrl(html, url);
+    } catch (e) {
+      Logger.log(`OGP画像の取得をスキップしました (${url}): ${e.toString()}`);
+      return null;
     }
   },
 

@@ -157,12 +157,12 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
   });
 
   describe('notifyNewApplication', () => {
-    it('申込DTOを受け取り、正しく整形してDiscordへ通知すること', () => {
+    it('申込DTOを受け取り、正しくEmbed形式でDiscordへ通知すること', () => {
       let sentWebhook = '';
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
+      let sentPayload = null;
+      DiscordService.sendNotification = (webhook, payload) => {
         sentWebhook = webhook;
-        sentMessage = message;
+        sentPayload = payload;
       };
 
       const appData = {
@@ -177,15 +177,20 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       DiscordService.notifyNewApplication(appData);
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-apply');
-      expect(sentMessage).toContain('🆕 **新しいチケット申込が登録されたよ！**');
-      expect(sentMessage).toContain('📅 **【シャニ】LIVE TOUR 2026**');
-      expect(sentMessage).toContain('└ 受付区分: CD先行抽選');
-      expect(sentMessage).toContain('└ 申込締切: **2026-11-20 23:59まで**');
-      expect(sentMessage).toContain('└ 入金締切: **2026-11-25 21:00まで**');
-      expect(sentMessage).toContain('└ 申込方法: https://example.com/apply');
+      expect(sentPayload.content).toBe('## 🆕 新しいチケット申込が登録されたよ！');
+      expect(sentPayload.embeds).toHaveLength(1);
+      expect(sentPayload.embeds[0]).toEqual({
+        title: '📅 【シャニ】LIVE TOUR 2026',
+        color: expect.any(Number),
+        url: 'https://example.com/apply',
+        fields: [
+          { name: '受付区分', value: 'CD先行抽選', inline: true },
+          { name: '申込締切', value: '**2026-11-20 23:59まで**', inline: true },
+          { name: '入金締切', value: '**2026-11-25 21:00まで**', inline: true },
+          { name: '申込方法', value: '[チケットページを開く](<https://example.com/apply>)', inline: false }
+        ]
+      });
     });
-
-
 
     it('application が null または未指定の場合は送信をスキップすること', () => {
       let called = false;
@@ -221,6 +226,31 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       });
     });
 
+    it('説明欄にURLが含まれる場合、embed.url に設定され、OGP画像があれば embed.image に展開されること', () => {
+      testContext.UrlFetchApp.fetch = (url) => ({
+        getResponseCode: () => 200,
+        getContentText: () => '<html><head><meta property="og:image" content="https://example.com/ogp-banner.jpg"></head></html>'
+      });
+
+      const event = {
+        brand: '学マス',
+        eventName: '初星フェス',
+        startDate: '2026-11-01',
+        description: '詳細はこちら<br><a href="https://example.com/live">https://example.com/live</a>'
+      };
+
+      const embed = DiscordService.formatCalendarEventEmbed(event);
+      expect(embed.url).toBe('https://example.com/live');
+      expect(embed.image).toEqual({ url: 'https://example.com/ogp-banner.jpg' });
+      expect(embed.fields).toContainEqual({
+        name: '概要',
+        value: '詳細はこちら\nhttps://example.com/live',
+        inline: false
+      });
+
+      testContext.UrlFetchApp.fetch = () => {};
+    });
+
     it('会場や説明がない場合でも正しくEmbedを生成すること', () => {
       const event = {
         brand: 'シャニ',
@@ -241,24 +271,6 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
     it('event が null または未指定の場合は null を返すこと', () => {
       expect(DiscordService.formatCalendarEventEmbed(null)).toBeNull();
       expect(DiscordService.formatCalendarEventEmbed(undefined)).toBeNull();
-    });
-  });
-
-  describe('formatApplyMethodBlock', () => {
-    it('1行テキスト（URL等）の場合はインラインで整形されること', () => {
-      const result = DiscordService.formatApplyMethodBlock('https://example.com/apply');
-      expect(result).toBe(' └ 申込方法: https://example.com/apply\n');
-    });
-
-    it('複数行テキストの場合は引用符記法（> ）に変換されること', () => {
-      const multiline = '手順1: 公式サイトにアクセス\n手順2: シリアルコードを入力';
-      const result = DiscordService.formatApplyMethodBlock(multiline);
-      expect(result).toContain(' └ 申込方法:\n> 手順1: 公式サイトにアクセス\n> 手順2: シリアルコードを入力\n');
-    });
-
-    it('空文字列の場合は空文字を返却すること', () => {
-      expect(DiscordService.formatApplyMethodBlock('')).toBe('');
-      expect(DiscordService.formatApplyMethodBlock(null)).toBe('');
     });
   });
 
@@ -481,12 +493,12 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
   });
 
   describe('notifyTomorrowEvents', () => {
-    it('EventDto[] 配列を受け取り、正しくメッセージ送信を呼び出すこと', () => {
+    it('EventDto[] 配列を受け取り、正しくEmbed形式でメッセージ送信を呼び出すこと', () => {
       let sentWebhook = '';
-      let sentMessage = '';
-      DiscordService.sendNotification = (webhook, message) => {
+      let sentPayload = null;
+      DiscordService.sendNotification = (webhook, payload) => {
         sentWebhook = webhook;
-        sentMessage = message;
+        sentPayload = payload;
       };
 
       const events = [
@@ -506,14 +518,20 @@ describe('Discord操作.js (フォーマッター・メッセージ生成) の�
       const expectedTitle = `## 📅 明日 ${testContext.formatDateJST(tomorrow, 'MM/dd(E)')} の予定リスト`;
 
       expect(sentWebhook).toBe('https://discord.com/api/webhooks/test-calendar');
-      expect(sentMessage).toContain(expectedTitle);
-      expect(sentMessage).toContain('### 📌 【学マス】初星学園フェスティバル');
-      expect(sentMessage).toContain('⏰ [終日]');
-      expect(sentMessage).toContain('📍 場所: 幕張メッセ');
-      expect(sentMessage).toContain('📝 説明:\n> 開場 10:00');
+      expect(sentPayload.content).toBe(expectedTitle);
+      expect(sentPayload.embeds).toHaveLength(1);
+      expect(sentPayload.embeds[0]).toEqual({
+        title: '📅 【学マス】初星学園フェスティバル',
+        color: expect.any(Number),
+        fields: [
+          { name: '期間', value: '[終日]', inline: true },
+          { name: '会場', value: '幕張メッセ', inline: true },
+          { name: '概要', value: '開場 10:00', inline: false }
+        ]
+      });
     });
 
-    it('イベント配列が空の場合は「明日の予定はありません」と送信すること', () => {
+    it('イベント配列が空の場合は「明日の予定はありません。」とテキスト送信すること', () => {
       let sentMessage = '';
       DiscordService.sendNotification = (webhook, message) => {
         sentMessage = message;
