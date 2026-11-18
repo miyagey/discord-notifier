@@ -49,6 +49,32 @@ function formatBrandEventTitle(brand, eventName) {
   return `${brandStr}${name}`;
 }
 
+/** カレンダー予定タイトル末尾に付与するシステム登録識別用サフィックス */
+const CALENDAR_SYSTEM_SUFFIX = "(システム登録)";
+
+/**
+ * カレンダー予定のタイトル末尾に「(システム登録)」を付与する（二重付与防止）
+ * @param {string} title - 元のタイトル文字列
+ * @returns {string} サフィックス付与後のタイトル文字列
+ */
+function appendCalendarSystemSuffix(title) {
+  const trimmed = title ? String(title).trim() : "";
+  if (!trimmed) return "";
+  if (trimmed.endsWith(CALENDAR_SYSTEM_SUFFIX)) return trimmed;
+  return `${trimmed}${CALENDAR_SYSTEM_SUFFIX}`;
+}
+
+/**
+ * ブランド名とイベント名からカレンダー登録用のタイトル文字列を生成する（末尾サフィックス付与・二重付与防止）
+ * @param {string} brand - ブランド名 (例: "デレ", "シャニ")
+ * @param {string} eventName - イベント名 (例: "LIVE TOUR", "【デレ】THE IDOLM@STER...")
+ * @returns {string} カレンダー登録用のタイトル文字列
+ */
+function formatCalendarEventTitle(brand, eventName) {
+  const baseTitle = formatBrandEventTitle(brand, eventName);
+  return appendCalendarSystemSuffix(baseTitle);
+}
+
 /**
  * イベントの時間表示文字列を生成する
  * 終日の場合は "[終日]" または "MM/dd 〜 MM/dd [連日終日]"、時間指定の場合は "HH:mm 〜 HH:mm"

@@ -48,7 +48,7 @@ const CalendarService = {
     const calendar = this.getCalendar();
     if (!calendar || !event) return null;
 
-    const title = formatBrandEventTitle(event.brand, event.eventName);
+    const title = formatCalendarEventTitle(event.brand, event.eventName);
     const startDate = new Date(event.startDate);
     const endDate = new Date(event.endDate || event.startDate);
 
@@ -107,6 +107,55 @@ const CalendarService = {
         calendarEventId: event.getId()
       };
     });
+  },
+
+  /**
+   * 既存の登録済みカレンダー予定について、タイトル末尾に「(システム登録)」が未付与のものに付与する
+   * @param {EventDto[]} events - イベントDTO配列
+   * @returns {{ totalWithCalId: number, updated: number, alreadySuffixed: number, notFound: number }} 処理結果サマリー
+   */
+  appendSystemSuffixToExistingEvents(events) {
+    const summary = { totalWithCalId: 0, updated: 0, alreadySuffixed: 0, notFound: 0 };
+    const calendar = this.getCalendar();
+    if (!calendar || !events || events.length === 0) return summary;
+
+    for (const ev of events) {
+      const calId = ev.calendarEventId ? String(ev.calendarEventId).trim() : "";
+      if (!calId) continue;
+
+      summary.totalWithCalId++;
+
+      try {
+        const calEvent = calendar.getEventById(calId);
+        if (!calEvent) {
+          Logger.log(`カレンダー予定が見つかりません (ID: ${calId}, イベント: ${ev.eventName || ""})`);
+          summary.notFound++;
+          continue;
+        }
+
+        const currentTitle = calEvent.getTitle() || "";
+        if (currentTitle.endsWith(CALENDAR_SYSTEM_SUFFIX)) {
+          summary.alreadySuffixed++;
+          continue;
+        }
+
+        const newTitle = appendCalendarSystemSuffix(currentTitle);
+        if (!newTitle) {
+          summary.notFound++;
+          continue;
+        }
+
+        calEvent.setTitle(newTitle);
+        summary.updated++;
+        Logger.log(`タイトル更新: "${currentTitle}" -> "${newTitle}" (ID: ${calId})`);
+        Utilities.sleep(100);
+      } catch (err) {
+        logError(`CalendarService.appendSystemSuffixToExistingEvents (${calId})`, err);
+        summary.notFound++;
+      }
+    }
+
+    return summary;
   },
 
   /**
