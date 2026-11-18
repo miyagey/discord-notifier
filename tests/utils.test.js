@@ -9,6 +9,9 @@ let formatBrandEventTitle;
 let appendCalendarSystemSuffix;
 let formatCalendarEventTitle;
 let formatEventTimeRange;
+let cleanDescriptionText;
+let extractFirstUrl;
+let extractOgpImageUrl;
 let calculateEventStatus;
 let calculateApplicationStatus;
 
@@ -60,6 +63,9 @@ beforeAll(() => {
   appendCalendarSystemSuffix = context.appendCalendarSystemSuffix;
   formatCalendarEventTitle = context.formatCalendarEventTitle;
   formatEventTimeRange = context.formatEventTimeRange;
+  cleanDescriptionText = context.cleanDescriptionText;
+  extractFirstUrl = context.extractFirstUrl;
+  extractOgpImageUrl = context.extractOgpImageUrl;
   calculateEventStatus = context.calculateEventStatus;
   calculateApplicationStatus = context.calculateApplicationStatus;
 });
@@ -231,6 +237,52 @@ describe('共通関数.js (ユーティリティ・フォーマッター) の単
       const pastStart = new Date(Date.now() - 86400000 * 2);
       const futureEnd = new Date(Date.now() + 86400000 * 2);
       expect(calculateApplicationStatus(pastStart, futureEnd)).toBe('受付期間');
+    });
+  });
+
+  describe('cleanDescriptionText', () => {
+    it('GoogleカレンダーのHTMLタグ（<br>, <a>等）やエンティティを適切に除去・整形すること', () => {
+      const html = '開場 16:00<br>開演 17:00<br><a href="https://idolmaster-official.jp/live">公式サイト</a>&amp;詳細';
+      expect(cleanDescriptionText(html)).toBe('開場 16:00\n開演 17:00\n[公式サイト](https://idolmaster-official.jp/live)&詳細');
+    });
+
+    it('<a>タグのテキストとhrefが同一の場合はURL文字列のみに整形すること', () => {
+      const html = '詳細: <a href="https://example.com/event">https://example.com/event</a>';
+      expect(cleanDescriptionText(html)).toBe('詳細: https://example.com/event');
+    });
+
+    it('空または未指定の場合は空文字を返すこと', () => {
+      expect(cleanDescriptionText('')).toBe('');
+      expect(cleanDescriptionText(null)).toBe('');
+    });
+  });
+
+  describe('extractFirstUrl', () => {
+    it('テキスト内の最初のURLを抽出すること', () => {
+      const text = '公式サイトはこちら https://example.com/live?id=123 ご確認ください';
+      expect(extractFirstUrl(text)).toBe('https://example.com/live?id=123');
+    });
+
+    it('URLが含まれない場合は null を返すこと', () => {
+      expect(extractFirstUrl('特記事項なし')).toBeNull();
+      expect(extractFirstUrl('')).toBeNull();
+    });
+  });
+
+  describe('extractOgpImageUrl', () => {
+    it('og:image メタタグから画像URLを抽出すること', () => {
+      const html = '<html><head><meta property="og:image" content="https://example.com/images/ogp.jpg"></head></html>';
+      expect(extractOgpImageUrl(html)).toBe('https://example.com/images/ogp.jpg');
+    });
+
+    it('content属性が先にある og:image メタタグや相対パスも解決できること', () => {
+      const html = '<meta content="/assets/banner.png" property="og:image">';
+      expect(extractOgpImageUrl(html, 'https://example.com/events/1')).toBe('https://example.com/assets/banner.png');
+    });
+
+    it('OGP画像タグが存在しない場合は null を返すこと', () => {
+      expect(extractOgpImageUrl('<html><head><title>Test</title></head></html>')).toBeNull();
+      expect(extractOgpImageUrl(null)).toBeNull();
     });
   });
 });
