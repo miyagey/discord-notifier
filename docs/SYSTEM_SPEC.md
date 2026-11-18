@@ -156,6 +156,11 @@ Google Apps Script の Webアプリ機能（HTML Service）を用いた Single P
 | `registerEventsToCalendar` | 定期実行 (1時間毎推奨) | カレンダー未登録（`calId` が空）かつ開始日が入っているイベント | `WEBHOOK_CALENDAR` | 対象なし時はログ出力のみで終了。<br>登録成功時はカレンダーIDを更新し一括で Discord 通知 |
 | `notifyTomorrowEvents` | 毎日 夕方〜夜 (例: 20:00〜21:00) | Google カレンダーの翌日終日・時間指定イベント | `WEBHOOK_CALENDAR` | 予定なし時は「明日の予定はありません」と通知 |
 
+### 4.2 Google カレンダー登録・メンテナンス仕様
+- **登録タイトル形式**: Webアプリ (`createEvent`) および定期バッチ (`registerEventsToCalendar`) から Google カレンダーへ新規登録される予定タイトルは、`【ブランド名】イベント名(システム登録)` 形式で登録されます（末尾に `(システム登録)` を自動付与、二重付与は防止）。
+- **既存予定メンテナンス (`spreadsheet/メンテナンススクリプト.js`)**:
+  - `migrateCalendarEventTitles()`: スプレッドシート上にカレンダーIDが登録されている全イベントを対象に、Google カレンダー上の予定タイトル末尾に `(システム登録)` が未付与のもののみ追記更新する手動実行用スクリプトです（冪等性を持ち、付与済みの予定や見つからない予定は安全にスキップします）。
+
 ---
 
 ## 5. Discord 通知仕様

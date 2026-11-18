@@ -6,6 +6,8 @@ import vm from 'vm';
 let formatDateJST;
 let formatDateRange;
 let formatBrandEventTitle;
+let appendCalendarSystemSuffix;
+let formatCalendarEventTitle;
 let formatEventTimeRange;
 let cleanDescriptionText;
 let extractFirstUrl;
@@ -58,6 +60,8 @@ beforeAll(() => {
   formatDateJST = context.formatDateJST;
   formatDateRange = context.formatDateRange;
   formatBrandEventTitle = context.formatBrandEventTitle;
+  appendCalendarSystemSuffix = context.appendCalendarSystemSuffix;
+  formatCalendarEventTitle = context.formatCalendarEventTitle;
   formatEventTimeRange = context.formatEventTimeRange;
   cleanDescriptionText = context.cleanDescriptionText;
   extractFirstUrl = context.extractFirstUrl;
@@ -109,6 +113,40 @@ describe('共通関数.js (ユーティリティ・フォーマッター) の単
 
     it('両方空の場合は空文字を返すこと', () => {
       expect(formatBrandEventTitle('', '')).toBe('');
+    });
+  });
+
+  describe('appendCalendarSystemSuffix', () => {
+    it('タイトル末尾に「(システム登録)」が付与されること', () => {
+      expect(appendCalendarSystemSuffix('【シャニ】LIVE TOUR')).toBe('【シャニ】LIVE TOUR(システム登録)');
+    });
+
+    it('既に末尾に「(システム登録)」がある場合は二重付与しないこと', () => {
+      expect(appendCalendarSystemSuffix('【シャニ】LIVE TOUR(システム登録)')).toBe('【シャニ】LIVE TOUR(システム登録)');
+    });
+
+    it('前後の空白をトリミングした上で付与すること', () => {
+      expect(appendCalendarSystemSuffix('  LIVE TOUR  ')).toBe('LIVE TOUR(システム登録)');
+    });
+
+    it('空文字・null・undefined の場合は空文字を返すこと', () => {
+      expect(appendCalendarSystemSuffix('')).toBe('');
+      expect(appendCalendarSystemSuffix(null)).toBe('');
+      expect(appendCalendarSystemSuffix(undefined)).toBe('');
+    });
+  });
+
+  describe('formatCalendarEventTitle', () => {
+    it('ブランド名・イベント名からカレンダー登録用のタイトルが生成されること', () => {
+      expect(formatCalendarEventTitle('シャニ', 'LIVE TOUR')).toBe('【シャニ】LIVE TOUR(システム登録)');
+    });
+
+    it('既にブランド括弧とサフィックスがある場合も二重付与しないこと', () => {
+      expect(formatCalendarEventTitle('シャニ', '【シャニ】LIVE TOUR(システム登録)')).toBe('【シャニ】LIVE TOUR(システム登録)');
+    });
+
+    it('両方空の場合は空文字を返すこと', () => {
+      expect(formatCalendarEventTitle('', '')).toBe('');
     });
   });
 
